@@ -3,7 +3,8 @@ require linux-aspeed.inc
 # This revision corresponds to the tag "openbmc/fido/2.6.28"
 # We use the revision in order to avoid having to fetch it from the repo during parse
 SRCBRANCH = "openbmc/fido/2.6.28"
-SRCREV = "AUTOINC"
+#SRCREV = "AUTOINC"
+SRCREV = "c2497605c8e9ce906c610270732abc75b8e68d55"
 
 SRC_URI = "git://github.com/theopolis/linux.git;branch=${SRCBRANCH};protocol=https \
            file://patch-2.6.28.9/0001-MTD-fix-m25p80-64-bit-divisions.patch \

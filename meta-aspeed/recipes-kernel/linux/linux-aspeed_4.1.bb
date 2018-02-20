@@ -1,6 +1,7 @@
 
 SRCBRANCH = "openbmc/helium/4.1"
-SRCREV = "AUTOINC"
+#SRCREV = "AUTOINC"
+SRCREV = "1774946fa0b2a23397b1341a065e81bb315faf86"
 
 SRC_URI = "git://github.com/theopolis/linux.git;branch=${SRCBRANCH};protocol=https \
           "
