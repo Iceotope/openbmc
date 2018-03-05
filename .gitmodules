@@ -3,21 +3,17 @@
         url = https://git.yoctoproject.org/git/meta-security
         branch = krogoth
 [submodule "yocto/krogoth/poky"]
-        path = yocto/krogoth/poky
-        url = https://git.yoctoproject.org/git/poky
-        branch = krogoth
-[submodule "yocto/krogoth/meta-openembedded"]
-        path = yocto/krogoth/meta-openembedded
-        url = https://github.com/openembedded/meta-openembedded.git
-        branch = krogoth
+	path = yocto/krogoth/poky
+	url = https://git.yoctoproject.org/git/poky
+	branch = krogoth
 [submodule "yocto/rocko/meta-security"]
         path = yocto/rocko/meta-security
         url = https://git.yoctoproject.org/git/meta-security
         branch = rocko
 [submodule "yocto/rocko/poky"]
-        path = yocto/rocko/poky
-        url = https://git.yoctoproject.org/git/poky
-        branch = rocko
+	path = yocto/rocko/poky
+	url = https://git.yoctoproject.org/git/poky
+	branch = rocko
 [submodule "yocto/rocko/meta-openembedded"]
         path = yocto/rocko/meta-openembedded
         url = https://github.com/openembedded/meta-openembedded.git
@@ -30,3 +26,7 @@
 	path = yocto/rocko/meta-xilinx
 	url = git://github.com/Xilinx/meta-xilinx
 	branch = rocko
+[submodule "yocto/krogoth/meta-openembedded"]
+	path = yocto/krogoth/meta-openembedded
+	url = https://github.com/openembedded/meta-openembedded.git
+	branch = krogoth
