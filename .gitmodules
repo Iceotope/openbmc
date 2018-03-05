@@ -34,3 +34,11 @@
         path = yocto/rocko/meta-openembedded
         url = https://github.com/openembedded/meta-openembedded.git
         branch = rocko
+[submodule "yocto/krogoth/meta-xilinx"]
+	path = yocto/krogoth/meta-xilinx
+	url = git://github.com/Xilinx/meta-xilinx
+	branch = krogoth
+[submodule "yocto/rocko/meta-xilinx"]
+	path = yocto/rocko/meta-xilinx
+	url = git://github.com/Xilinx/meta-xilinx
+	branch = rocko
