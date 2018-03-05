@@ -1,5 +1,3 @@
-#!/bin/sh
-#
 # Copyright 2014-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
@@ -16,10 +14,5 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
-#
-# This script will be executed at rcS S04 level, which is right after mount /mnt/data
-# and before almost anything else.
 
-if [ -x /mnt/data/etc/rc.early ]; then
-   /mnt/data/etc/rc.early
-fi
+CXXFLAGS += " -DCONFIG_FBY2_EP "

@@ -310,6 +310,12 @@ class DeviceTreePartition(Partition):
     FDT_END = 9
 
     @staticmethod
+    def align(images):
+        # type: (VirtualCat) -> List[Any]
+        while images.open_file.tell() % 4 != 0:
+            assert(images.verified_read(1) == b'\x00')
+
+    @staticmethod
     def next_data(images, length, data_type):
         # type: (VirtualCat, int, str) -> List[Any]
         fmt = b'>%d%s' % (length // struct.calcsize(data_type), data_type)
@@ -317,8 +323,7 @@ class DeviceTreePartition(Partition):
         start = images.open_file.tell()
         data = struct.unpack(fmt, images.verified_read(length))
         end = images.open_file.tell()
-        while images.open_file.tell() % 4 != 0:
-            assert(images.verified_read(1) == b'\x00')
+        DeviceTreePartition.align(images)
         return list(data)
 
     @staticmethod
@@ -373,6 +378,7 @@ class DeviceTreePartition(Partition):
             sha256sum = hashlib.sha256()
             images.read_with_callback(length, sha256sum.update)
             value = sha256sum.hexdigest()
+            DeviceTreePartition.align(images)
         elif name == b'value':
             value = b''.join([b'%08x' % datum for datum in DeviceTreePartition.next_data(images, length, b'I')])
         else:
@@ -403,7 +409,7 @@ class DeviceTreePartition(Partition):
             else:
                 value_string = str(value)
             info_strings.append('{}: {}'.format(key, value_string))
-        logger.info(' '.join(info_strings))
+        logger.info(', '.join(info_strings))
 
         if parsed_header['magic'] != DeviceTreePartition.magic:
             self.valid = False

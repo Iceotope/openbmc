@@ -74,6 +74,8 @@ class Zone:
         self.fail_sensor_type = fail_sensor_type
         self.ssd_progressive_algorithm = ssd_progressive_algorithm
         self.missing_sensor_assert_flag = ([False] * len(self.expr_meta['ext_vars']))
+        self.sensor_valid_pre = ([0] * len(self.expr_meta['ext_vars']))
+        self.sensor_valid_cur = ([0] * len(self.expr_meta['ext_vars']))
 
     def run(self, sensors, dt):
         ctx = {'dt': dt}
@@ -87,7 +89,11 @@ class Zone:
             if self.sensor_valid_check != None:
                 for check_name in self.sensor_valid_check:
                     if re.match(check_name, sname, re.IGNORECASE) != None:
-                        sensor_valid_flag = fsc_board.sensor_valid_check(board, sname, check_name, self.sensor_valid_check[check_name]["attribute"])
+                        self.sensor_valid_cur[sensor_index] = fsc_board.sensor_valid_check(board, sname, check_name, self.sensor_valid_check[check_name]["attribute"])
+                        #If current or previous sensor valid status is 0, ignore this sensor reading.
+                        #Only when both are 1, goes to sensor check process
+                        if (self.sensor_valid_cur[sensor_index] == 0) or (self.sensor_valid_pre[sensor_index] == 0):
+                            sensor_valid_flag = 0
                         break
 
             if sensor_valid_flag == 1:
@@ -104,7 +110,10 @@ class Zone:
                     else:
                         if self.sensor_fail == True:
                             if sensor.status in ['na']:
-                                if re.match(r'SSD', sensor.name) != None or re.match(r'(.*)nvme(.*)', sname) != None:
+                                if re.match(r'.+_C[2-4]_[0-3]_NVME_.+', sensor.name) != None:
+                                    Logger.warn("%s Fail" % v)
+                                    outmin = max(outmin, self.boost)
+                                elif re.match(r'SSD', sensor.name) != None or re.match(r'(.*)nvme(.*)', sname) != None:
                                     fail_ssd_count = fail_ssd_count + 1
                                 else:
                                     Logger.warn("%s Fail" % v)
@@ -116,6 +125,7 @@ class Zone:
                     # evaluation tries to ignore the effects of None values
                     # (e.g. acts as 0 in max/+)
                     ctx[v] = None
+            self.sensor_valid_pre[sensor_index] = self.sensor_valid_cur[sensor_index]
             sensor_index += 1
 
         if verbose:
