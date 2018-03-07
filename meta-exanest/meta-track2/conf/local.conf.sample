@@ -17,3 +17,6 @@ DISTRO ?= "openbmc-iceotope"
 # Most build logic is represented in the U-Boot recipes.
 # IMAGE_FEATURES += " verified-boot "
 
+TARGET_CFLAGS += " -fPIC"
+#Stop the vboot overriding the copying file in the openbmc. for now anyhow.
+BBMASK_append = " common/recipes-utils/vboot-utils/openbmc.*\.bbappend"
