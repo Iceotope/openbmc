@@ -29,7 +29,5 @@ do
   git clone -b $branch https://github.com/openembedded/meta-openembedded.git yocto/$branch/meta-openembedded
   git clone -b $branch https://git.yoctoproject.org/git/meta-security yocto/$branch/meta-security
 
-# Clone Xilinx repo
-  git clone -b $branch git://github.com/Xilinx/meta-xilinx yocto/$branch/meta-xilinx
 done
 
