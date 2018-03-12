@@ -14,6 +14,6 @@ RDEPENDS_${PN} += " \
   passwd-util \
   rsyslog \
   tzdata \
-  u-boot \
+  u-boot-xlnx \
   u-boot-fw-utils \
   "

@@ -3,4 +3,4 @@ define KFEATURE_COMPATIBILITY board
 
 kconf hardware i2c_drivers.cfg
 kconf hardware xilinx_intc.cfg
-
+kconf hardware serial.cfg
