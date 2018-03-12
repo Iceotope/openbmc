@@ -1,2 +1,2 @@
-# ttyS0 is UART5, BMC's serial port
-SERIAL_CONSOLES += "57600;ttyS0"
+# ttyPS0 is the Xilinx PS port.
+SERIAL_CONSOLES += "115200;ttyPS0"
