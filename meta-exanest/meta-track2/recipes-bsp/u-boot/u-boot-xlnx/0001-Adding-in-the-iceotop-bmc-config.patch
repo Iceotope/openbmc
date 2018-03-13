@@ -1,0 +1,44 @@
+From 37445e53841dd12f6bd73f9aebebba3f3801f021 Mon Sep 17 00:00:00 2001
+From: Marc Kelly <marc.kelly@iceotope.com>
+Date: Tue, 13 Mar 2018 16:36:19 +0000
+Subject: [PATCH 1/1] Adding in the iceotop bmc config
+
+---
+ configs/zynq_icetope_bmc_defconfig | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+ create mode 100644 configs/zynq_icetope_bmc_defconfig
+
+diff --git a/configs/zynq_icetope_bmc_defconfig b/configs/zynq_icetope_bmc_defconfig
+new file mode 100644
+index 0000000000..167e40478c
+--- /dev/null
++++ b/configs/zynq_icetope_bmc_defconfig
+@@ -0,0 +1,25 @@
++CONFIG_ARM=y
++CONFIG_ARCH_ZYNQ=y
++#CONFIG_TARGET_ZYNQ_MICROZED=y
++CONFIG_ZYNQ_CUSTOM_INIT=y
++CONFIG_DEFAULT_DEVICE_TREE="zynq-microzed"
++CONFIG_SPL=y
++CONFIG_FIT=y
++CONFIG_FIT_VERBOSE=y
++CONFIG_FIT_SIGNATURE=y
++CONFIG_SYS_PROMPT="Zynq (Iceotope)> "
++# CONFIG_CMD_IMLS is not set
++# CONFIG_CMD_FLASH is not set
++CONFIG_CMD_GPIO=y
++# CONFIG_CMD_SETEXPR is not set
++CONFIG_OF_EMBED=y
++CONFIG_NET_RANDOM_ETHADDR=y
++CONFIG_SPL_DM_SEQ_ALIAS=y
++CONFIG_SPI_FLASH=y
++CONFIG_SPI_FLASH_BAR=y
++CONFIG_SPI_FLASH_SPANSION=y
++CONFIG_SPI_FLASH_STMICRO=y
++CONFIG_SPI_FLASH_WINBOND=y
++CONFIG_ZYNQ_GEM=y
++CONFIG_ZYNQ_QSPI=y
++CONFIG_SPL_RAM_DEVICE=y
+-- 
+2.16.2
+

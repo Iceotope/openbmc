@@ -6,6 +6,7 @@ PR = "r1"
 inherit packagegroup
 
 RDEPENDS_${PN} += " \
+  fbutils \
   i2c-tools \
   kernel-modules \
   lmsensors-sensors \
