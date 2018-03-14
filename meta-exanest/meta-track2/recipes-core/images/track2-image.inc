@@ -53,11 +53,11 @@ include recipes-core/images/core-image-minimal.bb
 #  "
 
 IMAGE_INSTALL += " \
-  packagegroup-openbmc-base \  
+  packagegroup-openbmc-base \
   watchdog-ctrl \
   packagegroup-openbmc-net \
   packagegroup-openbmc-python3 \
-  packagegroup-openbmc-rest3 \  
+  packagegroup-openbmc-rest3 \
   log-util \
   openbmc-utils \
   "
@@ -69,8 +69,8 @@ IMAGE_FEATURES += " \
 
 DISTRO_FEATURES += " \
   ext2 \
-  ipv6 \
   nfs \
   usbgadget \
   usbhost \
   "
+
