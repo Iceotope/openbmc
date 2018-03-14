@@ -24,5 +24,6 @@ MACHINE_DEVICETREE_prepend_zynq = " \
       track2/zynq-7000.dtsi \
       track2/pl.dtsi \
       track2/pcw.dtsi \
+      track2/ioexpander.dtsi \
       track2/track2-zynq7.dts \
     "

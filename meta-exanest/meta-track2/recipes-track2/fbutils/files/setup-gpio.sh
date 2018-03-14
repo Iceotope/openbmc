@@ -43,8 +43,9 @@
 gpio_export_out ${SITE_I2C_RST}
 gpio_export_out ${DB_I2C_RST}
 
-gpio_set ${SITE_I2C_RST} 0
-gpio_set ${DB_I2C_RST} 0
+# Active low reset, so put them in normal mode
+gpio_set ${SITE_I2C_RST} 1
+gpio_set ${DB_I2C_RST} 1
 
 # Slot ID
 gpio_export ${SLOT_ID_0}
@@ -82,6 +83,42 @@ gpio_set ${RETIMER_RESET} 0
 # Internal Serial loopback
 gpio_export_out ${SERIAL_LOOPBACK}
 gpio_set ${SERIAL_LOOPBACK} 0
+
+# I2C Expander on base board
+gpio_export_out ${RST_CTLREG_0}
+gpio_export_out ${RST_CTLREG_1}
+gpio_export_out ${RST_CTLREG_2}
+gpio_export_out ${RST_CTLREG_3}
+gpio_export_out ${RST_CTLREG_4}
+gpio_export_out ${RST_CTLREG_5}
+gpio_export_out ${RST_CTLREG_6}
+gpio_export_out ${RST_CTLREG_7}
+gpio_export_out ${RST_CTLREG_8}
+gpio_export_out ${RST_CTLREG_9}
+gpio_export_out ${RST_CTLREG_10}
+gpio_export_out ${RST_CTLREG_11}
+gpio_export_out ${RST_CTLREG_12}
+gpio_export_out ${RST_CTLREG_13}
+gpio_export_out ${RST_CTLREG_14}
+gpio_export_out ${RST_CTLREG_15}
+
+gpio_set ${RST_CTLREG_0} 1
+gpio_set ${RST_CTLREG_1} 1
+gpio_set ${RST_CTLREG_2} 1
+gpio_set ${RST_CTLREG_3} 1
+gpio_set ${RST_CTLREG_4} 1
+gpio_set ${RST_CTLREG_5} 1
+gpio_set ${RST_CTLREG_6} 1
+gpio_set ${RST_CTLREG_7} 1
+gpio_set ${RST_CTLREG_8} 1
+gpio_set ${RST_CTLREG_9} 1
+gpio_set ${RST_CTLREG_10} 1
+gpio_set ${RST_CTLREG_11} 1
+gpio_set ${RST_CTLREG_12} 1
+gpio_set ${RST_CTLREG_13} 1
+gpio_set ${RST_CTLREG_14} 1
+gpio_set ${RST_CTLREG_15} 1
+
 
 # Yosemite OOM remediation
 #   enable kernel panic (force reboot)

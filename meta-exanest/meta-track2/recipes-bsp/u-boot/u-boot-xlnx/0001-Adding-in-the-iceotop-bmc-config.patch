@@ -1,22 +1,25 @@
-From 37445e53841dd12f6bd73f9aebebba3f3801f021 Mon Sep 17 00:00:00 2001
+From b403a9c30322992cb8d71383cdc66bfa54886983 Mon Sep 17 00:00:00 2001
 From: Marc Kelly <marc.kelly@iceotope.com>
-Date: Tue, 13 Mar 2018 16:36:19 +0000
+Date: Wed, 14 Mar 2018 11:48:17 +0000
 Subject: [PATCH 1/1] Adding in the iceotop bmc config
 
 ---
- configs/zynq_icetope_bmc_defconfig | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ configs/zynq_icetope_bmc_defconfig  | 26 ++++++++++++++++++++++++++
+ include/configs/zynq_iceotope_bmc.h | 27 +++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)
  create mode 100644 configs/zynq_icetope_bmc_defconfig
+ create mode 100644 include/configs/zynq_iceotope_bmc.h
 
 diff --git a/configs/zynq_icetope_bmc_defconfig b/configs/zynq_icetope_bmc_defconfig
 new file mode 100644
-index 0000000000..167e40478c
+index 0000000000..61e51273c4
 --- /dev/null
 +++ b/configs/zynq_icetope_bmc_defconfig
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,26 @@
 +CONFIG_ARM=y
 +CONFIG_ARCH_ZYNQ=y
-+#CONFIG_TARGET_ZYNQ_MICROZED=y
++CONFIG_TARGET_ZYNQ_ICEOTOPE_BMC=y
++CONFIG_SYS_CONFIG_NAME="zynq_icetope_bmc"
 +CONFIG_ZYNQ_CUSTOM_INIT=y
 +CONFIG_DEFAULT_DEVICE_TREE="zynq-microzed"
 +CONFIG_SPL=y
@@ -39,6 +42,39 @@ index 0000000000..167e40478c
 +CONFIG_ZYNQ_GEM=y
 +CONFIG_ZYNQ_QSPI=y
 +CONFIG_SPL_RAM_DEVICE=y
+diff --git a/include/configs/zynq_iceotope_bmc.h b/include/configs/zynq_iceotope_bmc.h
+new file mode 100644
+index 0000000000..57a2def719
+--- /dev/null
++++ b/include/configs/zynq_iceotope_bmc.h
+@@ -0,0 +1,27 @@
++/*
++ * (C) Copyright 2013 Xilinx, Inc.
++ *
++ * Configuration for Micro Zynq Evaluation and Development Board - MicroZedBoard
++ * See zynq-common.h for Zynq common configs
++ *
++ * SPDX-License-Identifier:	GPL-2.0+
++ */
++
++#ifndef __CONFIG_ZYNQ_ICEOTOPE_BMC_H
++#define __CONFIG_ZYNQ_ICEOTOPE_BMC_H
++
++#define CONFIG_SYS_SDRAM_SIZE		(1024 * 1024 * 1024)
++
++#define CONFIG_SYS_NO_FLASH
++
++#define CONFIG_ZYNQ_SDHCI0
++#define CONFIG_ZYNQ_USB
++
++#include <configs/zynq-common.h>
++
++/* Remove this, we want to use the IP given by the DHCP */
++#ifdef CONFIG_BOOTP_SERVERIP
++#undef CONFIG_BOOTP_SERVERIP
++#endif
++
++#endif /* __CONFIG_ZYNQ_ICEOTOPE_BMC_H */
 -- 
 2.16.2
 
