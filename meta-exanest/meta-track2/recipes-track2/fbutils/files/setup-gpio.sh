@@ -137,11 +137,16 @@ do
   echo "Site ${i}"
   if [ "$i" -gt 7 ]; then
     site_bus=`ls -l /sys/bus/i2c/devices/1-0077/channel-$((i-8))|cut -d- -f5`
+    db_bus=`ls -l /sys/bus/i2c/devices/0-0077/channel-$((i-8))|cut -d- -f5`
   else
     site_bus=`ls -l /sys/bus/i2c/devices/1-0070/channel-${i}|cut -d- -f5`
+    db_bus=`ls -l /sys/bus/i2c/devices/0-0070/channel-${i}|cut -d- -f5`
   fi
 
-  echo "Site ${i} bus = ${site_bus}"
+  ln -s /dev/i2c-${site_bus} /tmp/mezzanine/site_${i}/i2c_bus
+  ln -s /dev/i2c-${db_bus} /tmp/mezzanine/db_${i}/i2c_bus
+
+  #echo "Site ${i} bus = ${site_bus}"
   # push the device name into the bind directory
 
   echo -n "${site_bus}-0074" > /sys/bus/i2c/drivers/pca953x/bind
@@ -150,7 +155,7 @@ do
   ## Low 0-15 are on -0074
   mkdir -p /tmp/mezzanine/site_${i}/gpio/IO
   lowbase=`cat /sys/bus/i2c/devices/${site_bus}-0074/gpio/*/base`
-  echo "Site ${i} lowbase = ${lowbase}"
+  #echo "Site ${i} lowbase = ${lowbase}"
   if [ "$lowbase" -gt 0 ]; then
     for j in `seq 0 15`
     do
@@ -160,7 +165,7 @@ do
   fi
   ## High 16-31 are on -0075
   highbase=`cat /sys/bus/i2c/devices/${site_bus}-0075/gpio/*/base`
-  echo "Site ${i} highbase = ${highbase}"
+  #echo "Site ${i} highbase = ${highbase}"
   if [ "$highbase" -gt 0 ]; then
     for j in `seq 0 15`
     do
