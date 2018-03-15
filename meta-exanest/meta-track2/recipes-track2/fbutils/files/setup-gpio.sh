@@ -37,11 +37,13 @@
 . /usr/local/fbpackages/utils/ast-functions
 . /usr/local/fbpackages/utils/gpio_names.sh
 
+MAX_SITE=15
+
 ## Create the structure of the board with symlinks
 rm -rf /tmp/mezzanine
 mkdir -p /tmp/mezzanine
 mkdir -p /tmp/mezzanine/gpio
-for i in `seq 0 15`
+for i in `seq 0 ${MAX_SITE}`
 do
     mkdir -p /tmp/mezzanine/site_${i}
     mkdir -p /tmp/mezzanine/site_${i}/gpio
@@ -108,7 +110,7 @@ do
 done
 
 # I2C Expander on base board
-# IRQ's from the IO Expanders
+# Set all outputs to 1, as they are active low resets.
 index=0
 mkdir -p /tmp/mezzanine/gpio/RST_CTLREG
 for i in "${RST_CTLREG[@]}"
@@ -121,7 +123,7 @@ done
 
 ## One wire bus here, we set links for the sensors at the sites to the directories
 
-for i in `seq 0 15`
+for i in `seq 0 ${MAX_SITE}`
 do
     master="/sys/devices/w1_bus_master$((i+1))"
     slave=`cat ${master}/w1_master_slaves`
@@ -129,6 +131,45 @@ do
 done
 
 ## Now we can search the i2c sub busses an bind all the ioexpanders.
+
+for i in `seq 0 ${MAX_SITE}`
+do
+  echo "Site ${i}"
+  if [ "$i" -gt 7 ]; then
+    site_bus=`ls -l /sys/bus/i2c/devices/1-0077/channel-$((i-8))|cut -d- -f5`
+  else
+    site_bus=`ls -l /sys/bus/i2c/devices/1-0070/channel-${i}|cut -d- -f5`
+  fi
+
+  echo "Site ${i} bus = ${site_bus}"
+  # push the device name into the bind directory
+
+  echo -n "${site_bus}-0074" > /sys/bus/i2c/drivers/pca953x/bind
+  echo -n "${site_bus}-0075" > /sys/bus/i2c/drivers/pca953x/bind
+
+  ## Low 0-15 are on -0074
+  mkdir -p /tmp/mezzanine/site_${i}/gpio/IO
+  lowbase=`cat /sys/bus/i2c/devices/${site_bus}-0074/gpio/*/base`
+  echo "Site ${i} lowbase = ${lowbase}"
+  if [ "$lowbase" -gt 0 ]; then
+    for j in `seq 0 15`
+    do
+      gpio_export $((lowbase+$j))
+      ln -s /sys/class/gpio/gpio$((lowbase+j)) /tmp/mezzanine/site_${i}/gpio/IO/${j}
+    done
+  fi
+  ## High 16-31 are on -0075
+  highbase=`cat /sys/bus/i2c/devices/${site_bus}-0075/gpio/*/base`
+  echo "Site ${i} highbase = ${highbase}"
+  if [ "$highbase" -gt 0 ]; then
+    for j in `seq 0 15`
+    do
+      gpio_export $((highbase+$j))
+      ln -s /sys/class/gpio/gpio$((highbase+j)) /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))
+    done
+  fi
+
+done
 
 # Yosemite OOM remediation
 #   enable kernel panic (force reboot)
