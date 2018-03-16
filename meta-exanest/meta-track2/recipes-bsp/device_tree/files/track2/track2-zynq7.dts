@@ -63,26 +63,26 @@
   spi-tx-bus-width = <4>;
   status = "okay";
   flash@0 {
-    compatible = "micron,m25p80", "spansion,s25fl128s", "jedec,spi-nor";
+    compatible = "spansion,s25fl128s", "micron,m25p80", "jedec,spi-nor";
     reg = <0x0>;
     spi-max-frequency = <50000000>;
     #address-cells = <1>;
     #size-cells = <1>;
-    partition@qspi-fsbl {
-      label = "qspi-spl";
-      reg = <0x0 0x100000>;
+    partition@qspi-spl {
+      label = "spl";
+      reg = <0x0 0xE0000>;
+    };
+    partition@qspi-uboot-env {
+      label = "uboot-env";
+      reg = <0xE0000 0x20000>;
     };
     partition@qspi-uboot {
-      label = "qspi-uboot";
-      reg = <0x100000 0x500000>;
+      label = "uboot";
+      reg = <0x100000 0x200000>;
     };
     partition@qspi-data {
       label = "data0";
-      reg = <0x600000 0x600000>;
-    };
-    partition@qspi-bitstream {
-      label = "qspi-bitstream";
-      reg = <0xC00000 0x400000>;
+      reg = <0x300000 0xD00000>;
     };
   };
 };
