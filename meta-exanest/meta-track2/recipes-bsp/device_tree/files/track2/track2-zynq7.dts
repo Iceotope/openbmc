@@ -11,7 +11,7 @@
 /include/ "pcw.dtsi"
 / {
   chosen {
-    bootargs = "earlycon";
+    bootargs = "earlycon ";
     stdout-path = "serial0:115200n8";
   };
   aliases {

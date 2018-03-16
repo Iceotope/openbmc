@@ -1,80 +1,24 @@
-From b403a9c30322992cb8d71383cdc66bfa54886983 Mon Sep 17 00:00:00 2001
+From f80f0983a21741447cc98f4ad2965288959c7268 Mon Sep 17 00:00:00 2001
 From: Marc Kelly <marc.kelly@iceotope.com>
-Date: Wed, 14 Mar 2018 11:48:17 +0000
+Date: Fri, 16 Mar 2018 17:07:25 +0000
 Subject: [PATCH 1/1] Adding in the iceotop bmc config
 
 ---
- configs/zynq_icetope_bmc_defconfig  | 26 ++++++++++++++++++++++++++
- include/configs/zynq_iceotope_bmc.h | 27 +++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+)
- create mode 100644 configs/zynq_icetope_bmc_defconfig
- create mode 100644 include/configs/zynq_iceotope_bmc.h
+ arch/arm/dts/Makefile | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/configs/zynq_icetope_bmc_defconfig b/configs/zynq_icetope_bmc_defconfig
-new file mode 100644
-index 0000000000..61e51273c4
---- /dev/null
-+++ b/configs/zynq_icetope_bmc_defconfig
-@@ -0,0 +1,26 @@
-+CONFIG_ARM=y
-+CONFIG_ARCH_ZYNQ=y
-+CONFIG_TARGET_ZYNQ_ICEOTOPE_BMC=y
-+CONFIG_SYS_CONFIG_NAME="zynq_icetope_bmc"
-+CONFIG_ZYNQ_CUSTOM_INIT=y
-+CONFIG_DEFAULT_DEVICE_TREE="zynq-microzed"
-+CONFIG_SPL=y
-+CONFIG_FIT=y
-+CONFIG_FIT_VERBOSE=y
-+CONFIG_FIT_SIGNATURE=y
-+CONFIG_SYS_PROMPT="Zynq (Iceotope)> "
-+# CONFIG_CMD_IMLS is not set
-+# CONFIG_CMD_FLASH is not set
-+CONFIG_CMD_GPIO=y
-+# CONFIG_CMD_SETEXPR is not set
-+CONFIG_OF_EMBED=y
-+CONFIG_NET_RANDOM_ETHADDR=y
-+CONFIG_SPL_DM_SEQ_ALIAS=y
-+CONFIG_SPI_FLASH=y
-+CONFIG_SPI_FLASH_BAR=y
-+CONFIG_SPI_FLASH_SPANSION=y
-+CONFIG_SPI_FLASH_STMICRO=y
-+CONFIG_SPI_FLASH_WINBOND=y
-+CONFIG_ZYNQ_GEM=y
-+CONFIG_ZYNQ_QSPI=y
-+CONFIG_SPL_RAM_DEVICE=y
-diff --git a/include/configs/zynq_iceotope_bmc.h b/include/configs/zynq_iceotope_bmc.h
-new file mode 100644
-index 0000000000..57a2def719
---- /dev/null
-+++ b/include/configs/zynq_iceotope_bmc.h
-@@ -0,0 +1,27 @@
-+/*
-+ * (C) Copyright 2013 Xilinx, Inc.
-+ *
-+ * Configuration for Micro Zynq Evaluation and Development Board - MicroZedBoard
-+ * See zynq-common.h for Zynq common configs
-+ *
-+ * SPDX-License-Identifier:	GPL-2.0+
-+ */
-+
-+#ifndef __CONFIG_ZYNQ_ICEOTOPE_BMC_H
-+#define __CONFIG_ZYNQ_ICEOTOPE_BMC_H
-+
-+#define CONFIG_SYS_SDRAM_SIZE		(1024 * 1024 * 1024)
-+
-+#define CONFIG_SYS_NO_FLASH
-+
-+#define CONFIG_ZYNQ_SDHCI0
-+#define CONFIG_ZYNQ_USB
-+
-+#include <configs/zynq-common.h>
-+
-+/* Remove this, we want to use the IP given by the DHCP */
-+#ifdef CONFIG_BOOTP_SERVERIP
-+#undef CONFIG_BOOTP_SERVERIP
-+#endif
-+
-+#endif /* __CONFIG_ZYNQ_ICEOTOPE_BMC_H */
+diff --git a/arch/arm/dts/Makefile b/arch/arm/dts/Makefile
+index 71cf54023d..083406a96f 100644
+--- a/arch/arm/dts/Makefile
++++ b/arch/arm/dts/Makefile
+@@ -86,6 +86,7 @@ dtb-$(CONFIG_ARCH_ZYNQ) += zynq-zc702.dtb \
+ 	zynq-zed.dtb \
+ 	zynq-zybo.dtb \
+ 	zynq-microzed.dtb \
++	zynq-iceotope_bmc.dtb \
+ 	zynq-cc108.dtb \
+ 	zynq-afx-nand.dtb \
+ 	zynq-afx-nor.dtb \
 -- 
 2.16.2
 
