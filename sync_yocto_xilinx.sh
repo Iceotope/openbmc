@@ -17,7 +17,12 @@ do
   if [ -d ./yocto/$branch/meta-xilinx ]; then
     rm -rf ./yocto/$branch/meta-xilinx
   fi
+
   # Clone Xilinx repo
   git clone -b $branch git://github.com/Xilinx/meta-xilinx yocto/$branch/meta-xilinx
+
+  # Link to source mirrors
+  ln -s /mnt/server/pkg_cache/$branch/source_mirrors ./yocto/$branch/
+
 done
 
