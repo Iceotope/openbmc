@@ -1,4 +1,4 @@
-# Copyright 2015-present Facebook. All Rights Reserved.
+# Copyright 2014-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -15,14 +15,22 @@
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-lib: liblightning_fruid.so
-
-CFLAGS += -Wall -Werror
-liblightning_fruid.so: lightning_fruid.c
-	$(CC) $(CFLAGS) -fPIC -c -o lightning_fruid.o lightning_fruid.c
-	$(CC) -llightning_common -shared -o liblightning_fruid.so lightning_fruid.o -lc $(LDFLAGS)
-
-.PHONY: clean
-
-clean:
-	rm -rf *.o liblightning_fruid.so
+board_routes = [
+    '/api',
+    '/api/peb',
+    '/api/pdpb',
+    '/api/fcb',
+    '/api/peb/fruid',
+    '/api/peb/sensors',
+    '/api/peb/bmc',
+    '/api/peb/health',
+    '/api/peb/logs',
+    '/api/pdpb/sensors',
+    '/api/pdpb/flash',
+    '/api/pdpb/fruid',
+    '/api/pdpb/logs',
+    '/api/fcb/fans',
+    '/api/fcb/fruid',
+    '/api/fcb/sensors',
+    '/api/fcb/logs',
+]

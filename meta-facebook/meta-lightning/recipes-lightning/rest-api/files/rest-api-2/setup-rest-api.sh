@@ -1,4 +1,6 @@
-# Copyright 2015-present Facebook. All Rights Reserved.
+#!/bin/sh
+#
+# Copyright 2014-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -14,15 +16,17 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
+#
 
-lib: liblightning_fruid.so
+### BEGIN INIT INFO
+# Provides:          setup-rest-api
+# Required-Start:
+# Required-Stop:
+# Default-Start:     S
+# Default-Stop:
+# Short-Description: Set REST API handler
+### END INIT INFO
 
-CFLAGS += -Wall -Werror
-liblightning_fruid.so: lightning_fruid.c
-	$(CC) $(CFLAGS) -fPIC -c -o lightning_fruid.o lightning_fruid.c
-	$(CC) -llightning_common -shared -o liblightning_fruid.so lightning_fruid.o -lc $(LDFLAGS)
+runsv /etc/sv/restapi >/dev/null 2>&1 &
 
-.PHONY: clean
-
-clean:
-	rm -rf *.o liblightning_fruid.so
+sv "$1" restapi
