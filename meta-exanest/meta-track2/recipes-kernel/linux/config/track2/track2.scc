@@ -5,3 +5,4 @@ kconf hardware i2c_drivers.cfg
 kconf hardware xilinx_intc.cfg
 kconf hardware serial.cfg
 kconf hardware overlay.cfg
+kconf hardware leds.cfg

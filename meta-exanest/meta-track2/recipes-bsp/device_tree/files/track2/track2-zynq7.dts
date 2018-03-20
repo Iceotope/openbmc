@@ -36,6 +36,15 @@
     device_type = "memory";
     reg = <0x0 0x40000000>;
   };
+  gpio-leds {
+    compatible = "gpio-leds";
+    led-d1 {
+        label = "led-ds23";
+        gpios = <&gpio0 47 0>;
+        default-state = "on";
+        linux,default-trigger = "heartbeat";
+     };
+  };
 };
 
 &i2c0 {
