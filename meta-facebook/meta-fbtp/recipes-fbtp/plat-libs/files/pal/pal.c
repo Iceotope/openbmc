@@ -3076,8 +3076,12 @@ key_func_por_policy (int event, void *arg)
       if (pal_is_fw_update_ongoing(FRU_MB))
         return -1;
       // sync to env
-      snprintf(cmd, MAX_VALUE_LEN, "/sbin/fw_setenv por_policy %s", (char *)arg);
-      system(cmd);
+      if ( !strcmp(arg,"lps") || !strcmp(arg,"on") || !strcmp(arg,"off")) {
+        snprintf(cmd, MAX_VALUE_LEN, "/sbin/fw_setenv por_policy %s", (char *)arg);
+        system(cmd);
+      }
+      else
+        return -1;
       break;
     case KEY_AFTER_INI:
       // sync to env
@@ -6499,7 +6503,7 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
 int
 pal_parse_oem_sel(uint8_t fru, uint8_t *sel, char *error_log)
 {
-  char str[128];
+  uint16_t bank, col;
   uint8_t record_type = (uint8_t) sel[2];
   uint32_t mfg_id;
   error_log[0] = '\0';
@@ -6508,10 +6512,23 @@ pal_parse_oem_sel(uint8_t fru, uint8_t *sel, char *error_log)
   mfg_id = (*(uint32_t*)&sel[7]) & 0xFFFFFF;
 
   if (record_type == 0xc0 && mfg_id == 0x1c4c) {
-    snprintf(str, sizeof(str), "Slot %d PCIe err", sel[14]);
-    pal_add_cri_sel(str);
+    sprintf(error_log, "VID:0x%02x%2x DID:0x%02x%2x Slot:0x%x Error ID:0x%x",
+                        sel[11], sel[10], sel[13], sel[12], sel[14], sel[15]);
   }
+  else if (record_type == 0xc2 && mfg_id == 0x1c4c) {
+    sprintf(error_log, "Extra info:0x%x MSCOD:0x%02x%02x MCACOD:0x%02x%02x",
+                        sel[11], sel[13], sel[12], sel[15], sel[14]);
+  }
+  else if (record_type == 0xc3 && mfg_id == 0x1c4c) {
+    bank= (sel[11] & 0xf0) >> 4;
+    col= ((sel[11] & 0x0f) << 8) | sel[12];
+    sprintf(error_log, "Fail Device:0x%x Bank:0x%x Column:0x%x Failed Row:0x%02x%02x%02x",
+                       sel[10], bank, col, sel[13], sel[14], sel[15]);
+  }
+  else
+    return 0;
 
+  pal_add_cri_sel(error_log);
   return 0;
 }
 
@@ -7079,9 +7096,10 @@ error_exit:
 }
 
 int
-pal_CPU_error_num_chk(void)
+pal_CPU_error_num_chk(bool is_caterr)
 {
   int len;
+  int cpu_num = -1;
   ipmb_req_t *req;
   ipmb_res_t *res;
 
@@ -7104,19 +7122,25 @@ pal_CPU_error_num_chk(void)
   req->data[10] = 0x00;
   // Invoke IPMB library handler
   len = ipmb_send_buf(0x4, 11+MIN_IPMB_REQ_LEN);
-  if (len >= (4+MIN_IPMB_RES_LEN) && // Data len >= 4
-    res->cc == 0 && // IPMB Success
-    res->data[3] == 0x40 ) {
-    if(((res->data[7] & 0xE0) > 0) && ((res->data[7] & 0x1C) > 0))
-      return 2; //Both
-    else if((res->data[7] & 0xE0) > 0)
-      return 1; //CPU1
-    else if((res->data[7] & 0x1C) > 0)
-      return 0; // CPU0
-    else
-      return -1;
-  } else
-    return -1;
+  // Data len >= 4 and  IPMB Success
+  if ( ( len >= (4+MIN_IPMB_RES_LEN) ) && ( res->cc == 0 ) && ( res->data[3] == 0x40 ) ) {
+    if( is_caterr ) {
+      if(((res->data[7] & 0xE0) > 0) && ((res->data[7] & 0x1C) > 0))
+        cpu_num = 2; //Both
+      else if((res->data[7] & 0xE0) > 0)
+        cpu_num = 1; //CPU1
+      else if((res->data[7] & 0x1C) > 0)
+        cpu_num = 0; // CPU0
+      } else {
+      if(((res->data[6] & 0xE0) > 0) && ((res->data[6] & 0x1C) > 0))
+        cpu_num = 2; //Both
+      else if((res->data[6] & 0xE0) > 0)
+        cpu_num = 1; //CPU1
+      else if((res->data[6] & 0x1C) > 0)
+        cpu_num = 0; // CPU0
+      }
+  }
+  return cpu_num;
 }
 
 int
