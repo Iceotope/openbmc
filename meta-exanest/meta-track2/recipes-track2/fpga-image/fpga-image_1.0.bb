@@ -4,16 +4,16 @@
 
 
 DESCRIPTION = "Copies over the FPGA and other hardware related files"
-SECTION = "bsp"
+SECTION = "base"
 DEPENDS = ""
 LICENSE = "Proprietary"
-
+ALLOW_EMPTY_${PN} = "1"
 FILESEXTRAPATHS_append := "${THISDIR}/files:"
 
 LIC_FILES_CHKSUM = "file://LICENSE;md5=cb1a05000bf35f0c896795edd999614d"
 
 BITFILE="Z_system_wrapper.bit"
-BITFILE_DEST="Z_system_wrapper.bit"
+BITFILE_DEST="fpga.bin.bit"
 
 inherit deploy
 

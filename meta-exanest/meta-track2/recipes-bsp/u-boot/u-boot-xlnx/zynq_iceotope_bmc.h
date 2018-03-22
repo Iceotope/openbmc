@@ -92,6 +92,8 @@
 #define CONFIG_SYS_I2C
 #define CONFIG_SYS_NUM_I2C_ADAPTERS 2
 
+#define CONFIG_LZMA
+
 #include <configs/zynq-common.h>
 
 

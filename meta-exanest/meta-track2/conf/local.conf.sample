@@ -20,3 +20,6 @@ DISTRO ?= "openbmc-iceotope"
 TARGET_CFLAGS += " -fPIC"
 #Stop the vboot overriding the copying file in the openbmc. for now anyhow.
 BBMASK_append = " common/recipes-utils/vboot-utils/openbmc.*\.bbappend"
+
+# Stop kernel being put in the image
+RDEPENDS_kernel-base = ""
