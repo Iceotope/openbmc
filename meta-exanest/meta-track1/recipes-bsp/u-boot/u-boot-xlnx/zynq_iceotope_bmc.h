@@ -37,7 +37,7 @@
   "devicetree_size=0x20000\0" \
   "ramdisk_size=0x5E0000\0" \
   "boot_size=0xF00000\0"  \
-  "fdt_high=0xFFFFFFFF\0" \
+  "fdt_high=0x2000000\0" \
   "initrd_high=0xFFFFFFFF\0"  \
   "bootenv=uEnv.txt\0" \
   "loadbootenv=load mmc 0 ${loadbootenv_addr} ${bootenv}\0" \
