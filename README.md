@@ -6,7 +6,7 @@ OpenBMC uses the [Yocto Project](https://www.yoctoproject.org) as the underlying
 
 ## Exanest Fork
 
-Iceotope have forked the orignal [OpenBMC](http://www.github/facebook/openbmc) and begun porting the code base
+Iceotope have forked the orignal [OpenBMC](https://github.com/facebook/openbmc) and begun porting the code base
 to run on the Zynq and UltraZynq based controllers for the Track1 and Track2 mezzanine cards.
 ## Contents
 
