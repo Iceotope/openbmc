@@ -17,19 +17,19 @@
   aliases {
     ethernet0 = &gem0;
     serial0 = &uart1;
-    serial1 = &axi_uartlite_01;
-    serial10 = &axi_uartlite_10;
-    serial11 = &axi_uartlite_11;
-    serial12 = &uart0;
-    serial13 = &axi_uartlite_00;
-    serial2 = &axi_uartlite_02;
-    serial3 = &axi_uartlite_03;
-    serial4 = &axi_uartlite_04;
-    serial5 = &axi_uartlite_05;
-    serial6 = &axi_uartlite_06;
-    serial7 = &axi_uartlite_07;
-    serial8 = &axi_uartlite_08;
-    serial9 = &axi_uartlite_09;
+    serial1 = &uart0;
+    serial2 = &axi_uartlite_00;
+    serial3 = &axi_uartlite_01;
+    serial4 = &axi_uartlite_02;
+    serial5 = &axi_uartlite_03;
+    serial6 = &axi_uartlite_04;
+    serial7 = &axi_uartlite_05;
+    serial8 = &axi_uartlite_06;
+    serial9 = &axi_uartlite_07;
+    serial10 = &axi_uartlite_08;
+    serial11 = &axi_uartlite_09;
+    serial12 = &axi_uartlite_10;
+    serial13 = &axi_uartlite_11;
     spi0 = &qspi;
   };
   memory {
