@@ -57,13 +57,6 @@
     #size-cells = <0>;
     reg = <0x70>;
     };
-   i2c-switch@77 {
-    compatible = "nxp,pca9548";
-    i2c-mux-idle-disconnect = <1>;
-    #address-cells = <1>;
-    #size-cells = <0>;
-    reg = <0x77>;
-    };
 };
 &qspi {
   is-dual = <0>;
@@ -109,16 +102,6 @@
 
 /include/ "ioexpander.dtsi"
 
-    };
-
-   i2c-switch@77 {
-    compatible = "nxp,pca9548";
-    i2c-mux-idle-disconnect = <1>;
-    #address-cells = <1>;
-    #size-cells = <0>;
-    reg = <0x77>;
-
-/include/ "ioexpander.dtsi"
     };
 
     ioexpander@76 {
