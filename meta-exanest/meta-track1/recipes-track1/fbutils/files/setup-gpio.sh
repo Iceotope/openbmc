@@ -37,7 +37,7 @@
 . /usr/local/fbpackages/utils/ast-functions
 . /usr/local/fbpackages/utils/gpio_names.sh
 
-MAX_SITE=15
+MAX_SITE=7
 
 ## Create the structure of the board with symlinks
 rm -rf /tmp/mezzanine
@@ -121,14 +121,21 @@ do
    index=$((index+1))
 done
 
-## One wire bus here, we set links for the sensors at the sites to the directories
 
-for i in `seq 0 ${MAX_SITE}`
-do
-    master="/sys/devices/w1_bus_master$((i+1))"
-    slave=`cat ${master}/w1_master_slaves`
-    ln -s ${master}/${slave}/w1_slave /tmp/mezzanine/site_${i}/temperature
-done
+# EEPROM on base board (track 1 at least currently)
+
+# PowerManagment chip on baseboard (track 1 at least)
+
+
+
+## One wire bus here, we set links for the sensors at the sites to the directories
+## No onewire on track 1 currently
+#for i in `seq 0 ${MAX_SITE}`
+#do
+#    master="/sys/devices/w1_bus_master$((i+1))"
+#    slave=`cat ${master}/w1_master_slaves`
+#    ln -s ${master}/${slave}/w1_slave /tmp/mezzanine/site_${i}/temperature
+#done
 
 ## Now we can search the i2c sub busses an bind all the ioexpanders.
 
