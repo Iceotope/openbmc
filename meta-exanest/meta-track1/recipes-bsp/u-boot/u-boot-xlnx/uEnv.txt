@@ -1,0 +1,3 @@
+kernel_image=uImage
+devicetree_image=uImage-zynq-zc702.dtb
+loadfpga_dhcp=dhcp ${loadbit_addr} ${bitstream_image} && fpga loadb 0 ${loadbit_addr} ${filesize}
