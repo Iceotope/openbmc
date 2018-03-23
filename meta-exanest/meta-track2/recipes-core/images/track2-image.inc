@@ -61,6 +61,7 @@ IMAGE_INSTALL += " \
   packagegroup-openbmc-rest3 \
   log-util \
   openbmc-utils \
+  fpga-image \
   "
 
 IMAGE_FEATURES += " \
