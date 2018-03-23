@@ -31,5 +31,6 @@ do_deploy () {
   install -m 644 ${S}/${BITFILE} ${DEPLOYDIR}/${BITFILE_DEST}
   install -m 644 ${S}/zynq_fsbl.elf ${DEPLOYDIR}/zynq_fsbl.elf
   install -m 744 ${S}/flash_zynq.sh ${DEPLOYDIR}/flash_zynq.sh
+  
 }
 addtask deploy before do_build after do_compile

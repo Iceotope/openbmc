@@ -128,7 +128,7 @@
       xlnx,all-inputs-2 = <0x0>;
       xlnx,all-outputs = <0x1>;
       xlnx,all-outputs-2 = <0x0>;
-      xlnx,dout-default = <0xFFFFFFFF>;
+      xlnx,dout-default = <0x1>;
       xlnx,dout-default-2 = <0x00000000>;
       xlnx,gpio-width = <0x1>;
       xlnx,gpio2-width = <0x20>;
@@ -146,7 +146,7 @@
       xlnx,all-inputs-2 = <0x0>;
       xlnx,all-outputs = <0x1>;
       xlnx,all-outputs-2 = <0x0>;
-      xlnx,dout-default = <0xFFFFFFFF>;
+      xlnx,dout-default = <0x1>;
       xlnx,dout-default-2 = <0x00000000>;
       xlnx,gpio-width = <0x1>;
       xlnx,gpio2-width = <0x20>;
