@@ -73,21 +73,25 @@ gpio_export_out ${PS_ON}
 ln -s /sys/class/gpio/gpio${PS_ON} /tmp/mezzanine/gpio/PS_ON
 gpio_set ${PS_ON} 0
 
+# Retimer resets
+gpio_export_out ${RETIMER_RESET}
+ln -s /sys/class/gpio/gpio${RETIMER_RESET} /tmp/mezzanine/gpio/RETIMER_RESET
+gpio_set ${RETIMER_RESET} 1
+
 # 2v5 enable, turns on the retimers
 gpio_export_out ${REG_2V5_ENABLE}
 ln -s /sys/class/gpio/gpio${REG_2V5_ENABLE} /tmp/mezzanine/gpio/REG_2V5_ENABLE
 gpio_set ${REG_2V5_ENABLE} 1
-
-# Retimer resets
-gpio_export_out ${RETIMER_RESET}
-ln -s /sys/class/gpio/gpio${RETIMER_RESET} /tmp/mezzanine/gpio/RETIMER_RESET
-gpio_set ${RETIMER_RESET} 0
 
 # Internal Serial loopback
 gpio_export_out ${SERIAL_LOOPBACK}
 ln -s /sys/class/gpio/gpio${SERIAL_LOOPBACK} /tmp/mezzanine/gpio/SERIAL_LOOPBACK
 gpio_set ${SERIAL_LOOPBACK} 0
 
+
+# Retimer reset, toggle bit.
+gpio_set ${RETIMER_RESET} 0
+gpio_set ${RETIMER_RESET} 1
 
 # Slot ID
 index=0
@@ -121,11 +125,12 @@ do
    index=$((index+1))
 done
 
-
 # EEPROM on base board (track 1 at least currently)
 
-# PowerManagment chip on baseboard (track 1 at least)
+ln -s /sys/bus/i2c/drivers/at24/1-0050/eeprom /tmp/mezzanine/eeprom
 
+# PowerManagment chip on baseboard (track 1 at least)
+## Needa a driver, need to port something over from another LTC chip
 
 
 ## One wire bus here, we set links for the sensors at the sites to the directories

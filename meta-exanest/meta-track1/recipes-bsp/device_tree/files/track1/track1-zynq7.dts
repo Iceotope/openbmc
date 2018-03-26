@@ -49,7 +49,7 @@
 
 &i2c0 {
   clock-frequency = <100000>;
-  status = "disable";
+  status = "okay";
    i2c-switch@70 {
     compatible = "nxp,pca9548";
     i2c-mux-idle-disconnect = <1>;
@@ -91,7 +91,7 @@
 
 &i2c1 {
   clock-frequency = <100000>;
-  status = "disable";
+  status = "okay";
 
    i2c-switch@70 {
     compatible = "nxp,pca9548";
@@ -108,44 +108,49 @@
      compatible = "ti,tca9539";
      reg = <0x76>;
     };
+    
+    eeprom@50 {
+     compatible = "atmel,24c02";
+     reg = <0x50>;
+    };
 };
 
 /* Disable all UARTLites */
 
 &axi_uartlite_00 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_01 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_02 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_03 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_04 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_05 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_06 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_07 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_08 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_09 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_10 {
-  status = "disable";
+  status = "okay";
 	};
 &axi_uartlite_11 {
-  status = "disable";
+  status = "okay";
 	};
 	
