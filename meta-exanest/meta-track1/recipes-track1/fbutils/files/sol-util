@@ -20,12 +20,12 @@
 
 LOGFILE="/var/log/mTerm_$1.log"
 
-if [ "$1" == "slot1" ] || [ "$1" == "slot2" ] || [ "$1" == "slot3" ] || [ "$1" == "slot4" ]
+if [ "$1" == "KDB-A" ] || [ "$1" == "KDB-B" ] || [ "$1" == "QFDB-A" ] || [ "$1" == "QFDB-B" ] || [ "$1" == "QFDB-C" ] || [ "$1" == "QFDB-D" ]
 then
   SLOT=$1
 else
-  echo "Usage: sol-util [ slot1 | slot2 | slot3 | slot4 ]"
-  echo "       sol-util [ slot1 | slot2 | slot3 | slot4 ] --history"
+  echo "Usage: sol-util [ KDB-A, KDB-B, QFDB-D, QFDB-C, QFDB-B, QFDB-A ]"
+  echo "       sol-util [ KDB-A, KDB-B, QFDB-D, QFDB-C, QFDB-B, QFDB-A ] --history"
   exit -1
 fi
 

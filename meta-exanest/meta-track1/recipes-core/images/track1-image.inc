@@ -70,6 +70,13 @@ IMAGE_INSTALL += " \
   fruid \
   sensor-util \
   sensor-mon \
+  ipmbd \
+  ipmb-util \
+  healthd \
+  cfg-util \
+  ipmi-util \
+  ipmitool \
+  vboot-utils \
   "
 
 IMAGE_FEATURES += " \
