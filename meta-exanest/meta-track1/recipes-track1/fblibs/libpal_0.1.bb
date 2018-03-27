@@ -6,15 +6,12 @@ PR = "r1"
 LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://pal.c;beginline=8;endline=20;md5=da35978751a9d71b73679307c4d296ec"
 
-
-SRC_URI = "file://Makefile \
-           file://pal.c \
-           file://pal.h \
+SRC_URI = "file://pal \
           "
 
-DEPENDS += "libkv libedb libipmi obmc-pal libgpio libsensor-correction"
+DEPENDS += " libkv libedb libipmi obmc-pal libgpio libsensor-correction libtrack1-sensor"
 
-S = "${WORKDIR}"
+S = "${WORKDIR}/pal"
 
 do_install() {
 	  install -d ${D}${libdir}
@@ -26,3 +23,6 @@ do_install() {
 
 FILES_${PN} = "${libdir}/libpal.so"
 FILES_${PN}-dev = "${includedir}/openbmc/pal.h"
+
+## Runtime libs needed.
+RDEPENDS_${PN} += " libkv libedb libtrack1-sensor"

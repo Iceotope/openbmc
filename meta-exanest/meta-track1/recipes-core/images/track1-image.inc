@@ -55,14 +55,21 @@ DEVICE_TREE_BINARY_NAME = "track1-zynq7.dtb"
 
 IMAGE_INSTALL += " \
   packagegroup-openbmc-base \
-  watchdog-ctrl \
   packagegroup-openbmc-net \
   packagegroup-openbmc-python3 \
-  packagegroup-openbmc-rest3 \
+  packagegroup-openbmc-rest3 \  
+  watchdog-ctrl \
+  lldp-util \
+  bitbang \
+  flashrom \
+  power-util \
   log-util \
   openbmc-utils \
   fpga-image \
   mterm \
+  fruid \
+  sensor-util \
+  sensor-mon \
   "
 
 IMAGE_FEATURES += " \

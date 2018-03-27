@@ -32,6 +32,12 @@
 #include <string.h>
 #include "pal.h"
 
+
+const char pal_server_list[] = "tpdb-b, tbpd-a, kdb-a, kdb-b," \
+					" qfdb-d, qfdb-c, qfdb-b, qfdb-a";
+const char pal_fru_list[] = "all, tpdb-b, tbpd-a, kdb-a, kdb-b," \
+					" qfdb-d, qfdb-c, qfdb-b, qfdb-a, bmc";
+
 // Track1 specific Platform Abstraction Layer (PAL) Functions
 int
 pal_get_platform_name(char *name) {

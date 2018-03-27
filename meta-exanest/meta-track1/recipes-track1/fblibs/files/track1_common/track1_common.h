@@ -1,6 +1,6 @@
 /*
  *
- * Copyright 2017-present Facebook. All Rights Reserved.
+ * Copyright 2018-present Iceotope. All Rights Reserved.
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,52 +18,36 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __PAL_H__
-#define __PAL_H__
-
-#include <openbmc/obmc-pal.h>
+#ifndef __TRACK1_COMMON_H__
+#define __TRACK1_COMMON_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <openbmc/kv.h>
-#include <openbmc/ipmi.h>
-#include <stdbool.h>
-
-#define BIT(value, index) ((value >> index) & 1)
-
-#define MAX_NODES     2
-#define MAX_NUM_FRUS  2
-#define LAST_KEY "last_key"
-
-#define TRACK1_PLATFORM_NAME "track1"
-#define LAST_KEY "last_key"
-#define TRACK1_MAX_NUM_SLOTS 12
-
+#define MAX_NUM_FRUS 10
 enum {
-  SERVER_POWER_OFF,
-  SERVER_POWER_ON,
-  SERVER_POWER_CYCLE,
-  SERVER_POWER_RESET,
-  SERVER_GRACEFUL_SHUTDOWN,
-  SERVER_12V_OFF,
-  SERVER_12V_ON,
-  SERVER_12V_CYCLE,
+  FRU_ALL    = 0,
+  FRU_TPDB_B = 1,
+  FRU_TPDB_A = 2,
+  FRU_KDB_B  = 3,
+  FRU_KDB_A  = 4,
+  FRU_QFDB_D = 5,
+  FRU_QFDB_C = 6,
+  FRU_QFDB_B = 7,
+  FRU_QFDB_A = 8,    
+  FRU_BMC    = 9,
 };
 
-enum {
-  FRU_ALL   = 0,
-  FRU_MB = 1,
-};
 
-typedef struct _sensor_info_t {
-  bool valid;
-  sdr_full_t sdr;
-} sensor_info_t;
+#define CRASHDUMP_KEY "slot%d_crashdump"
+
+int track1_common_fru_name(uint8_t fru, char *str);
+int track1_common_fru_id(char *str, uint8_t *fru);
+int track1_common_crashdump(uint8_t fru);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif /* __PAL_H__ */
+#endif /* __track1_COMMON_H__ */
