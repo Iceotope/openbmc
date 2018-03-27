@@ -115,7 +115,7 @@
     };
 };
 
-/* Disable all UARTLites */
+/* Enable all UARTLites */
 
 &axi_uartlite_00 {
   status = "okay";

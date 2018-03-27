@@ -62,6 +62,7 @@ IMAGE_INSTALL += " \
   log-util \
   openbmc-utils \
   fpga-image \
+  mterm \
   "
 
 IMAGE_FEATURES += " \
