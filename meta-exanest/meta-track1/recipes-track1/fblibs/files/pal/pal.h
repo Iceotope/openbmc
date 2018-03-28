@@ -62,8 +62,23 @@ enum {
   SERVER_12V_OFF,
   SERVER_12V_ON,
   SERVER_12V_CYCLE,
+  SERVER_GLOBAL_RESET,
 };
 
+
+int pal_get_platform_name(char *name);
+int pal_get_num_slots(uint8_t *num);
+int pal_is_slot_server(uint8_t fru);
+int pal_is_server_12v_on(uint8_t slot_id, uint8_t *status);
+int pal_get_server_power(uint8_t slot_id, uint8_t *status);
+int pal_set_server_power(uint8_t slot_id, uint8_t cmd);
+int pal_is_debug_card_prsnt(uint8_t *status);
+int pal_is_fru_ready(uint8_t fru, uint8_t *status);
+int pal_is_fru_prsnt(uint8_t fru, uint8_t *status);
+int pal_set_hb_led(uint8_t status);
+int pal_set_rst_btn(uint8_t slot, uint8_t status);
+int pal_get_rst_btn(uint8_t *status);
+int pal_get_pwr_btn(uint8_t *status);
 
 #ifdef __cplusplus
 } // extern "C"

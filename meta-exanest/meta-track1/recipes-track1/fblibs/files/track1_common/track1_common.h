@@ -35,9 +35,19 @@ enum {
   FRU_QFDB_D = 5,
   FRU_QFDB_C = 6,
   FRU_QFDB_B = 7,
-  FRU_QFDB_A = 8,    
+  FRU_QFDB_A = 8,
   FRU_BMC    = 9,
 };
+
+// MPK new type definition, easier to expand.
+typedef enum _DB_SITE_TYPE {
+  DB_TYPE_NONE = 0,
+  DB_TYPE_QFDB,
+  DB_TYPE_KDB,
+  DB_TYPE_TPDB,
+  DB_TYPE_COUNT,
+  DB_TYPE_AUTO = 0xFF
+} DB_SITE_TYPE_t;
 
 
 #define CRASHDUMP_KEY "slot%d_crashdump"

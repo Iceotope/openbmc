@@ -48,6 +48,8 @@ do
     mkdir -p /tmp/mezzanine/site_${i}
     mkdir -p /tmp/mezzanine/site_${i}/gpio
     mkdir -p /tmp/mezzanine/db_${i}
+    # Set type of node to auto-detect, eg, not present.
+    echo -n "255" > /tmp/mezzanine/db_${i}/type
 done
 
 ## Do all the exporting
