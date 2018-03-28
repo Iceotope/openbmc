@@ -77,6 +77,8 @@ IMAGE_INSTALL += " \
   ipmi-util \
   ipmitool \
   vboot-utils \
+  spatula \
+  track1-sensors \
   "
 
 IMAGE_FEATURES += " \
@@ -90,4 +92,5 @@ DISTRO_FEATURES += " \
   usbgadget \
   usbhost \
   "
-
+# Was removed for now
+#  ipv6 \

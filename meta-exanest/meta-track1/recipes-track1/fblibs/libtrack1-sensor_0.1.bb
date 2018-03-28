@@ -10,6 +10,7 @@ LIC_FILES_CHKSUM = "file://track1_sensor.c;beginline=8;endline=20;md5=da35978751
 SRC_URI = "file://track1_sensor \
           "
 DEPENDS =+ " libipmi libipmb libtrack1-common obmc-i2c obmc-pal "
+RDEPENDS_${PN} += " libtrack1-common libkv libedb"
 
 S = "${WORKDIR}/track1_sensor"
 
