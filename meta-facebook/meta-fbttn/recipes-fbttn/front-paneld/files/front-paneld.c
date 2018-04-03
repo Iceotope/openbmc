@@ -32,6 +32,7 @@
 #include <openbmc/ipmi.h>
 #include <openbmc/ipmb.h>
 #include <openbmc/pal.h>
+#include <sys/mman.h>
 
 #define BTN_MAX_SAMPLES   200
 #define BTN_POWER_OFF     40
@@ -61,6 +62,19 @@
 #define BMC_RMT_HB_RPM_LIMIT  0
 #define SCC_LOC_HB_RPM_LIMIT  0
 #define SCC_RMT_HB_RPM_LIMIT  0
+
+#define PAGE_SIZE                     0x1000
+#define AST_SRAM_BMC_REBOOT_BASE      0x1E721000
+#define BMC_REBOOT_BY_KERN_PANIC(base) *((uint32_t *)(base + 0x200))
+#define BMC_REBOOT_BY_CMD(base) *((uint32_t *)(base + 0x204))
+
+#define BIT_RECORD_LOG                (1 << 8)
+// kernel panic
+#define FLAG_KERN_PANIC               (1 << 0)
+// reboot command
+#define FLAG_REBOOT_CMD               (1 << 0)
+#define FLAG_CFG_UTIL                 (1 << 1)
+
 
 uint8_t g_sync_led[MAX_NUM_SLOTS+1] = {0x0};
 unsigned char g_err_code[ERROR_CODE_NUM];
@@ -275,8 +289,8 @@ dbg_rst_btn_handler() {
     if ((ret < 0) || (prsnt == 0)) {
       msleep(500);
       continue;
-    }   
-     
+    }
+
     // Check if reset button is pressed
     ret = pal_get_dbg_rst_btn(&btn);
     if ((ret < 0) || (btn == 0)) {
@@ -337,7 +351,7 @@ dbg_pwr_btn_handler() {
   uint8_t prsnt;
   int ret;
   int i;
-  
+
   while (1) {
     // Check if debug card present or not
     ret = pal_is_debug_card_prsnt(&prsnt);
@@ -357,11 +371,11 @@ dbg_pwr_btn_handler() {
     if (ret < 0) {
       goto dbg_pwr_btn_out;
     }
-    
+
     if (pos == UART_SEL_BMC) {
       // do nothing
       goto dbg_pwr_btn_out;
-    } else if (pos == UART_SEL_SERVER) { 
+    } else if (pos == UART_SEL_SERVER) {
       syslog(LOG_WARNING, "Debug card power button pressed\n");
       // Wait for the button to be released
       for (i = 0; i < BTN_POWER_OFF; i++) {
@@ -518,12 +532,16 @@ pwr_btn_out:
 static void *
 ts_handler() {
   int count = 0;
+  int mem_fd;
   struct timespec ts;
   struct timespec mts;
   char tstr[64] = {0};
   char buf[128] = {0};
   uint8_t por = 0;
   uint8_t time_init = 0;
+  uint8_t *bmc_reboot_base;
+  uint32_t kern_panic_flag = 0;
+  uint32_t reboot_detected_flag = 0;
   long time_sled_on;
   long time_sled_off;
 
@@ -536,8 +554,65 @@ ts_handler() {
     ctime_r(&time_sled_off, buf);
     syslog(LOG_CRIT, "SLED Powered OFF at %s", buf);
     pal_add_cri_sel("BMC AC lost");
+
+    // Initial BMC reboot flag
+    mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (mem_fd >= 0) {
+      bmc_reboot_base = (uint8_t *)mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, mem_fd, AST_SRAM_BMC_REBOOT_BASE);
+      if (bmc_reboot_base != 0) {
+        BMC_REBOOT_BY_KERN_PANIC(bmc_reboot_base) = 0x0;
+        BMC_REBOOT_BY_CMD(bmc_reboot_base) = 0x0;
+        munmap(bmc_reboot_base, PAGE_SIZE);
+      }
+      close(mem_fd);
+    }
   } else {
-    syslog(LOG_CRIT, "BMC Reboot detected");
+    mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (mem_fd >= 0) {
+      bmc_reboot_base = (uint8_t *)mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, mem_fd, AST_SRAM_BMC_REBOOT_BASE);
+      if (bmc_reboot_base != 0) {
+        kern_panic_flag = BMC_REBOOT_BY_KERN_PANIC(bmc_reboot_base);
+        reboot_detected_flag = BMC_REBOOT_BY_CMD(bmc_reboot_base);
+
+        // Check the SRAM to make sure the reboot cause
+        // ===== kernel panic =====
+        if ((kern_panic_flag & BIT_RECORD_LOG) == BIT_RECORD_LOG) {
+          // Clear the flag of record log and reserve the kernel panic flag
+          kern_panic_flag &= ~(BIT_RECORD_LOG);
+
+          if ((kern_panic_flag & FLAG_KERN_PANIC) == FLAG_KERN_PANIC) {
+              syslog(LOG_CRIT, "BMC Reboot detected - caused by kernel panic");
+          } else {
+              syslog(LOG_CRIT, "BMC Reboot detected - unknown kernel flag (0x%08x)", kern_panic_flag);
+          }
+
+          BMC_REBOOT_BY_KERN_PANIC(bmc_reboot_base) = kern_panic_flag;
+        // ===== reboot command =====
+        } else if ((reboot_detected_flag & BIT_RECORD_LOG) == BIT_RECORD_LOG) {
+          // Clear the flag of record log and reserve the reboot command flag
+          reboot_detected_flag &= ~(BIT_RECORD_LOG);
+
+          if ((reboot_detected_flag & FLAG_CFG_UTIL) == FLAG_CFG_UTIL) {
+              reboot_detected_flag &= ~(FLAG_CFG_UTIL);
+              syslog(LOG_CRIT, "Reset BMC data to default factory settings");
+          }
+
+          if ((reboot_detected_flag & FLAG_REBOOT_CMD) == FLAG_REBOOT_CMD) {
+              syslog(LOG_CRIT, "BMC Reboot detected - caused by reboot command");
+          } else {
+              syslog(LOG_CRIT, "BMC Reboot detected - unknown reboot command flag (0x%08x)", reboot_detected_flag);
+          }
+
+          BMC_REBOOT_BY_CMD(bmc_reboot_base) = reboot_detected_flag;
+        // ===== others =====
+        } else {
+          syslog(LOG_CRIT, "BMC Reboot detected");
+        }
+
+        munmap(bmc_reboot_base, PAGE_SIZE);
+      }
+      close(mem_fd);
+    }
   }
 
   while (1) {
@@ -1014,7 +1089,7 @@ main (int argc, char * const argv[]) {
   pthread_t tid_hb_mon;
   int i;
   int *ip;
-  
+
   if (pthread_create(&tid_debug_card, NULL, debug_card_handler, NULL) < 0) {
     syslog(LOG_WARNING, "pthread_create for debug card error\n");
     exit(1);

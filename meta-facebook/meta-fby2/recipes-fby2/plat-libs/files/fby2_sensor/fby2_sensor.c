@@ -191,8 +191,6 @@ const uint8_t bic_sensor_list[] = {
   BIC_SENSOR_PVDDR_AB,
   BIC_SENSOR_PVDDR_DE,
   BIC_SENSOR_PVNN_PCH,
-  BIC_SENSOR_LIQUID_PUMP_TACH,
-  BIC_SENSOR_LIQUID_PUMP_PWM,
 };
 
 const uint8_t bic_discrete_list[] = {
@@ -213,7 +211,6 @@ const uint8_t bic_rc_sensor_list[] = {
   BIC_RC_SENSOR_MB_INLET_TEMP,
   BIC_RC_SENSOR_SYS_SOC_TEMP_L,
   BIC_RC_SENSOR_SYS_SOC_TEMP_R,
-  BIC_RC_SENSOR_NVME_1CTEMP,
   BIC_RC_SENSOR_P12V_MB,
   BIC_RC_SENSOR_P3V3_STBY_MB,
   BIC_RC_SENSOR_P3V2_MB,
@@ -963,6 +960,8 @@ read_nic_temp(const char *device, uint8_t addr, float *value) {
     return -1;
   }
   *value = (float)(res & 0xFF);
+  if (*value > MAX_POS_READING_MARGIN)
+    *value -= THERMAL_CONSTANT;
 
   return 0;
 }

@@ -284,6 +284,54 @@ float fcb_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1] = {0};
 uint8_t ssd_no_temp[NUM_SSD] = {0};
 uint8_t ssd_sensor_fail[NUM_SSD] = {0};
 
+int
+lightning_sensor_get_airflow(float *airflow_cfm)
+{
+  uint8_t ssd_sku = 0;
+  float rpm_avg = 0, rpm_sum = 0, value;
+  int fan=0;
+  int ret,rc;
+
+  if (airflow_cfm == NULL){
+    syslog(LOG_ERR, "%s() Invalid memory address", __func__);
+    return -1;
+  }
+
+  // Calculate average RPM
+  for (fan = 0; fan < pal_tach_count; fan++) {
+    rc = sensor_cache_read(FRU_FCB, fcb_sensor_fan1_front_speed + fan, &value);
+    if(rc == -1) {
+      continue;
+    }
+    rpm_sum+=value;
+  }
+
+  rpm_avg = rpm_sum/pal_tach_count;
+
+  ret = lightning_ssd_sku(&ssd_sku);
+  if (ret < 0) {
+    syslog(LOG_DEBUG, "%s() get SSD SKU failed", __func__);
+    return -1;
+  }
+
+  if (ssd_sku == U2_SKU) {
+     *airflow_cfm = (((-2) * (rpm_avg*rpm_avg) / 10000000) + (0.0208*(rpm_avg)) - 7.8821);
+  }
+  else if (ssd_sku == M2_SKU) {
+     *airflow_cfm = (((-2) * (rpm_avg*rpm_avg) / 10000000) + (0.0211*(rpm_avg)) - 10.585);
+  }
+  else {
+    syslog(LOG_DEBUG, "%s(): Cannot find corresponding SSD SKU", __func__);
+    return -1;
+  }
+
+  if(*airflow_cfm < 0) {
+    *airflow_cfm = 0;
+  }
+
+  return 0;
+}
+
 static void
 assign_sensor_threshold(uint8_t fru, uint8_t snr_num, float ucr, float unc,
     float unr, float lcr, float lnc, float lnr, float pos_hyst, float neg_hyst) {
@@ -607,7 +655,9 @@ read_flash_temp(uint8_t flash_num, float *value) {
   ret = lightning_ssd_sku(&sku);
 
   if (ret < 0) {
+#ifdef DEBUG
     syslog(LOG_DEBUG, "%s(): lightning_ssd_sku failed", __func__);
+#endif
     return -1;
   }
 
@@ -624,7 +674,9 @@ read_flash_temp(uint8_t flash_num, float *value) {
 
     return nvme_special_case_handling(flash_num, value);
   } else {
+#ifdef DEBUG
     syslog(LOG_DEBUG, "%s(): unknown ssd sku", __func__);
+#endif
     return -1;
   }
 }
@@ -673,14 +725,18 @@ read_temp_value(char *device, uint8_t addr, uint8_t type, float *value) {
 
   dev = open(device, O_RDWR);
   if (dev < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "read_temp_value: open() failed");
+#endif
     return -1;
   }
 
   /* Assign the i2c device address */
   ret = ioctl(dev, I2C_SLAVE, addr);
   if (ret < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "read_temp_value: ioctl() assigning i2c addr failed");
+#endif
     close(dev);
     return -1;
   }
@@ -688,8 +744,10 @@ read_temp_value(char *device, uint8_t addr, uint8_t type, float *value) {
   /* Read the Temperature Register result based on whether it is internal or external sensor */
   res = i2c_smbus_read_word_data(dev, type);
   if (res < 0) {
-    close(dev);
+#ifdef DEBUG
     syslog(LOG_ERR, "read_temp_value: i2c_smbus_read_word_data failed");
+#endif
+    close(dev);
     return -1;
   }
 
@@ -707,7 +765,9 @@ read_temp_value(char *device, uint8_t addr, uint8_t type, float *value) {
     *value = (float) (0xFFF - res + 1) * (-1) * TPM75_TEMP_RESOLUTION;
   } else {
     /* Out of range [128C to -55C] */
+#ifdef DEBUG
     syslog(LOG_WARNING, "read_temp_value: invalid res value = 0x%X", res);
+#endif
     return -1;
   }
 
@@ -747,14 +807,18 @@ read_hsc_value(uint8_t reg, char *device, uint8_t addr, uint8_t cntlr, float *va
 
   dev = open(device, O_RDWR);
   if (dev < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "read_hsc_value: open() failed");
+#endif
     return -1;
   }
 
   /* Assign the i2c device address */
   ret = ioctl(dev, I2C_SLAVE, addr);
   if (ret < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "read_hsc_value: ioctl() assigning i2c addr failed");
+#endif
     close(dev);
     return -1;
   }
@@ -762,8 +826,10 @@ read_hsc_value(uint8_t reg, char *device, uint8_t addr, uint8_t cntlr, float *va
   /* Read the er result based on whether it is internal or external sensor */
   res = i2c_smbus_read_word_data(dev, reg);
   if (res < 0) {
-    close(dev);
+#ifdef DEBUG
     syslog(LOG_ERR, "read_hsc_value: i2c_smbus_read_word_data failed");
+#endif
+    close(dev);
     return -1;
   }
 
@@ -802,7 +868,9 @@ read_hsc_value(uint8_t reg, char *device, uint8_t addr, uint8_t cntlr, float *va
         *value *= 0.97; // This is to compensate the controller reading offset value
       break;
     default:
+#ifdef DEBUG
       syslog(LOG_ERR, "read_hsc_value: wrong param");
+#endif
       return -1;
   }
 
@@ -822,35 +890,46 @@ read_nct7904_value(uint8_t reg, char *device, uint8_t addr, float *value) {
   uint8_t location;
   uint8_t monitor_flag;
   uint16_t res;
-  float multipler;
+  float multipler = 0;
 
   dev = open(device, O_RDWR);
   if (dev < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "read_nct7904_value: open() failed");
+#endif
     return -1;
   }
 
   /* Assign the i2c device address */
   ret = ioctl(dev, I2C_SLAVE, addr);
   if (ret < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "read_nct7904_value: ioctl() assigning i2c addr failed");
+#endif
+    return -1;
   }
 
   /* Read the Bank Register and set it to 0 */
   bank = i2c_smbus_read_byte_data(dev, NCT7904_BANK_SEL);
   if (bank != 0x0) {
+#ifdef DEBUG
     syslog(LOG_INFO, "read_nct7904_value: Bank Register set to %d", bank);
+#endif
     if (i2c_smbus_write_byte_data(dev, NCT7904_BANK_SEL, 0) < 0) {
+#ifdef DEBUG
       syslog(LOG_ERR, "read_nct7904_value: i2c_smbus_write_byte_data: "
           "selecting Bank 0 failed");
+#endif
       close(dev);
       return -1;
     }
   }
 
-  ret = pal_peer_tray_detection(&peer_tray_exist);
+  ret = gpio_peer_tray_detection(&peer_tray_exist);
   if (ret < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "%s: pal_peer_tray_detection() failed.", __func__);
+#endif
     return -1;
   }
 
@@ -858,7 +937,9 @@ read_nct7904_value(uint8_t reg, char *device, uint8_t addr, float *value) {
   /* Determine this tray located on upper or lower tray; 0:Upper, 1:Lower*/
     ret = pal_self_tray_location(&location);
     if(ret < 0) {
+#ifdef DEBUG
       syslog(LOG_ERR, "read_nct7904_value: pal_self_tray_location failed");
+#endif
       return -1;
     }
     retry = 0;
@@ -901,7 +982,9 @@ read_nct7904_value(uint8_t reg, char *device, uint8_t addr, float *value) {
   }
 
   if ( (retry >= MAX_RETRY_TIMES) && ((res_h == -1) || (res_l == -1)) ) {
+#ifdef DEBUG
     syslog(LOG_DEBUG, "%s() i2c_smbus_read_byte_data failed, high byte: 0x%x, low byte: 0x%x", __func__, res_h, res_l);
+#endif
     return -1;
   }
 
@@ -912,8 +995,10 @@ read_nct7904_value(uint8_t reg, char *device, uint8_t addr, float *value) {
     if (location == UPPER_TRAY) {
 
       if (i2c_smbus_write_byte_data(dev, NCT7904_MONITOR_FLAG, UPPER_TRAY_DONE) < 0) {
+#ifdef DEBUG
         syslog(LOG_ERR, "read_nct7904_value: i2c_smbus_write_byte_data: "
             "upper tray monitor failed");
+#endif
         close(dev);
         return -1;
       }
@@ -921,8 +1006,10 @@ read_nct7904_value(uint8_t reg, char *device, uint8_t addr, float *value) {
     } else {
 
       if (i2c_smbus_write_byte_data(dev, NCT7904_MONITOR_FLAG, LOWER_TRAY_DONE) < 0) {
+#ifdef DEBUG
         syslog(LOG_ERR, "read_nct7904_value: i2c_smbus_write_byte_data: "
             "lower tray monitor failed");
+#endif
         close(dev);
         return -1;
       }
@@ -1002,14 +1089,18 @@ read_ads1015_value(uint8_t channel, char *device, uint8_t addr, float *value) {
 
   dev = open(device, O_RDWR);
   if (dev < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "read_ads1015_value: open() failed");
+#endif
     return -1;
   }
 
   /* Assign the i2c device address */
   ret = ioctl(dev, I2C_SLAVE, addr);
   if (ret < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "read_ads1015_value: ioctl() assigning i2c addr failed");
+#endif
     close(dev);
     return -1;
   }
@@ -1025,7 +1116,9 @@ read_ads1015_value(uint8_t channel, char *device, uint8_t addr, float *value) {
   /* Write the config in the CONFIG register */
   ret = i2c_smbus_write_word_data(dev, ADS1015_CONFIG, config);
   if (ret < 0) {
+#ifdef DEBUG
     syslog(LOG_ERR, "read_ads1015_value: i2c_smbus_write_word_data failed");
+#endif
     close(dev);
     return -1;
   }
@@ -1038,24 +1131,30 @@ read_ads1015_value(uint8_t channel, char *device, uint8_t addr, float *value) {
     close(dev);
     return -1;
   } else if (config < 0) {
-    close(dev);
+#ifdef DEBUG
     syslog(LOG_ERR, "read_ads1015_value: i2c_smbus_read_word_data failed");
+#endif
+    close(dev);
     return -1;
   }
 
   /* Read the CONVERSION result */
   res = i2c_smbus_read_word_data(dev, ADS1015_CONVERSION);
   if (res < 0) {
-    close(dev);
+#ifdef DEBUG
     syslog(LOG_ERR, "read_ads1015_value: i2c_smbus_read_word_data failed");
+#endif
+    close(dev);
     return -1;
   }
 
   /* Read the CONFIG register to check if the conversion completed. */
   config2 = i2c_smbus_read_word_data(dev, ADS1015_CONFIG);
   if (config < 0) {
-    close(dev);
+#ifdef DEBUG
     syslog(LOG_ERR, "read_ads1015_value: i2c_smbus_read_word_data failed");
+#endif
+    close(dev);
     return -1;
   }
 
@@ -1064,8 +1163,10 @@ read_ads1015_value(uint8_t channel, char *device, uint8_t addr, float *value) {
    * the result is invalid
    */
   if (config2 != config) {
-    close(dev);
+#ifdef DEBUG
     syslog(LOG_ERR, "read_ads1015_value: config changed while conversion result read");
+#endif
+    close(dev);
     return -1;
   }
 
@@ -1606,8 +1707,10 @@ lightning_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
           ret = read_flash_temp(sensor_num - PDPB_SENSOR_FLASH_TEMP_0, (float*) value);
 
           if (ret < 0) {
-            if (pal_reset_ssd_switch() < 0) {
-              syslog(LOG_ERR, "lightning_sensor_read: pal_reset_ssd_switch failed");
+            if (gpio_reset_ssd_switch() < 0) {
+#ifdef DEBUG
+              syslog(LOG_ERR, "lightning_sensor_read: gpio_reset_ssd_switch failed");
+#endif
             }
           }
 
@@ -1619,8 +1722,10 @@ lightning_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
           ret = read_m2_amb_temp(sensor_num - PDPB_SENSOR_AMB_TEMP_0, (float*) value);
 
           if (ret < 0) {
-            if (pal_reset_ssd_switch() < 0) {
-              syslog(LOG_ERR, "lightning_sensor_read: pal_reset_ssd_switch failed");
+            if (gpio_reset_ssd_switch() < 0) {
+#ifdef DEBUG
+              syslog(LOG_ERR, "lightning_sensor_read: gpio_reset_ssd_switch failed");
+#endif
             }
           }
 
@@ -1716,7 +1821,7 @@ lightning_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
 
         // Airflow
         case FCB_SENSOR_AIRFLOW:
-          return pal_get_airflow((float*) value);
+          return lightning_sensor_get_airflow((float*) value);
 
         default:
           return -1;

@@ -69,6 +69,8 @@
 
 #define IMC_VER_SIZE 8
 
+#define SERVER_TYPE_FILE "/tmp/server_type.bin"
+
 #pragma pack(push, 1)
 typedef struct _sdr_rec_hdr_t {
   uint16_t rec_id;
@@ -323,30 +325,30 @@ bic_get_dev_id(uint8_t slot_id, ipmi_dev_id_t *dev_id) {
 // Get GPIO value and configuration
 int
 bic_get_gpio(uint8_t slot_id, bic_gpio_t *gpio) {
-  uint8_t tbuf[3] = {0x15, 0xA0, 0x00}; // IANA ID
+  uint8_t tbuf[4] = {0x15, 0xA0, 0x00}; // IANA ID
   uint8_t rbuf[12] = {0x00};
   uint8_t rlen = 0;
   int ret;
 
-  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_GET_GPIO, tbuf, 0x03, rbuf, &rlen);
+  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_GET_GPIO, tbuf, 3, rbuf, &rlen);
 
   // Ignore first 3 bytes of IANA ID
-  memcpy((uint8_t*) gpio, &rbuf[3], 5);
+  memcpy((uint8_t*) gpio, &rbuf[3], 6);
 
   return ret;
 }
 
 int
 bic_get_gpio_raw(uint8_t slot_id, uint8_t *gpio) {
-  uint8_t tbuf[3] = {0x15, 0xA0, 0x00}; // IANA ID
+  uint8_t tbuf[4] = {0x15, 0xA0, 0x00}; // IANA ID
   uint8_t rbuf[12] = {0x00};
   uint8_t rlen = 0;
   int ret;
 
-  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_GET_GPIO, tbuf, 0x03, rbuf, &rlen);
+  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_GET_GPIO, tbuf, 3, rbuf, &rlen);
 
   // Ignore first 3 bytes of IANA ID
-  memcpy((uint8_t*) gpio, &rbuf[3], 5);
+  memcpy((uint8_t*) gpio, &rbuf[3], 6);
 
   return ret;
 }
@@ -354,8 +356,8 @@ bic_get_gpio_raw(uint8_t slot_id, uint8_t *gpio) {
 
 int
 bic_set_gpio(uint8_t slot_id, uint8_t gpio, uint8_t value) {
-  uint8_t tbuf[13] = {0x15, 0xA0, 0x00}; // IANA ID
-  uint8_t rbuf[3] = {0x00};
+  uint8_t tbuf[16] = {0x15, 0xA0, 0x00}; // IANA ID
+  uint8_t rbuf[4] = {0x00};
   uint8_t rlen = 0;
   uint64_t pin;
   int ret;
@@ -367,25 +369,25 @@ bic_set_gpio(uint8_t slot_id, uint8_t gpio, uint8_t value) {
   tbuf[5] = (pin >> 16) & 0xFF;
   tbuf[6] = (pin >> 24) & 0xFF;
   tbuf[7] = (pin >> 32) & 0xFF;
+  tbuf[8] = (pin >> 40) & 0xFF;
 
   // Fill the value
   if (value) {
-    memset(&tbuf[8], 0xFF, 5);
+    memset(&tbuf[9], 0xFF, 6);
   } else {
-    memset(&tbuf[8] , 0x00, 5);
+    memset(&tbuf[9] , 0x00, 6);
   }
 
-  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_SET_GPIO, tbuf, 13, rbuf, &rlen);
+  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_SET_GPIO, tbuf, 15, rbuf, &rlen);
 
   return ret;
 }
 
 int
 bic_get_gpio_config(uint8_t slot_id, uint8_t gpio, bic_gpio_config_t *gpio_config) {
-  uint8_t tbuf[8] = {0x15, 0xA0, 0x00}; // IANA ID
-  uint8_t rbuf[4] = {0x00};
+  uint8_t tbuf[12] = {0x15, 0xA0, 0x00}; // IANA ID
+  uint8_t rbuf[8] = {0x00};
   uint8_t rlen = 0;
-  uint8_t tlen = 0;
   uint64_t pin;
   int ret;
 
@@ -396,10 +398,9 @@ bic_get_gpio_config(uint8_t slot_id, uint8_t gpio, bic_gpio_config_t *gpio_confi
   tbuf[5] = (pin >> 16) & 0xFF;
   tbuf[6] = (pin >> 24) & 0xFF;
   tbuf[7] = (pin >> 32) & 0xFF;
+  tbuf[8] = (pin >> 40) & 0xFF;
 
-  tlen = 8;
-
-  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_GET_GPIO_CONFIG, tbuf, tlen, rbuf, &rlen);
+  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_GET_GPIO_CONFIG, tbuf, 9, rbuf, &rlen);
 
   // Ignore IANA ID
   *(uint8_t *) gpio_config = rbuf[3];
@@ -409,10 +410,9 @@ bic_get_gpio_config(uint8_t slot_id, uint8_t gpio, bic_gpio_config_t *gpio_confi
 
 int
 bic_set_gpio_config(uint8_t slot_id, uint8_t gpio, bic_gpio_config_t *gpio_config) {
-  uint8_t tbuf[9] = {0x15, 0xA0, 0x00}; // IANA ID
+  uint8_t tbuf[12] = {0x15, 0xA0, 0x00}; // IANA ID
   uint8_t rbuf[4] = {0x00};
   uint8_t rlen = 0;
-  uint8_t tlen = 0;
   uint64_t pin;
   int ret;
 
@@ -423,13 +423,11 @@ bic_set_gpio_config(uint8_t slot_id, uint8_t gpio, bic_gpio_config_t *gpio_confi
   tbuf[5] = (pin >> 16) & 0xFF;
   tbuf[6] = (pin >> 24) & 0xFF;
   tbuf[7] = (pin >> 32) & 0xFF;
+  tbuf[8] = (pin >> 40) & 0xFF;
+  tbuf[9] = (*(uint8_t *) gpio_config) & 0x1F;
 
-  tbuf[8] = (*(uint8_t *) gpio_config) & 0x1F;
+  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_SET_GPIO_CONFIG, tbuf, 10, rbuf, &rlen);
 
-  tlen = 9;
-
-  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_SET_GPIO_CONFIG,
-      tbuf, tlen, rbuf, &rlen);
   return ret;
 }
 
@@ -515,14 +513,15 @@ bic_get_fw_ver(uint8_t slot_id, uint8_t comp, uint8_t *ver) {
 
 // Read checksum of various components
 int
-bic_get_fw_cksum(uint8_t slot_id, uint8_t comp, uint32_t offset, uint32_t len, uint8_t *ver) {
+bic_get_fw_cksum(uint8_t slot_id, uint8_t target, uint32_t offset, uint32_t len, uint8_t *ver) {
   uint8_t tbuf[12] = {0x15, 0xA0, 0x00}; // IANA ID
   uint8_t rbuf[16] = {0x00};
   uint8_t rlen = 0;
   int ret;
+  int retries = 3;
 
   // Fill the component for which firmware is requested
-  tbuf[3] = comp;
+  tbuf[3] = target;
 
   // Fill the offset
   tbuf[4] = (offset) & 0xFF;
@@ -536,11 +535,14 @@ bic_get_fw_cksum(uint8_t slot_id, uint8_t comp, uint32_t offset, uint32_t len, u
   tbuf[10] = (len >> 16) & 0xFF;
   tbuf[11] = (len >> 24) & 0xFF;
 
-
+bic_send:
   ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_GET_FW_CKSUM, tbuf, 12, rbuf, &rlen);
-  // checksum has to be 4 bytes
+  if ((ret || (rlen != 4+SIZE_IANA_ID)) && (retries--)) {  // checksum has to be 4 bytes
+    sleep(1);
+    syslog(LOG_ERR, "bic_get_fw_cksum: slot: %d, target %d, offset: %d, ret: %d, rlen: %d\n", slot_id, target, offset, ret, rlen);
+    goto bic_send;
+  }
   if (ret || (rlen != 4+SIZE_IANA_ID)) {
-    syslog(LOG_ERR, "bic_get_fw_cksum: ret: %d, rlen: %d\n", ret, rlen);
     return -1;
   }
 
@@ -1002,19 +1004,38 @@ error_exit:
 }
 
 static int
-check_vr_image(int fd, long size) {
+check_vr_image(uint8_t slot_id, int fd, long size) {
   uint8_t buf[32];
-  uint8_t hdr[] = {0x00,0x01,0x4c,0x1c,0x00,0x46,0x30,0x39,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+  uint8_t hdr_tl[] = {0x00,0x01,0x4c,0x1c,0x00,0x46,0x30,0x39};
+  uint8_t *hdr = hdr_tl, hdr_size = sizeof(hdr_tl);
+#if defined(CONFIG_FBY2_EP)
+  int ret;
+  uint8_t server_type = 0xFF;
+  uint8_t hdr_ep[] = {0x00,0x01,0x4c,0x1c,0x00,0x46,0x30,0x39,0x41};
 
-  if (size < 32)
+  ret = bic_get_server_type(slot_id, &server_type);
+  if (ret) {
+    syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
+    return -1;
+  }
+
+  switch (server_type) {
+    case SERVER_TYPE_EP:
+      hdr = hdr_ep;
+      hdr_size = sizeof(hdr_ep);
+      break;
+  }
+#endif
+
+  if (size < 16)
     return -1;
 
   lseek(fd, 1, SEEK_SET);
 
-  if (read(fd, buf, sizeof(hdr)) != sizeof(hdr))
+  if (read(fd, buf, hdr_size) != hdr_size)
     return -1;
 
-  if (memcmp(buf, hdr, sizeof(hdr)))
+  if (memcmp(buf, hdr, hdr_size))
     return -1;
 
   lseek(fd, 0, SEEK_SET);
@@ -1029,7 +1050,7 @@ check_cpld_image(uint8_t slot_id, int fd, long size) {
 #if defined(CONFIG_FBY2_RC) || defined(CONFIG_FBY2_EP)
   int ret;
   uint8_t server_type = 0xFF;
-  uint8_t hdr_ep[] = {0x01,0x00,0x4c,0x1c,0x00,0x01,0x2b,0xb0,0x43,0x46,0x30,0x39,0x41};
+  uint8_t hdr_ep[] = {0x01,0x00,0x4c,0x1c,0x00,0xe1,0x2b,0xc0,0x43,0x46,0x30,0x39,0x41};
 
   ret = bic_get_server_type(slot_id, &server_type);
   if (ret) {
@@ -1061,10 +1082,25 @@ check_cpld_image(uint8_t slot_id, int fd, long size) {
 }
 
 static int
-check_bios_image(int fd, long size) {
+check_bios_image(uint8_t slot_id, int fd, long size) {
   int i, rcnt, end;
   uint8_t *buf;
   uint8_t ver_sig[] = { 0x46, 0x49, 0x44, 0x04, 0x78, 0x00 };
+#if defined(CONFIG_FBY2_EP)
+  int ret;
+  uint8_t server_type = 0xFF;
+
+  ret = bic_get_server_type(slot_id, &server_type);
+  if (ret) {
+    syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
+    return -1;
+  }
+
+  switch (server_type) {
+    case SERVER_TYPE_EP:
+      return 0;
+  }
+#endif
 
   if (size < BIOS_VER_REGION_SIZE)
     return -1;
@@ -1101,6 +1137,75 @@ check_bios_image(int fd, long size) {
 
   lseek(fd, 0, SEEK_SET);
   return 0;
+}
+
+static int
+verify_bios_image(uint8_t slot_id, int fd, long size) {
+  int ret = -1;
+  int rc, i;
+  uint32_t offset;
+  uint32_t tcksum, gcksum;
+  volatile uint16_t count;
+  uint8_t target, last_pkt = 0x00;
+  uint8_t *tbuf = NULL;
+#if defined(CONFIG_FBY2_EP)
+  uint8_t server_type = 0xFF;
+
+  rc = bic_get_server_type(slot_id, &server_type);
+  if (rc) {
+    syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
+    return -1;
+  }
+
+  switch (server_type) {
+    case SERVER_TYPE_EP:
+      last_pkt = 0x80;
+      break;
+  }
+#endif
+
+  // Checksum calculation for BIOS image
+  tbuf = malloc(BIOS_VERIFY_PKT_SIZE * sizeof(uint8_t));
+  if (!tbuf) {
+    return -1;
+  }
+
+  lseek(fd, 0, SEEK_SET);
+  offset = 0;
+  while (1) {
+    count = read(fd, tbuf, BIOS_VERIFY_PKT_SIZE);
+    if (count <= 0) {
+      if (offset >= size) {
+        ret = 0;
+      }
+      break;
+    }
+
+    tcksum = 0;
+    for (i = 0; i < count; i++) {
+      tcksum += tbuf[i];
+    }
+
+    target = ((offset + count) >= size) ? (UPDATE_BIOS | last_pkt) : UPDATE_BIOS;
+
+    // Get the checksum of binary image
+    rc = bic_get_fw_cksum(slot_id, target, offset, count, (uint8_t*)&gcksum);
+    if (rc) {
+      printf("get checksum failed, offset:0x%x\n", offset);
+      break;
+    }
+
+    // Compare both and see if they match or not
+    if (gcksum != tcksum) {
+      printf("checksum does not match, offset:0x%x, 0x%x:0x%x\n", offset, tcksum, gcksum);
+      break;
+    }
+
+    offset += count;
+  }
+
+  free(tbuf);
+  return ret;
 }
 
 int
@@ -1178,13 +1283,9 @@ bic_update_fw(uint8_t slot_id, uint8_t comp, char *path) {
   uint32_t offset;
   volatile uint16_t count, read_count;
   uint8_t buf[256] = {0};
-  char    cmd[100] = {0};
   uint8_t target;
   int fd;
   int i;
-  uint32_t tcksum;
-  uint32_t gcksum;
-  uint8_t *tbuf = NULL;
 
   printf("updating fw on slot %d:\n", slot_id);
   // Handle Bridge IC firmware separately as the process differs significantly from others
@@ -1206,7 +1307,7 @@ bic_update_fw(uint8_t slot_id, uint8_t comp, char *path) {
 
   stat(path, &st);
   if (comp == UPDATE_BIOS) {
-    if (check_bios_image(fd, st.st_size) < 0) {
+    if (check_bios_image(slot_id, fd, st.st_size) < 0) {
       printf("invalid BIOS file!\n");
       lseek(fd, 0, SEEK_SET);
       //goto error_exit;
@@ -1214,7 +1315,7 @@ bic_update_fw(uint8_t slot_id, uint8_t comp, char *path) {
     syslog(LOG_CRIT, "Update BIOS: update bios firmware on slot %d\n", slot_id);
     dsize = st.st_size/100;
   } else if (comp == UPDATE_VR) {
-    if (check_vr_image(fd, st.st_size) < 0) {
+    if (check_vr_image(slot_id, fd, st.st_size) < 0) {
       printf("invalid VR file!\n");
       goto error_exit;
     }
@@ -1255,7 +1356,7 @@ bic_update_fw(uint8_t slot_id, uint8_t comp, char *path) {
     }
 
     // For non-BIOS update, the last packet is indicated by extra flag
-    if ((comp != UPDATE_BIOS) && (count < read_count)) {
+    if ((comp != UPDATE_BIOS) && ((offset + count) >= st.st_size)) {
       target = comp | 0x80;
     } else {
       target = comp;
@@ -1310,42 +1411,8 @@ bic_update_fw(uint8_t slot_id, uint8_t comp, char *path) {
     }
   }
 
-  if (comp != UPDATE_BIOS) {
-    goto update_done;
-  }
-
-  // Checksum calculation for BIOS image
-  tbuf = malloc(BIOS_VERIFY_PKT_SIZE * sizeof(uint8_t));
-  if (!tbuf) {
+  if ((comp == UPDATE_BIOS) && verify_bios_image(slot_id, fd, st.st_size)) {
     goto error_exit;
-  }
-
-  lseek(fd, 0, SEEK_SET);
-  offset = 0;
-  while (1) {
-    count = read(fd, tbuf, BIOS_VERIFY_PKT_SIZE);
-    if (count <= 0) {
-      break;
-    }
-
-    tcksum = 0;
-    for (i = 0; i < BIOS_VERIFY_PKT_SIZE; i++) {
-      tcksum += tbuf[i];
-    }
-
-    // Get the checksum of binary image
-    rc = bic_get_fw_cksum(slot_id, comp, offset, BIOS_VERIFY_PKT_SIZE, (uint8_t*)&gcksum);
-    if (rc) {
-      goto error_exit;
-    }
-
-    // Compare both and see if they match or not
-    if (gcksum != tcksum) {
-      printf("checksum does not match offset:0x%x, 0x%x:0x%x\n", offset, tcksum, gcksum);
-      goto error_exit;
-    }
-
-    offset += BIOS_VERIFY_PKT_SIZE;
   }
 
 update_done:
@@ -1368,10 +1435,6 @@ error_exit:
   }
   if (fd > 0 ) {
     close(fd);
-  }
-
-  if (tbuf) {
-    free(tbuf);
   }
 
   return ret;
@@ -1894,26 +1957,74 @@ me_recovery(uint8_t slot_id, uint8_t command) {
 int
 bic_get_server_type(uint8_t fru, uint8_t *type) {
   int ret;
+  int retries = 3;
+  int server_type;
   ipmi_dev_id_t id = {0};
 
-  ret = bic_get_dev_id(fru, &id);
-  if (ret) {
-    syslog(LOG_ERR, "bic_get_dev_id() failed.\n", __func__);
-    return ret;
-  }
+  // SERVER_TYPE[7:6] = 0(TwinLake), 1(RC), 2(EP), 3(unknown)
+  // SERVER_TYPE[5:4] = 0(TwinLake), 1(RC), 2(EP), 3(unknown)
+  // SERVER_TYPE[3:2] = 0(TwinLake), 1(RC), 2(EP), 3(unknown)
+  // SERVER_TYPE[1:0] = 0(TwinLake), 1(RC), 2(EP), 3(unknown)
+  if (read_device(SERVER_TYPE_FILE, &server_type)) {
+    do{
+      ret = bic_get_dev_id(fru, &id);
+      if (!ret) {
+        // Use product ID to identify the server type
+        if (id.prod_id[0] == 0x43 && id.prod_id[1] == 0x52) {
+          *type = SERVER_TYPE_RC;
+        } else if (id.prod_id[0] == 0x50 && id.prod_id[1] == 0x45) {
+          *type = SERVER_TYPE_EP;
+        } else if (id.prod_id[0] == 0x39 && id.prod_id[1] == 0x30) {
+          *type = SERVER_TYPE_TL;
+        } else {
+          *type = SERVER_TYPE_NONE;
+        }
+        break;
+      }
+    }while ((--retries));
 
-  // Use product ID to identify the server type
-  if (id.prod_id[0] == 0x43 && id.prod_id[1] == 0x52) {
-    *type = SERVER_TYPE_RC;
-  } else if (id.prod_id[0] == 0x50 && id.prod_id[1] == 0x45) {
-    *type = SERVER_TYPE_EP;
-  } else if (id.prod_id[0] == 0x39 && id.prod_id[1] == 0x30) {
-    *type = SERVER_TYPE_TL;
-  } else {
-    *type = SERVER_TYPE_NONE;
+    if(retries == 0) {
+      *type = SERVER_TYPE_NONE;
+      syslog(LOG_ERR, "%s : Get server type failed for slot%u", __func__, fru);
+      return -1;
+    }
+  }
+  else {
+    *type = server_type;
+    switch(fru)
+    {
+      case FRU_SLOT1:
+        *type = (*type & (0x3 << 0)) >> 0;
+        break;
+      case FRU_SLOT2:
+        *type = (*type & (0x3 << 2)) >> 2;
+        break;
+      case FRU_SLOT3:
+        *type = (*type & (0x3 << 4)) >> 4;
+        break;
+      case FRU_SLOT4:
+        *type = (*type & (0x3 << 6)) >> 6;
+        break;
+      default:
+        *type = SERVER_TYPE_NONE;   //set default to unknown server type
+        break;
+    }
   }
 
   return 0;
+}
+
+int
+bic_set_pcie_config(uint8_t slot_id, uint8_t config) {
+  uint8_t tbuf[4] = {0x15, 0xA0, 0x00}; // IANA ID
+  uint8_t rlen = 0;
+  uint8_t rbuf[16] = {0};
+  int ret;
+
+  tbuf[3] = config;
+  ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_SET_PCIE_CONFIG, tbuf, 0x04, rbuf, &rlen);
+
+  return ret;
 }
 
 int get_imc_version(uint8_t slot, uint8_t *ver) {

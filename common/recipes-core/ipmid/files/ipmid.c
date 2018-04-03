@@ -402,10 +402,15 @@ sensor_plat_event_msg(unsigned char *request, unsigned char req_len,
 
   sel_msg_t entry;
 
-  // Platform event provides only last 7 bytes of SEL's 16-byte entry
   entry.msg[2] = 0x02;  /* Set Record Type to be system event record.*/
-  memcpy(&entry.msg[9], req->data, 7);
 
+  if (req_len == 11) { // For messaging from system interface
+    entry.msg[7] = req->data[0];  //Store Generator ID
+    memcpy(&entry.msg[9], req->data + 1, 7); 
+  } else {
+    memcpy(&entry.msg[9], req->data, 7);  // Platform event provides only last 7 bytes of SEL's 16-byte entry 
+  }
+  
   // Use platform APIs to add the new SEL entry
   ret = sel_add_entry (req->payload_id, &entry, &record_id);
   if (ret)
@@ -538,6 +543,7 @@ app_cold_reset(unsigned char *request, unsigned char req_len,
       return;
     }
   }
+  syslog(LOG_CRIT, "BMC Cold Reset.");
   reboot(RB_AUTOBOOT);
 }
 

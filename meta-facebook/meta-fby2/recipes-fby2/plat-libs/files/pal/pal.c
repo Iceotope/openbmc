@@ -1006,11 +1006,9 @@ pal_slot_pair_12V_off(uint8_t slot_id) {
 }
 
 static bool
-pal_is_valid_pair(uint8_t slot_id) {
-  int pair_set_type;
-
-  pair_set_type = pal_get_pair_slot_type(slot_id);
-  switch (pair_set_type) {
+pal_is_valid_pair(uint8_t slot_id, int *pair_set_type) {
+  *pair_set_type = pal_get_pair_slot_type(slot_id);
+  switch (*pair_set_type) {
     case TYPE_SV_A_SV:
     case TYPE_CF_A_SV:
     case TYPE_GP_A_SV:
@@ -1023,17 +1021,54 @@ pal_is_valid_pair(uint8_t slot_id) {
 }
 
 static int
+_set_slot_12v_en_time(uint8_t slot_id) {
+  char key[MAX_KEY_LEN];
+  char value[MAX_VALUE_LEN];
+  struct timespec ts;
+
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  ts.tv_sec += 6;
+
+  sprintf(key, "slot%u_12v_en", slot_id);
+  sprintf(value, "%d", ts.tv_sec);
+  if (edb_cache_set(key, value) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static bool
+_check_slot_12v_en_time(uint8_t slot_id) {
+  char key[MAX_KEY_LEN];
+  char value[MAX_VALUE_LEN] = {0};
+  struct timespec ts;
+
+  sprintf(key, "slot%u_12v_en", slot_id);
+  if (edb_cache_get(key, value)) {
+     return true;
+  }
+
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  if (ts.tv_sec >= strtoul(value, NULL, 10))
+     return true;
+
+  return false;
+}
+
+static int
 pal_slot_pair_12V_on(uint8_t slot_id) {
   uint8_t pair_slot_id;
   int pair_set_type=-1;
   uint8_t status=0;
-  char hspath[80]={0};
   char vpath[80]={0};
   int ret=-1;
-  char cmd[80] = {0};
   uint8_t pwr_slot = slot_id;
   int retry;
   uint8_t self_test_result[2]={0};
+#if defined(CONFIG_FBY2_EP)
+  uint8_t server_type;
+#endif
 
   if (0 == slot_id%2)
     pair_slot_id = slot_id - 1;
@@ -1119,6 +1154,7 @@ pal_slot_pair_12V_on(uint8_t slot_id) {
 
        // Need to 12V-on pair slot
        if (!status) {
+         _set_slot_12v_en_time(pair_slot_id);
          sprintf(vpath, GPIO_VAL, gpio_12v[pair_slot_id]);
          if (write_device(vpath, "1")) {
            return -1;
@@ -1134,6 +1170,7 @@ pal_slot_pair_12V_on(uint8_t slot_id) {
          return -1;
        }
        if (!status) {
+         _set_slot_12v_en_time(pwr_slot);
          sprintf(vpath, GPIO_VAL, gpio_12v[pwr_slot]);
          if (write_device(vpath, "1")) {
            return -1;
@@ -1151,6 +1188,24 @@ pal_slot_pair_12V_on(uint8_t slot_id) {
          retry--;
          sleep(5);
        }
+
+#if defined(CONFIG_FBY2_EP)
+       retry = 2;
+       while (retry > 0) {
+         ret = fby2_get_server_type(pwr_slot, &server_type);
+         if (!ret) {
+           if (server_type == SERVER_TYPE_EP) {
+             ret = bic_set_pcie_config(pwr_slot, (pair_set_type == TYPE_CF_A_SV) ? 0x2 : 0x1);
+             if (ret == 0)
+               break;
+           } else {
+             break;
+           }
+         }
+         retry--;
+         msleep(100);
+       }
+#endif
 
        if (pal_get_server_power(pwr_slot, &status) < 0) {
          syslog(LOG_ERR, "%s: pal_get_server_power failed", __func__);
@@ -1228,6 +1283,7 @@ pal_hot_service_action(uint8_t slot_id) {
   // Re-init system configuration
   sprintf(hspath, HOTSERVICE_FILE, slot_id);
   if (access(hspath, F_OK) == 0) {
+    _set_slot_12v_en_time(slot_id);
     sprintf(vpath, GPIO_VAL, gpio_12v[slot_id]);
     if (write_device(vpath, "1")) {
       syslog(LOG_ERR, "%s: write_device failed", __func__);
@@ -1299,7 +1355,6 @@ server_12v_off(uint8_t slot_id) {
   }
 
   sprintf(vpath, GPIO_VAL, gpio_12v[runoff_id]);
-
   if (write_device(vpath, "0")) {
     return -1;
   }
@@ -1423,13 +1478,15 @@ pal_system_config_check(uint8_t slot_id) {
 static int
 server_12v_on(uint8_t slot_id) {
   char vpath[64] = {0};
-  char cmd[128] = {0};
   int ret=-1;
-  uint8_t value;
   uint8_t slot_prsnt, slot_latch;
   int rc, pid_file;
   int retry = MAX_BIC_CHECK_RETRY;
   bic_gpio_t gpio;
+  int pair_set_type=-1;
+#if defined(CONFIG_FBY2_EP)
+  uint8_t server_type, config;
+#endif
 
   // Check if another hotservice-reinit.sh instance of slotX is running
   while(1) {
@@ -1476,11 +1533,12 @@ server_12v_on(uint8_t slot_id) {
   rc = flock(pid_file, LOCK_UN);
   close(pid_file);
 
-  if (!pal_is_valid_pair(slot_id)) {
+  if (!pal_is_valid_pair(slot_id, &pair_set_type)) {
     return -1;
   }
 
   if (!pal_is_device_pair(slot_id)) {  // Write 12V on
+    _set_slot_12v_en_time(slot_id);
     sprintf(vpath, GPIO_VAL, gpio_12v[slot_id]);
     if (write_device(vpath, "1"))
       return -1;
@@ -1497,6 +1555,25 @@ server_12v_on(uint8_t slot_id) {
     sleep(1);
     retry--;
   }
+
+#if defined(CONFIG_FBY2_EP)
+  retry = 2;
+  while (retry > 0) {
+    ret = fby2_get_server_type(slot_id, &server_type);
+    if (!ret) {
+      if (server_type == SERVER_TYPE_EP) {
+        config = (pair_set_type == TYPE_CF_A_SV) ? 0x2 : (pair_set_type == TYPE_GP_A_SV) ? 0x1 : 0x0;
+        ret = bic_set_pcie_config(slot_id, config);
+        if (ret == 0)
+          break;
+      } else {
+        break;
+      }
+    }
+    retry--;
+    msleep(100);
+  }
+#endif
 
   if (ret) {
     syslog(LOG_INFO, "%s: bic_get_gpio returned error during 12V off to on for fru %d",__func__ ,slot_id);
@@ -3096,6 +3173,7 @@ pal_sensor_threshold_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
 
   uint8_t val;
   int ret;
+  uint8_t slot_id;
   uint8_t server_type = 0xFF;
 
   switch(fru) {
@@ -3142,11 +3220,12 @@ pal_sensor_threshold_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
         case SP_SENSOR_P12V_SLOT3:
         case SP_SENSOR_P12V_SLOT4:
           /* Check whether the system is 12V off or on */
-          ret = pal_is_server_12v_on(snr_num - SP_SENSOR_P12V_SLOT1 + 1, &val);
+          slot_id = snr_num - SP_SENSOR_P12V_SLOT1 + 1;
+          ret = pal_is_server_12v_on(slot_id, &val);
           if (ret < 0) {
             syslog(LOG_ERR, "%s: pal_is_server_12v_on failed",__func__);
           }
-          if (!val) {
+          if (!val || !_check_slot_12v_en_time(slot_id)) {
             *flag = GETMASK(SENSOR_VALID);
           }
           break;
@@ -3619,30 +3698,16 @@ pal_get_80port_record(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t 
 
 int
 pal_is_bmc_por(void) {
-  uint32_t scu_fd;
-  uint32_t wdt;
-  void *scu_reg;
-  void *scu_wdt;
+  FILE *fp;
+  int por = 0;
 
-  scu_fd = open("/dev/mem", O_RDWR | O_SYNC );
-  if (scu_fd < 0) {
-    return 0;
+  fp = fopen("/tmp/ast_por", "r");
+  if (fp != NULL) {
+    fscanf(fp, "%d", &por);
+    fclose(fp);
   }
 
-  scu_reg = mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, scu_fd,
-             AST_SCU_BASE);
-  scu_wdt = (char*)scu_reg + WDT_OFFSET;
-
-  wdt = *(volatile uint32_t*) scu_wdt;
-
-  munmap(scu_reg, PAGE_SIZE);
-  close(scu_fd);
-
-  if (wdt & 0x6) {
-    return 0;
-  } else {
-    return 1;
-  }
+  return (por)?1:0;
 }
 
 int
@@ -3711,7 +3776,7 @@ pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
         break;
     }
     if (valid) {
-      _print_sensor_discrete_log( fru, snr_num, snr_name, GETBIT(n_val, 0), name);
+      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 0), name);
       valid = false;
     }
   }
@@ -3732,7 +3797,7 @@ pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
         break;
     }
     if (valid) {
-      _print_sensor_discrete_log( fru, snr_num, snr_name, GETBIT(n_val, 1), name);
+      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 1), name);
       valid = false;
     }
   }
@@ -3749,22 +3814,27 @@ pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
         break;
     }
     if (valid) {
-      _print_sensor_discrete_log( fru, snr_num, snr_name, GETBIT(n_val, 2), name);
+      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 2), name);
       valid = false;
+    }
+  }
+
+  if (GETBIT(diff, 3)) {
+    if (snr_num == BIC_SENSOR_SYSTEM_STATUS) {
+      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 3), "PCH_Thermal_Trip");
     }
   }
 
   if (GETBIT(diff, 4)) {
     if (snr_num == BIC_SENSOR_PROC_FAIL) {
-        _print_sensor_discrete_log( fru, snr_num, snr_name, GETBIT(n_val, 4), "FRB3");
+      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 4), "FRB3");
     }
   }
 }
 
 static int
 pal_store_crashdump(uint8_t fru) {
-
-  return fby2_common_crashdump(fru);
+  return fby2_common_crashdump(fru,false);
 }
 
 int
@@ -3782,6 +3852,8 @@ pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
     case FRU_SLOT4:
       switch(snr_num) {
         case CATERR_B:
+          if (event_data[3] == 0x00) // 00h:IERR 0Bh:MCERR
+            fby2_common_set_ierr(fru,true);
           pal_store_crashdump(fru);
           break;
 
@@ -5153,6 +5225,13 @@ pal_handle_oem_1s_intr(uint8_t slot, uint8_t *data)
   struct sockaddr_un server;
   char sock_path[64] = {0};
   #define SOCK_PATH_ASD_BIC "/tmp/asd_bic_socket"
+
+  if ((data[0] == PLTRST_N) && (data[1] == 0x01)) {
+    if (fby2_common_get_ierr(slot)) {
+      fby2_common_crashdump(slot,true);
+    }
+    fby2_common_set_ierr(slot,false);
+  }
 
   sock = socket(AF_UNIX, SOCK_STREAM, 0);
   if (sock < 0) {

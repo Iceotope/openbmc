@@ -29,7 +29,7 @@
 extern "C" {
 #endif
 
-#define MAX_GPIO_PINS     40
+#define MAX_GPIO_PINS     50
 
 // GPIO PINS
 enum {
@@ -72,6 +72,11 @@ enum {
   XDP_PRSNT_OUT_N,
   XDP_BIC_PWR_DEBUG_N,
   FM_BIC_JTAG_SEL_N,
+  FM_PCIE_BMC_RELINK_N,
+  FM_DISABLE_PCH_VR,
+  FM_BIC_RST_RTCRST,
+  FM_BIC_ME_RCVR,
+  RST_RSMRST_PCH_N,
 };
 
 // RC GPIO PINS
@@ -258,7 +263,12 @@ typedef struct _bic_gpio_t {
   uint32_t xdp_prsnt_out_n:1;
   uint32_t xdp_bic_pwr_debug_n:1;
   uint32_t fm_bic_jtag_sel_n:1;
-  uint32_t rsvd:1;
+  uint32_t fm_pcie_bmc_relink_n:1;
+  uint32_t fm_disable_pch_vr:1;
+  uint32_t fm_bic_rst_rtcrst:1;
+  uint32_t fm_bic_me_rcvr:1;
+  uint32_t rst_rsmrst_pch_n:1;
+  uint32_t rsvd:4;
 } bic_gpio_t;
 
 // RC gpio
@@ -344,21 +354,6 @@ typedef struct _bic_ep_gpio_t {
   uint32_t rsvd:6;
 } bic_ep_gpio_t;
 
-typedef union _bic_gpio_u {
-  uint8_t gpio[4];
-  bic_gpio_t bits;
-} bic_gpio_u;
-
-typedef union _bic_rc_gpio_u {
-  uint8_t gpio[4];
-  bic_rc_gpio_t bits;
-} bic_rc_gpio_u;
-
-typedef union _bic_ep_gpio_u {
-  uint8_t gpio[5];
-  bic_ep_gpio_t bits;
-} bic_ep_gpio_u;
-
 typedef struct _bic_gpio_config_t {
   uint8_t dir:1;
   uint8_t ie:1;
@@ -426,6 +421,7 @@ int me_recovery(uint8_t slot_id, uint8_t command);
 int bic_get_self_test_result(uint8_t slot_id, uint8_t *self_test_result);
 int bic_read_accuracy_sensor(uint8_t slot_id, uint8_t sensor_num, ipmi_accuracy_sensor_reading_t *sensor);
 int bic_get_server_type(uint8_t fru, uint8_t *type);
+int bic_set_pcie_config(uint8_t slot_id, uint8_t config);
 int get_imc_version(uint8_t slot, uint8_t *ver);
 
 #ifdef __cplusplus
