@@ -108,6 +108,9 @@
 
 #define REINIT_TYPE_FULL            0
 #define REINIT_TYPE_HOST_RESOURCE   1
+
+#define FAN_WAIT_TIME_AFTER_POST  30
+
 static int nic_powerup_prep(uint8_t slot_id, uint8_t reinit_type);
 
 
@@ -3147,6 +3150,52 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
           return -1;
         }
       }
+      if ((sensor_num == SP_SENSOR_FAN0_TACH) || (sensor_num == SP_SENSOR_FAN1_TACH)) {
+        /* Check whether POST is ongoning or not */
+        uint8_t last_post = 0;
+        uint8_t current_post = pal_is_post_ongoing();
+        long current_time_stamp;
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        current_time_stamp = ts.tv_sec;
+
+        ret = pal_get_last_post(&last_post);
+        if (ret < 0) {
+          pal_set_last_post(0);
+        }
+
+        if (last_post != current_post) {
+          if (current_post == 0) {
+            // set POST end timestamp
+            pal_set_post_end_timestamp(current_time_stamp);
+          }
+          // update POST status;
+          pal_set_last_post(current_post);
+          sprintf(str, "%.2f",*((float*)value));
+          edb_cache_set(key, str);
+          return -1;
+        }
+
+        if (current_post == 1) {
+          // POST is ongoing
+          sprintf(str, "%.2f",*((float*)value));
+          edb_cache_set(key, str);
+          return -1;
+        } else {
+          long post_end_timestamp = 0;
+          int ret = pal_get_post_end_timestamp(&post_end_timestamp);
+          if (ret < 0) {
+            // no timestamp yet
+            pal_set_post_end_timestamp(0);
+          }
+          if (current_time_stamp <  post_end_timestamp + FAN_WAIT_TIME_AFTER_POST ) {
+            // wait for fan speed deassert after POST
+            sprintf(str, "%.2f",*((float*)value));
+            edb_cache_set(key, str);
+            return -1;
+          }
+        }
+      }
     }
     if ((GETBIT(snr_chk->flag, UCR_THRESH) && (*((float*)value) >= snr_chk->ucr)) ||
         (GETBIT(snr_chk->flag, LCR_THRESH) && (*((float*)value) <= snr_chk->lcr))) {
@@ -3227,6 +3276,33 @@ pal_sensor_threshold_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
           }
           if (!val || !_check_slot_12v_en_time(slot_id)) {
             *flag = GETMASK(SENSOR_VALID);
+          }
+          break;
+        case SP_SENSOR_FAN0_TACH:
+        case SP_SENSOR_FAN1_TACH:
+
+          // Check POST status
+          if (pal_is_post_ongoing()) {
+            // POST is ongoing
+            *flag = CLEARBIT(*flag,UNC_THRESH);
+          } else {
+            long current_time_stamp = 0;
+            long post_end_timestamp = 0;
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            current_time_stamp = ts.tv_sec;
+
+            int ret = pal_get_post_end_timestamp(&post_end_timestamp);
+            if (ret < 0) {
+              // no timestamp yet
+              pal_set_post_end_timestamp(0);
+            }
+
+            if ( current_time_stamp < post_end_timestamp + FAN_WAIT_TIME_AFTER_POST ) {
+              // wait for fan speed deassert after POST
+              *flag = CLEARBIT(*flag,UNC_THRESH);
+            }
+
           }
           break;
       }
@@ -4005,6 +4081,125 @@ pal_set_sensor_health(uint8_t fru, uint8_t value) {
   sprintf(cvalue, (value > 0) ? "1": "0");
 
   return pal_set_key_value(key, cvalue);
+}
+
+int
+pal_set_fru_post(uint8_t fru, uint8_t value) {
+
+  char key[MAX_KEY_LEN] = {0};
+  char cvalue[MAX_VALUE_LEN] = {0};
+
+  switch(fru) {
+    case FRU_SLOT1:
+    case FRU_SLOT2:
+    case FRU_SLOT3:
+    case FRU_SLOT4:
+      sprintf(key, "slot%d_post_flag", fru);
+      break;
+
+    default:
+      return -1;
+  }
+
+  sprintf(cvalue, (value > 0) ? "1": "0");
+
+  return edb_cache_set(key,cvalue);
+}
+
+int
+pal_get_fru_post(uint8_t fru, uint8_t *value) {
+
+  char key[MAX_KEY_LEN] = {0};
+  char cvalue[MAX_VALUE_LEN] = {0};
+  int ret;
+
+  switch(fru) {
+    case FRU_SLOT1:
+    case FRU_SLOT2:
+    case FRU_SLOT3:
+    case FRU_SLOT4:
+      sprintf(key, "slot%d_post_flag", fru);
+      break;
+
+    default:
+      return -1;
+  }
+
+  ret = edb_cache_get(key, cvalue);
+  if (ret) {
+    return ret;
+  }
+  *value = atoi(cvalue);
+  return 0;
+}
+
+uint8_t
+pal_is_post_ongoing(){
+  uint8_t is_post_ongoing = 0;
+  uint8_t value = 0;
+  for (int fru=1;fru <= 4;fru++) {
+    //get bios post status from kv_store
+    int ret = pal_get_fru_post(fru, &value);
+    if (ret < 0) {
+      //default value
+      value = 0;
+    }
+    is_post_ongoing |= value;
+  }
+  return is_post_ongoing;
+}
+
+int
+pal_set_last_post(uint8_t value) {
+
+  char* key = "last_post_status";
+  char cvalue[MAX_VALUE_LEN] = {0};
+
+  sprintf(cvalue, (value > 0) ? "1" : "0");
+
+  return edb_cache_set(key,cvalue);
+}
+
+int
+pal_get_last_post(uint8_t *value) {
+
+  char* key = "last_post_status";
+  char cvalue[MAX_VALUE_LEN] = {0};
+  int ret;
+
+  ret = edb_cache_get(key, cvalue);
+  if (ret) {
+    return ret;
+  }
+  *value = atoi(cvalue);
+  return 0;
+}
+
+int
+pal_set_post_end_timestamp(long value) {
+
+  char* key = "post_end_timestamp";
+  char cvalue[MAX_VALUE_LEN] = {0};
+
+  sprintf(cvalue, "%ld", value);
+
+  return edb_cache_set(key,cvalue);
+}
+
+int
+pal_get_post_end_timestamp(long *value) {
+
+  char* key = "post_end_timestamp";
+  char cvalue[MAX_VALUE_LEN] = {0};
+  int ret;
+
+  ret = edb_cache_get(key, cvalue);
+  if (ret) {
+    return ret;
+  }
+
+  *value = (long) strtoul(cvalue, NULL, 10);
+  return 0;
 }
 
 int
@@ -5262,6 +5457,55 @@ pal_handle_oem_1s_intr(uint8_t slot, uint8_t *data)
 }
 
 int
+pal_handle_oem_1s_asd_msg_in(uint8_t slot, uint8_t *data, uint8_t data_len)
+{
+  int sock;
+  int err;
+  struct sockaddr_un server;
+  char sock_path[64] = {0};
+  #define SOCK_PATH_JTAG_MSG "/tmp/jtag_msg_socket"
+
+  sock = socket(AF_UNIX, SOCK_STREAM, 0);
+  if (sock < 0) {
+    err = errno;
+    syslog(LOG_ERR, "%s failed open socket (errno=%d)", __FUNCTION__, err);
+    return -1;
+  }
+
+  server.sun_family = AF_UNIX;
+  sprintf(sock_path, "%s_%d", SOCK_PATH_JTAG_MSG, slot);
+  strcpy(server.sun_path, sock_path);
+
+  if (connect(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_un)) < 0) {
+    err = errno;
+    close(sock);
+    syslog(LOG_ERR, "%s failed connecting stream socket (errno=%d), %s",
+           __FUNCTION__, err, server.sun_path);
+    return -1;
+  }
+
+  if (write(sock, data, data_len) < 0) {
+    err = errno;
+    syslog(LOG_ERR, "%s error writing on stream sockets (errno=%d)", __FUNCTION__, err);
+  }
+
+  close(sock);
+  return 0;
+}
+
+bool
+pal_is_fw_update_ongoing_system(void) {
+  uint8_t i;
+
+  for (i = FRU_SLOT1; i <= FRU_BMC; i++) {
+    if (pal_is_fw_update_ongoing(i) == true)
+      return true;
+  }
+
+  return false;
+}
+
+int
 pal_ipmb_processing(int bus, void *buf, uint16_t size) {
   char key[MAX_KEY_LEN];
   char value[MAX_VALUE_LEN];
@@ -5333,92 +5577,244 @@ pal_get_me_name(uint8_t fru, char *target_name) {
   return;
 }
 
-uint8_t
-pal_err_ras_sel_handle(uint8_t section_type, char *error_log, uint8_t *sel) {
-  char temp_log[64] = {0};
-  int i;
-  char tstr[10] = {0};
-  char ras_data[128]={0};
+void
+processor_ras_sel_parse(char *error_log, uint8_t *sel) {
+  uint8_t section_sub_type = sel[0];
+  char temp_log[128] = {0};
+
+  switch(section_sub_type) {
+    case 0x00:
+      sprintf(temp_log, " Section Sub-type: Cache Error,");
+      break;
+    case 0x01:
+      sprintf(temp_log, " Section Sub-type: TLB Error,");
+      break;
+    case 0x02:
+      sprintf(temp_log, " Section Sub-type: Bus Error,");
+      break;
+    case 0x03:
+      sprintf(temp_log, " Section Sub-type: Micro-architectural Error,");
+      break;
+    default:
+      sprintf(temp_log, " Section Sub-type: Unknown(0x%x),", section_sub_type);
+      break;
+  }
+  strcat(error_log, temp_log);
+  return;
+}
+
+void
+memory_ras_sel_parse(char *error_log, uint8_t *sel) {
+  uint8_t section_sub_type = sel[0];
+  char temp_log[128] = {0};
   int ch_num;
   int dimm_num;
-  strcpy(error_log, "");
+
+  switch(section_sub_type) {
+    case 0:
+      sprintf(temp_log, " Section Sub-type: Unknown,");
+      break;
+    case 1:
+      sprintf(temp_log, " Section Sub-type: No Error,");
+      break;
+    case 2:
+      sprintf(temp_log, " Section Sub-type: Single-bit ECC,");
+      break;
+    case 3:
+      sprintf(temp_log, " Section Sub-type: Multi-bit ECC,");
+      break;
+    case 4:
+      sprintf(temp_log, " Section Sub-type: Single-symbol Chipkill ECC,");
+      break;
+    case 5:
+      sprintf(temp_log, " Section Sub-type: Multi-symbol ChipKill ECC,");
+      break;
+    case 6:
+      sprintf(temp_log, " Section Sub-type: Master Abort,");
+      break;
+    case 7:
+      sprintf(temp_log, " Section Sub-type: Target Abort,");
+      break;
+    case 8:
+      sprintf(temp_log, " Section Sub-type: Parity Error,");
+      break;
+    case 9:
+      sprintf(temp_log, " Section Sub-type: Watchdog Timeout,");
+      break;
+    case 10:
+      sprintf(temp_log, " Section Sub-type: Invalid Address,");
+      break;
+    case 11:
+      sprintf(temp_log, " Section Sub-type: Mirror Broken,");
+      break;
+    case 12:
+      sprintf(temp_log, " Section Sub-type: Memory Sparing,");
+      break;
+    case 13:
+      sprintf(temp_log, " Section Sub-type: Scrub corrected Error,");
+      break;
+    case 14:
+      sprintf(temp_log, " Section Sub-type: Scrub uncorrected error,");
+      break;
+    case 15:
+      sprintf(temp_log, " Section Sub-type: Physical Memory Map-out event,");
+      break;
+    default:
+      sprintf(temp_log, " Section Sub-type: Undefined(0x%x),", section_sub_type);
+      break;
+  }
+  strcat(error_log, temp_log);
+  strcpy(temp_log, "");
+
+  ch_num = sel[4]*256+sel[3];
+  dimm_num = sel[6]*256+sel[5];
+
+  if(ch_num == 3 && dimm_num == 0)
+    sprintf(temp_log, " Error Specific: DIMM A0");
+  else if(ch_num == 2 && dimm_num == 0)
+    sprintf(temp_log, " Error Specific: DIMM B0");
+  else if(ch_num == 4 && dimm_num == 0)
+    sprintf(temp_log, " Error Specific: DIMM C0");
+  else if(ch_num == 5 && dimm_num == 0)
+    sprintf(temp_log, " Error Specific: DIMM D0");
+  else
+    sprintf(temp_log, " Error Specific: Unknown Channel Number (%d) / DIMM Number (%d)", ch_num, dimm_num);
+
+  strcat(error_log, temp_log);
+  return;
+}
+
+void
+pcie_ras_sel_parse(char *error_log, uint8_t *sel) {
+  uint8_t section_sub_type = sel[0];
+  char temp_log[128] = {0};
+  uint8_t fun_num = sel[8];
+  uint8_t dev_num = sel[9];
+  uint8_t seg_num[2] = {sel[10],sel[11]};
+  uint8_t bus_num = sel[12];
+
+  switch(section_sub_type) {
+    case 0x00:
+      sprintf(temp_log, " Section Sub-type: PCIE error,");
+      break;
+    default:
+      sprintf(temp_log, " Section Sub-type: Unknown(0x%x),", section_sub_type);
+      break;
+  }
+  strcat(error_log, temp_log);
+  strcpy(temp_log, "");
+
+  sprintf(temp_log, " Error Specific: Segment Number (%02x%02x) / Bus Number (%02x) / Device Number (%02x) / Function Number (%x)", seg_num[1], seg_num[0], bus_num, dev_num, fun_num);
+  strcat(error_log, temp_log);
+
+  return;
+}
+
+void
+qualcomm_fw_ras_sel_parse(char *error_log, uint8_t *sel) {
+  uint8_t section_sub_type = sel[0];
+  char temp_log[128] = {0};
+
+  switch(section_sub_type) {
+    case 0x00:
+      sprintf(temp_log, " Section Sub-type: Invalid,");
+      break;
+    case 0x01:
+      sprintf(temp_log, " Section Sub-type: Imem,");
+      break;
+    case 0x02:
+      sprintf(temp_log, " Section Sub-type: BERT,");
+      break;
+    case 0x03:
+      sprintf(temp_log, " Section Sub-type: IMC Error,");
+      break;
+    case 0x04:
+      sprintf(temp_log, " Section Sub-type: PMIC Over Temp,");
+      break;
+    case 0x05:
+      sprintf(temp_log, " Section Sub-type: XPU Error,");
+      break;
+    case 0x06:
+      sprintf(temp_log, " Section Sub-type: EL3 Firmware Error,");
+      break;
+    default:
+      sprintf(temp_log, " Section Sub-type: Unknown(0x%x),", section_sub_type);
+      break;
+  }
+  strcat(error_log, temp_log);
+
+  return;
+}
+
+uint8_t
+pal_err_ras_sel_handle(uint8_t section_type, char *error_log, uint8_t *sel) {
+  char temp_log[32] = {0};
+  char tstr[10] = {0};
+  char ras_data[128]={0};
+  int i;
 
   switch(section_type) {
     case 0x00:
-      sprintf(temp_log, " Section Sub-type: Processor Specific (ARM) Error,");
+      processor_ras_sel_parse(error_log, sel);
       break;
     case 0x01:
-      sprintf(temp_log, " Section Sub-type: Memory Error,");
-      strcat(error_log, temp_log);
-      strcpy(temp_log, "");
-      ch_num = sel[4]*256+sel[3];
-      dimm_num = sel[6]*256+sel[5];
-      
-      if(ch_num == 3 && dimm_num == 0)
-        sprintf(temp_log, " DIMM A0");
-      else if(ch_num == 2 && dimm_num == 0)
-        sprintf(temp_log, " DIMM B0");
-      else if(ch_num == 4 && dimm_num == 0)
-        sprintf(temp_log, " DIMM C0");
-      else if(ch_num == 5 && dimm_num == 0)
-        sprintf(temp_log, " DIMM D0");
-      else
-        syslog(temp_log, " DIMM: Unknown");
+      memory_ras_sel_parse(error_log, sel);
       break;
     case 0x02:  //Not used
       return 0;
     case 0x03:
-      sprintf(temp_log, " Section Sub-type: PCIe Error,");
+      pcie_ras_sel_parse(error_log, sel);
       break;
     case 0x04:
-      sprintf(temp_log, " Section Sub-type: Qualcomm Firmware Error,");
+      qualcomm_fw_ras_sel_parse(error_log, sel);
       break;
     default:
-      sprintf(temp_log, " Section Sub-type: Unknown,");
+      sprintf(temp_log, " Section Sub-type: Unknown(0x%x),", sel[0]);
+      strcat(error_log, temp_log);
+      strcpy(temp_log, "");
       break;
   }
-  if(section_type == 0x01){
+
+  if((section_type != 0x01) && (section_type != 0x03)) {
+    sprintf(temp_log, " Error Specific Raw Data: ");
     strcat(error_log, temp_log);
-  } else {
-    strcat(error_log, temp_log);
-    strcpy(temp_log, "");
-    sprintf(temp_log, " RAS Data: ");
-    strcat(error_log, temp_log);
-    for(i = 1; i <= SIZE_RAS_SEL - 7; i++) {
-      sprintf(tstr, "%02X", sel[i]);
+    for(i = 1; i < SIZE_RAS_SEL - 7; i++) {
+      sprintf(tstr, "%02X:", sel[i]);
       strcat(ras_data, tstr);
     }
-    strcat(error_log, ras_data); 
+    sprintf(tstr, "%02X", sel[SIZE_RAS_SEL - 7]);
+    strcat(ras_data, tstr);
+    strcat(error_log, ras_data);
   }
   return 0;
 }
 
 uint8_t
-pal_parse_ras_sel(uint8_t slot, uint8_t *sel, char *error_log_p1, char *error_log_p2) {
+pal_parse_ras_sel(uint8_t slot, uint8_t *sel, char *error_log) {
   uint8_t error_type = sel[0];
   uint8_t error_severity = sel[1];
   uint8_t section_type = sel[2];
   char temp_log[128] = {0};
-  strcpy(error_log_p1, "");
+  strcpy(error_log, "");
 
   switch(error_type) {
     case 0x00:
-      sprintf(error_log_p1, " Error Type: SEI,"); 
+      sprintf(error_log, " Error Type: SEI,");
       break;
     case 0x01:
-      sprintf(error_log_p1, " Error Type: SEA,");
+      sprintf(error_log, " Error Type: SEA,");
       break;
     case 0x02:
-      sprintf(error_log_p1, " Error Type: PEI,");
+      sprintf(error_log, " Error Type: PEI,");
       break;
     case 0x03:
-      sprintf(error_log_p1, " Error Type: BERT/BOOT,");
+      sprintf(error_log, " Error Type: BERT/BOOT,");
       break;
     case 0x04:
-      sprintf(error_log_p1, " Error Type: PCIe,");
+      sprintf(error_log, " Error Type: PCIe,");
       break;
     default:
-      sprintf(error_log_p1, " Error Type: Unknown,");
+      sprintf(error_log, " Error Type: Unknown(0x%x),", error_type);
       break;
   }
 
@@ -5436,37 +5832,35 @@ pal_parse_ras_sel(uint8_t slot, uint8_t *sel, char *error_log_p1, char *error_lo
       sprintf(temp_log, " Error Severity: Informational,");
       break;
     default:
-      sprintf(temp_log, " Error Severity: Unknown,");
+      sprintf(temp_log, " Error Severity: Unknown(0x%x),", error_severity);
       break;
   }
-  strcat(error_log_p1, temp_log);
+  strcat(error_log, temp_log);
   strcpy(temp_log, "");
 
   switch(section_type) {
     case 0x00:
-      sprintf(temp_log, " Section Type: Processor Specific ARM");
+      sprintf(temp_log, " Section Type: Processor Specific ARM,");
       break;
     case 0x01:
-      sprintf(temp_log, " Section Type: Memory");
+      sprintf(temp_log, " Section Type: Memory,");
       break;
     case 0x02:
       sprintf(temp_log, " Section Type: Firmware");
       break;
     case 0x03:
-      sprintf(temp_log, " Section Type: PCIe");
+      sprintf(temp_log, " Section Type: PCIe,");
       break;
     case 0x04:
-      sprintf(temp_log, " Section Type: Qualcomm Firmware");
+      sprintf(temp_log, " Section Type: Qualcomm Firmware,");
       break;
     default:
-      sprintf(temp_log, " Section Type: Unknown");
+      sprintf(temp_log, " Section Type: Unknown(0x%x),", section_type);
       break;
   }
-  strcat(error_log_p1, temp_log);
-  
-  pal_err_ras_sel_handle(section_type,error_log_p2,&sel[3]);
+  strcat(error_log, temp_log);
+
+  pal_err_ras_sel_handle(section_type, error_log, &sel[3]);
 
   return 0;
 }
-
-

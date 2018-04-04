@@ -213,7 +213,7 @@ pal_set_imc_version(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *r
 }
 
 uint8_t __attribute__((weak))
-pal_parse_ras_sel(uint8_t slot, uint8_t *sel, char *error_log_p1, char *error_log_p2)
+pal_parse_ras_sel(uint8_t slot, uint8_t *sel, char *error_log)
 {
   return PAL_EOK;
 }
@@ -1536,6 +1536,12 @@ int __attribute__((weak))
 pal_handle_oem_1s_intr(uint8_t slot, uint8_t *data)
 {
   return 0;
+}
+
+int __attribute__((weak))
+pal_handle_oem_1s_asd_msg_in(uint8_t slot, uint8_t *data, uint8_t data_len)
+{
+  return PAL_ENOTSUP;
 }
 
 int __attribute__((weak))
