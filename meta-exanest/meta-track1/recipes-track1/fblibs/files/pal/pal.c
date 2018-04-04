@@ -113,11 +113,141 @@ char * key_list[] = {
 "identify_slot6",
 "identify_slot7",
 "identify_slot8",
+"slot1_sel_error",
+"slot2_sel_error",
+"slot3_sel_error",
+"slot4_sel_error",
+"slot5_sel_error",
+"slot6_sel_error",
+"slot7_sel_error",
+"slot8_sel_error",
+"slot1_sensor_health",
+"slot2_sensor_health",
+"slot3_sensor_health",
+"slot4_sensor_health",
+"slot5_sensor_health",
+"slot6_sensor_health",
+"slot7_sensor_health",
+"slot8_sensor_health",
+"bmc_sensor_health",
+"slot1_last_state",
+"slot2_last_state",
+"slot3_last_state",
+"slot4_last_state",
+"slot5_last_state",
+"slot6_last_state",
+"slot7_last_state",
+"slot8_last_state",
+"slot1_restart_cause",
+"slot2_restart_cause",
+"slot3_restart_cause",
+"slot4_restart_cause",
+"slot5_restart_cause",
+"slot6_restart_cause",
+"slot7_restart_cause",
+"slot8_restart_cause",
+"sysfw_ver_slot1",
+"sysfw_ver_slot2",
+"sysfw_ver_slot3",
+"sysfw_ver_slot4",
+"sysfw_ver_slot5",
+"sysfw_ver_slot6",
+"sysfw_ver_slot7",
+"sysfw_ver_slot8",
+"slot1_boot_order",
+"slot2_boot_order",
+"slot3_boot_order",
+"slot4_boot_order",
+"slot5_boot_order",
+"slot6_boot_order",
+"slot7_boot_order",
+"slot8_boot_order",
+"slot1_por_cfg",
+"slot2_por_cfg",
+"slot3_por_cfg",
+"slot4_por_cfg",
+"slot5_por_cfg",
+"slot6_por_cfg",
+"slot7_por_cfg",
+"slot8_por_cfg",
 "server_48v_status",
+"timestamp_sled",
 /* Add more Keys here */
 LAST_KEY /* This is the last key of the list */
 };
 
+char * def_val_list[] = {
+  "off", /* "identify_board" */
+  "off", /* "identify_slot1" */
+  "off", /* "identify_slot2" */
+  "off", /* "identify_slot3" */
+  "off", /* "identify_slot4" */
+  "off", /* "identify_slot5" */
+  "off", /* "identify_slot6" */
+  "off", /* "identify_slot7" */
+  "off", /* "identify_slot8" */
+  "1", /* "slot1_sel_error" */
+  "1", /* "slot2_sel_error" */
+  "1", /* "slot3_sel_error" */
+  "1", /* "slot4_sel_error" */
+  "1", /* "slot5_sel_error" */
+  "1", /* "slot6_sel_error" */
+  "1", /* "slot7_sel_error" */
+  "1", /* "slot8_sel_error" */
+  "1", /* "slot1_sensor_health" */
+  "1", /* "slot2_sensor_health" */
+  "1", /* "slot3_sensor_health" */
+  "1", /* "slot4_sensor_health" */
+  "1", /* "slot5_sensor_health" */
+  "1", /* "slot6_sensor_health" */
+  "1", /* "slot7_sensor_health" */
+  "1", /* "slot8_sensor_health" */
+  "1", /* "bmc_sensor_health" */
+  "on", /* "slot1_last_state" */
+  "on", /* "slot2_last_state" */
+  "on", /* "slot3_last_state" */
+  "on", /* "slot4_last_state" */
+  "on", /* "slot5_last_state" */
+  "on", /* "slot6_last_state" */
+  "on", /* "slot7_last_state" */
+  "on", /* "slot8_last_state" */
+  "0", /* "slot1_restart_cause" */
+  "0", /* "slot2_restart_cause" */
+  "0", /* "slot3_restart_cause" */
+  "0", /* "slot4_restart_cause" */
+  "0", /* "slot5_restart_cause" */
+  "0", /* "slot6_restart_cause" */
+  "0", /* "slot7_restart_cause" */
+  "0", /* "slot8_restart_cause" */
+  "0", /* "sysfw_ver_slot1" */
+  "0", /* "sysfw_ver_slot2" */
+  "0", /* "sysfw_ver_slot3" */
+  "0", /* "sysfw_ver_slot4" */
+  "0", /* "sysfw_ver_slot5" */
+  "0", /* "sysfw_ver_slot6" */
+  "0", /* "sysfw_ver_slot7" */
+  "0", /* "sysfw_ver_slot8" */
+  "0", /* "slot1_boot_order" */
+  "0", /* "slot2_boot_order" */
+  "0", /* "slot3_boot_order" */
+  "0", /* "slot4_boot_order" */
+  "0", /* "slot5_boot_order" */
+  "0", /* "slot6_boot_order" */
+  "0", /* "slot7_boot_order" */
+  "0", /* "slot8_boot_order" */
+  "off", /* "slot1_por_cfg" */
+  "off", /* "slot2_por_cfg" */
+  "off", /* "slot3_por_cfg" */
+  "off", /* "slot4_por_cfg" */
+  "off", /* "slot5_por_cfg" */
+  "off", /* "slot6_por_cfg" */
+  "off", /* "slot7_por_cfg" */
+  "off", /* "slot8_por_cfg" */
+  "0", /* "server_48v_status" */
+  "0", /* timestamp_sled" */
+/* Add more Keys here */
+LAST_KEY /* This is the last key of the list */
+};
 
 typedef struct {
   uint16_t flag;
@@ -139,6 +269,9 @@ typedef struct {
   float last_val;
 
 } sensor_check_t;
+
+static sensor_check_t m_snr_chk[MAX_NUM_FRUS][MAX_SENSOR_NUM] = {0};
+
 
 // Helper functions
 
@@ -439,6 +572,12 @@ pal_get_num_slots(uint8_t *num) {
   // Return Track1 Specific Value
   *num = TRACK1_MAX_NUM_SLOTS;
   return PAL_EOK;
+}
+
+bool
+pal_is_fru_x86(uint8_t fru)
+{
+  return false;
 }
 
 // Power Off, Power On, or Power Reset the server in given slot
@@ -779,4 +918,1136 @@ pal_set_hb_led(uint8_t status) {
   }
 
   return PAL_EOK;
+}
+
+// Gets a list of the FRUs (daughterboards basically)
+int
+pal_get_fru_list(char *list) {
+
+  strcpy(list, pal_fru_list);
+  return PAL_EOK;
+}
+
+
+int
+pal_get_fru_id(char *str, uint8_t *fru) {
+
+  return track1_common_fru_id(str, fru);
+}
+
+int
+pal_get_fru_name(uint8_t fru, char *name) {
+
+  return track1_common_fru_name(fru, name);
+}
+
+// Not sure if this is needed, I think so
+int
+pal_get_fru_sdr_path(uint8_t fru, char *path) {
+
+  return track1_sensor_sdr_path(fru, path);
+}
+
+// This is the list of sensors etc.
+// these need to be in track1_sensor.c
+
+int
+pal_get_fru_sensor_list(uint8_t fru, uint8_t **sensor_list, int *cnt) {
+
+  switch(fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+      *sensor_list = (uint8_t *) tpdb_sensor_list;
+      *cnt = tpdb_sensor_cnt;
+      break;
+
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+      *sensor_list = (uint8_t *) kdb_sensor_list;
+      *cnt = kdb_sensor_cnt;
+      break;
+
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+      *sensor_list = (uint8_t *) qfdb_sensor_list;
+      *cnt = qfdb_sensor_cnt;
+      break;
+
+    case FRU_BMC:
+      *sensor_list = (uint8_t *) bmc_sensor_list;
+      *cnt = bmc_sensor_cnt;
+      break;
+    default:
+#ifdef DEBUG
+      syslog(LOG_WARNING, "pal_get_fru_sensor_list: Wrong fru id %u", fru);
+#endif
+      return -1;
+  }
+    return PAL_EOK;
+}
+
+// We should do this somehow? maybe into boards eeprom?
+int
+pal_fruid_write(uint8_t fru, char *path) {
+  //return bic_write_fruid(fru, 0, path);
+  return PAL_EOK;
+}
+
+// Not sure what calls this?
+int
+pal_sensor_sdr_init(uint8_t fru, sensor_info_t *sinfo) {
+  uint8_t status;
+
+  switch(fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+      pal_is_fru_prsnt(fru, &status);
+      break;
+    case FRU_BMC:
+      status = 1;
+      break;
+  }
+
+  if (status)
+    return track1_sensor_sdr_init(fru, sinfo);
+  else
+    return -1;
+}
+
+// Some kind sensor check thing?
+// Looks in an array for the data.
+static sensor_check_t *
+get_sensor_check(uint8_t fru, uint8_t snr_num) {
+
+  if (fru < 1 || fru > MAX_NUM_FRUS) {
+    syslog(LOG_WARNING, "get_sensor_check: Wrong FRU ID %d\n", fru);
+    return NULL;
+  }
+
+  return &m_snr_chk[fru-1][snr_num];
+}
+
+// Main sensor read code
+
+int
+pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
+
+  uint8_t status;
+  char key[MAX_KEY_LEN] = {0};
+  char str[MAX_VALUE_LEN] = {0};
+  int ret;
+  uint8_t retry = MAX_READ_RETRY;
+  sensor_check_t *snr_chk;
+
+  switch(fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+      sprintf(key, "slot%d_sensor%d", fru, sensor_num);
+      if(pal_is_fru_prsnt(fru, &status) < 0)
+         return -1;
+      if (!status) {
+         return -1;
+      }
+      break;
+
+    case FRU_BMC:
+      sprintf(key, "bmc_sensor%d", sensor_num);
+      break;
+    default:
+      return -1;
+  }
+  snr_chk = get_sensor_check(fru, sensor_num);
+
+  while (retry) {
+    ret = track1_sensor_read(fru, sensor_num, value);
+    if(ret >= 0)
+      break;
+    msleep(50);
+    retry--;
+  }
+  if(ret < 0) {
+    snr_chk->val_valid = 0;
+
+    if(fru == FRU_BMC)
+      return -1;
+    if(pal_get_server_power(fru, &status) < 0)
+      return -1;
+    // This check helps interpret the IPMI packet loss scenario
+    if(status == SERVER_POWER_ON)
+      return -1;
+    strcpy(str, "NA");
+  }
+  else {
+    // On successful sensor read
+
+    // Do any corrections and such here.
+//    if (fru == FRU_SPB) {
+//      if (sensor_num == SP_SENSOR_INLET_TEMP) {
+//        apply_inlet_correction((float *)value);
+//      } else if (sensor_num == SP_SENSOR_HSC_IN_POWER) {
+//        power_value_adjust((float *)value);
+//      }
+//    }
+
+    if ((GETBIT(snr_chk->flag, UCR_THRESH) && (*((float*)value) >= snr_chk->ucr)) ||
+        (GETBIT(snr_chk->flag, LCR_THRESH) && (*((float*)value) <= snr_chk->lcr))) {
+      if (snr_chk->retry_cnt < MAX_CHECK_RETRY) {
+        snr_chk->retry_cnt++;
+        if (!snr_chk->val_valid)
+          return -1;
+
+        *((float*)value) = snr_chk->last_val;
+      }
+    }
+    else {
+      snr_chk->last_val = *((float*)value);
+      snr_chk->val_valid = 1;
+      snr_chk->retry_cnt = 0;
+    }
+
+    sprintf(str, "%.2f",*((float*)value));
+  }
+
+  if(edb_cache_set(key, str) < 0) {
+#ifdef DEBUG
+     syslog(LOG_WARNING, "pal_sensor_read_raw: cache_set key = %s, str = %s failed.", key, str);
+#endif
+    return -1;
+  }
+  else {
+    return ret;
+  }
+}
+
+// This seems to set some flags based on what sensor?
+int
+pal_sensor_threshold_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
+
+  switch(fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+//      if (snr_num == BIC_SENSOR_SOC_THERM_MARGIN)
+//        *flag = GETMASK(SENSOR_VALID) | GETMASK(UCR_THRESH);
+//      else if (snr_num == BIC_SENSOR_SOC_PACKAGE_PWR)
+//        *flag = GETMASK(SENSOR_VALID);
+//      else if (snr_num == BIC_SENSOR_SOC_TJMAX)
+//        *flag = GETMASK(SENSOR_VALID);
+      break;
+    case FRU_BMC:
+      /*
+       * TODO: This is a HACK (t11229576)
+       */
+//      switch(snr_num) {
+//        case SP_SENSOR_P12V_SLOT1:
+//        case SP_SENSOR_P12V_SLOT2:
+//        case SP_SENSOR_P12V_SLOT3:
+//        case SP_SENSOR_P12V_SLOT4:
+//          *flag = GETMASK(SENSOR_VALID);
+          break;
+      }
+      break;
+
+  }
+
+  return PAL_EOK;
+}
+
+int
+pal_get_sensor_threshold(uint8_t fru, uint8_t sensor_num, uint8_t thresh, void *value) {
+  return track1_sensor_threshold(fru, sensor_num, thresh, value);
+}
+
+int
+pal_get_sensor_name(uint8_t fru, uint8_t sensor_num, char *name) {
+  return track1_sensor_name(fru, sensor_num, name);
+}
+
+int
+pal_get_sensor_units(uint8_t fru, uint8_t sensor_num, char *units) {
+  return track1_sensor_units(fru, sensor_num, units);
+}
+
+int
+pal_get_fruid_path(uint8_t fru, char *path) {
+  return track1__get_fruid_path(fru, path);
+}
+
+int
+pal_get_fruid_eeprom_path(uint8_t fru, char *path) {
+  return track1_get_fruid_eeprom_path(fru, path);
+}
+
+int
+pal_get_fruid_name(uint8_t fru, char *name) {
+  return track1_get_fruid_name(fru, name);
+}
+
+// This does the setup for the key pairs
+
+int
+pal_set_def_key_value(void) {
+
+  int ret;
+  int i;
+  int fru;
+  char key[MAX_KEY_LEN] = {0};
+  char kpath[MAX_KEY_PATH_LEN] = {0};
+
+  i = 0;
+  while(strcmp(key_list[i], LAST_KEY)) {
+
+    memset(key, 0, MAX_KEY_LEN);
+    memset(kpath, 0, MAX_KEY_PATH_LEN);
+
+    sprintf(kpath, KV_STORE, key_list[i]);
+
+    if (access(kpath, F_OK) == -1) {
+
+      if ((ret = kv_set(key_list[i], def_val_list[i])) < 0) {
+#ifdef DEBUG
+          syslog(LOG_WARNING, "pal_set_def_key_value: kv_set failed. %d", ret);
+#endif
+      }
+    }
+
+    i++;
+  }
+
+  /* Actions to be taken on Power On Reset */
+  if (pal_is_bmc_por()) {
+
+    for (fru = 1; fru <= MAX_NUM_FRUS; fru++) {
+
+      /* Clear all the SEL errors */
+      memset(key, 0, MAX_KEY_LEN);
+
+      switch(fru) {
+        case FRU_TPDB_B:
+        case FRU_TPDB_A:
+        case FRU_KDB_B:
+        case FRU_KDB_A:
+        case FRU_QFDB_D:
+        case FRU_QFDB_C:
+        case FRU_QFDB_B:
+        case FRU_QFDB_A:
+          sprintf(key, "slot%d_sel_error", fru);
+        break;
+
+        case FRU_BMC:
+          continue;
+
+        default:
+          return -1;
+      }
+
+      /* Write the value "1" which means FRU_STATUS_GOOD */
+      ret = pal_set_key_value(key, "1");
+
+      /* Clear all the sensor health files*/
+      memset(key, 0, MAX_KEY_LEN);
+
+      switch(fru) {
+        case FRU_TPDB_B:
+        case FRU_TPDB_A:
+        case FRU_KDB_B:
+        case FRU_KDB_A:
+        case FRU_QFDB_D:
+        case FRU_QFDB_C:
+        case FRU_QFDB_B:
+        case FRU_QFDB_A:
+          sprintf(key, "slot%d_sensor_health", fru);
+        break;
+
+        case FRU_BMC:
+          continue;
+
+        default:
+          return -1;
+      }
+
+      /* Write the value "1" which means FRU_STATUS_GOOD */
+      ret = pal_set_key_value(key, "1");
+    }
+  }
+
+  return PAL_EOK;
+}
+
+/* Return the tty of the first port. */
+pal_get_fru_devtty(uint8_t fru, char *devtty) {
+
+  switch(fru) {
+    case FRU_KDB_B:
+      sprintf(devtty, "/dev/ttyUL10);
+      break;
+
+    case FRU_KDB_A:
+      sprintf(devtty, "/dev/ttyUL12);
+      break;
+
+    case FRU_QFDB_D:
+      sprintf(devtty, "/dev/ttyUL6);
+      break;
+
+    case FRU_QFDB_C:
+      sprintf(devtty, "/dev/ttyUL8);
+      break;
+
+    case FRU_QFDB_B:
+      sprintf(devtty, "/dev/ttyUL2);
+      break;
+
+    case FRU_QFDB_A:
+      sprintf(devtty, "/dev/ttyUL4);
+      break;
+
+    default:
+#ifdef DEBUG
+      syslog(LOG_WARNING, "pal_get_fru_devtty: Wrong fru id %u", fru);
+#endif
+      return -1;
+  }
+    return PAL_EOK;
+}
+/* Return the tty of the second port. */
+/* Which is numerically lower for some reason */
+pal_get_fru_devtty2(uint8_t fru, char *devtty) {
+
+  switch(fru) {
+    case FRU_KDB_B:
+      sprintf(devtty, "/dev/ttyUL9);
+      break;
+
+    case FRU_KDB_A:
+      sprintf(devtty, "/dev/ttyUL11);
+      break;
+
+    case FRU_QFDB_D:
+      sprintf(devtty, "/dev/ttyUL5);
+      break;
+
+    case FRU_QFDB_C:
+      sprintf(devtty, "/dev/ttyUL7);
+      break;
+
+    case FRU_QFDB_B:
+      sprintf(devtty, "/dev/ttyUL1);
+      break;
+
+    case FRU_QFDB_A:
+      sprintf(devtty, "/dev/ttyUL3);
+      break;
+
+    default:
+#ifdef DEBUG
+      syslog(LOG_WARNING, "pal_get_fru_devtty: Wrong fru id %u", fru);
+#endif
+      return -1;
+  }
+    return PAL_EOK;
+}
+
+void
+pal_dump_key_value(void) {
+  int i = 0;
+  int ret;
+
+  char value[MAX_VALUE_LEN] = {0x0};
+
+  while (strcmp(key_list[i], LAST_KEY)) {
+    printf("%s:", key_list[i]);
+    if ((ret = kv_get(key_list[i], value)) < 0) {
+      printf("\n");
+    } else {
+      printf("%s\n",  value);
+    }
+    i++;
+    memset(value, 0, MAX_VALUE_LEN);
+  }
+}
+
+int
+pal_set_last_pwr_state(uint8_t fru, char *state) {
+
+  int ret;
+  char key[MAX_KEY_LEN] = {0};
+
+  switch(fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+      sprintf(key, "slot%d_last_state", (int) fru);
+
+      ret = pal_set_key_value(key, state);
+      if (ret < 0) {
+#ifdef DEBUG
+        syslog(LOG_WARNING, "pal_set_last_pwr_state: pal_set_key_value failed for "
+          "fru %u", fru);
+#endif
+      }
+      break;
+
+    case FRU_BMC:
+      ret = PAL_EOK;
+      break;
+
+    default:
+        ret = PAL_EOK;
+  return ret;
+}
+
+int
+pal_get_last_pwr_state(uint8_t fru, char *state) {
+  int ret;
+  char key[MAX_KEY_LEN] = {0};
+
+  switch(fru) {
+     case FRU_TPDB_B:
+     case FRU_TPDB_A:
+     case FRU_KDB_B:
+     case FRU_KDB_A:
+     case FRU_QFDB_D:
+     case FRU_QFDB_C:
+     case FRU_QFDB_B:
+     case FRU_QFDB_A:
+       sprintf(key, "slot%d_last_state", (int) fru);
+
+       ret = pal_get_key_value(key, state);
+       if (ret < 0) {
+#ifdef DEBUG
+        syslog(LOG_WARNING, "pal_get_last_pwr_state: pal_get_key_value failed for "
+            "fru %u", fru);
+#endif
+      }
+      return ret;
+    case FRU_BMC:
+      sprintf(state, "on");
+      return PAL_EOK;
+  }
+
+  return PAL_EOK;
+}
+
+// Needs to get GUID from someplace? eeprom on Mezzanine?
+int
+pal_get_sys_guid(uint8_t slot, char *guid) {
+  return bic_get_sys_guid(slot, (uint8_t*) guid);
+}
+
+int
+pal_set_sysfw_ver(uint8_t slot, uint8_t *ver) {
+  int i;
+  char key[MAX_KEY_LEN] = {0};
+  char str[MAX_VALUE_LEN] = {0};
+  char tstr[10] = {0};
+
+  sprintf(key, "sysfw_ver_slot%d", (int) slot);
+
+  for (i = 0; i < SIZE_SYSFW_VER; i++) {
+    sprintf(tstr, "%02x", ver[i]);
+    strcat(str, tstr);
+  }
+
+  return pal_set_key_value(key, str);
+}
+
+int
+pal_get_sysfw_ver(uint8_t slot, uint8_t *ver) {
+  int i;
+  int j = 0;
+  int ret;
+  int msb, lsb;
+  char key[MAX_KEY_LEN] = {0};
+  char str[MAX_VALUE_LEN] = {0};
+  char tstr[4] = {0};
+
+  sprintf(key, "sysfw_ver_slot%d", (int) slot);
+
+  ret = pal_get_key_value(key, str);
+  if (ret) {
+    return ret;
+  }
+
+  for (i = 0; i < 2*SIZE_SYSFW_VER; i += 2) {
+    sprintf(tstr, "%c\n", str[i]);
+    msb = strtol(tstr, NULL, 16);
+
+    sprintf(tstr, "%c\n", str[i+1]);
+    lsb = strtol(tstr, NULL, 16);
+    ver[j++] = (msb << 4) | lsb;
+  }
+
+  return PAL_EOK;
+}
+
+// Need to make this work out if we're POR or not.
+int
+pal_is_bmc_por(void) {
+/*  uint32_t scu_fd;
+  uint32_t wdt;
+  void *scu_reg;
+  void *scu_wdt;
+
+  scu_fd = open("/dev/mem", O_RDWR | O_SYNC );
+  if (scu_fd < 0) {
+    return 0;
+  }
+
+  scu_reg = mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, scu_fd,
+             AST_SCU_BASE);
+  scu_wdt = (char*)scu_reg + WDT_OFFSET;
+
+  wdt = *(volatile uint32_t*) scu_wdt;
+
+  munmap(scu_reg, PAGE_SIZE);
+  close(scu_fd);
+
+  if (wdt & 0x6) {
+    return 0;
+  } else {
+    return 1;
+  }
+*/
+
+  return 1;
+}
+
+// Not sure which sensors should be in this?
+int
+pal_get_fru_discrete_list(uint8_t fru, uint8_t **sensor_list, int *cnt) {
+
+  switch(fru) {
+     case FRU_TPDB_B:
+     case FRU_TPDB_A:
+     case FRU_KDB_B:
+     case FRU_KDB_A:
+     case FRU_QFDB_D:
+     case FRU_QFDB_C:
+     case FRU_QFDB_B:
+     case FRU_QFDB_A:
+      *sensor_list = NULL;
+      *cnt = 0;
+      break;
+
+    case FRU_BMC:
+      *sensor_list = NULL;
+      *cnt = 0;
+      break;
+    default:
+#ifdef DEBUG
+      syslog(LOG_WARNING, "pal_get_fru_discrete_list: Wrong fru id %u", fru);
+#endif
+      return -1;
+  }
+  return PAL_EOK;
+}
+
+static void
+_print_sensor_discrete_log(uint8_t fru, uint8_t snr_num, char *snr_name,
+    uint8_t val, char *event) {
+  if (val) {
+    syslog(LOG_CRIT, "ASSERT: %s discrete - raised - FRU: %d, num: 0x%X,"
+        " snr: %-16s val: %d", event, fru, snr_num, snr_name, val);
+  } else {
+    syslog(LOG_CRIT, "DEASSERT: %s discrete - settled - FRU: %d, num: 0x%X,"
+        " snr: %-16s val: %d", event, fru, snr_num, snr_name, val);
+  }
+  pal_update_ts_sled();
+}
+
+// This needs to be updated with what ever sensors we decide to use?
+int
+pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
+    uint8_t o_val, uint8_t n_val) {
+
+/**************
+  char name[32];
+  bool valid = false;
+  uint8_t diff = o_val ^ n_val;
+
+  if (GETBIT(diff, 0)) {
+    switch(snr_num) {
+      case BIC_SENSOR_SYSTEM_STATUS:
+        sprintf(name, "SOC_Thermal_Trip");
+        valid = true;
+        break;
+      case BIC_SENSOR_VR_HOT:
+        sprintf(name, "SOC_VR_Hot");
+        valid = true;
+        break; case FRU_TPDB_B:
+     case FRU_TPDB_A:
+     case FRU_KDB_B:
+     case FRU_KDB_A:
+     case FRU_QFDB_D:
+     case FRU_QFDB_C:
+     case FRU_QFDB_B:
+     case FRU_QFDB_A:
+    }
+    if (valid) {
+      _print_sensor_discrete_log( fru, snr_num, snr_name, GETBIT(n_val, 0), name);
+      valid = false;
+    }
+  }
+
+  if (GETBIT(diff, 1)) {
+    switch(snr_num) {
+      case BIC_SENSOR_SYSTEM_STATUS:
+        sprintf(name, "SOC_FIVR_Fault");
+        valid = true;
+        break;
+      case BIC_SENSOR_VR_HOT:
+        sprintf(name, "SOC_DIMM_VR_Hot");
+        valid = true;
+        break;
+      case BIC_SENSOR_CPU_DIMM_HOT:
+        sprintf(name, "SOC_MEMHOT");
+        valid = true;
+        break;
+    }
+    if (valid) {
+      _print_sensor_discrete_log( fru, snr_num, snr_name, GETBIT(n_val, 1), name);
+      valid = false;
+    }
+  }
+
+  if (GETBIT(diff, 2)) {
+    switch(snr_num) {
+      case BIC_SENSOR_SYSTEM_STATUS:
+        sprintf(name, "SOC_Throttle");
+        valid = true;
+        break;
+    }
+    if (valid) {
+      _print_sensor_discrete_log( fru, snr_num, snr_name, GETBIT(n_val, 2), name);
+      valid = false;
+    }
+  }
+**********/
+  return PAL_EOK;
+}
+
+int
+pal_set_sensor_health(uint8_t fru, uint8_t value) {
+
+  char key[MAX_KEY_LEN] = {0};
+  char cvalue[MAX_VALUE_LEN] = {0};
+
+  switch(fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+      sprintf(key, "slot%d_sensor_health", fru);
+      break;
+
+    case FRU_BMC:
+      sprintf(key, "bmc_sensor_health");
+      break;
+
+    default:
+      return -1;
+  }
+
+  sprintf(cvalue, (value > 0) ? "1": "0");
+
+  return pal_set_key_value(key, cvalue);
+}
+
+int
+pal_get_fru_health(uint8_t fru, uint8_t *value) {
+
+  char cvalue[MAX_VALUE_LEN] = {0};
+  char key[MAX_KEY_LEN] = {0};
+  int ret;
+
+  switch(fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+      sprintf(key, "slot%d_sensor_health", fru);
+      break;
+
+    case FRU_bmc:
+      sprintf(key, "bmc_sensor_health");
+      break;
+
+    default:
+      return -1;
+  }
+
+  ret = pal_get_key_value(key, cvalue);
+  if (ret) {
+    return ret;
+  }
+
+  *value = atoi(cvalue);
+
+  memset(key, 0, MAX_KEY_LEN);
+  memset(cvalue, 0, MAX_VALUE_LEN);
+
+  switch(fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+      sprintf(key, "slot%d_sel_error", fru);
+      break;
+    case FRU_BMC:
+      return 0;
+
+    default:
+      return -1;
+  }
+
+  ret = pal_get_key_value(key, cvalue);
+  if (ret) {
+    return ret;
+  }
+
+  *value = *value & atoi(cvalue);
+  return 0;
+}
+
+void
+pal_update_ts_sled(void)
+{
+  char key[MAX_KEY_LEN] = {0};
+  char tstr[MAX_VALUE_LEN] = {0};
+  struct timespec ts;
+
+  clock_gettime(CLOCK_REALTIME, &ts);
+  sprintf(tstr, "%d", (int) ts.tv_sec);
+
+  sprintf(key, "timestamp_sled");
+
+  pal_set_key_value(key, tstr);
+}
+
+void
+pal_log_clear(char *fru) {
+  char key[MAX_KEY_LEN] = {0};
+
+  if (!strcasecmp(fru, "slot1")) {
+    pal_set_key_value("slot1_sensor_health", "1");
+    pal_set_key_value("slot1_sel_error", "1");
+  } else if (!strcasecmp(fru, "slot2")) {
+    pal_set_key_value("slot2_sensor_health", "1");
+    pal_set_key_value("slot2_sel_error", "1");
+  } else if (!strcasecmp(fru, "slot3")) {
+    pal_set_key_value("slot3_sensor_health", "1");
+    pal_set_key_value("slot3_sel_error", "1");
+  } else if (!strcasecmp(fru, "slot4")) {
+    pal_set_key_value("slot4_sensor_health", "1");
+    pal_set_key_value("slot4_sel_error", "1");
+
+  } else if (!strcasecmp(fru, "bmc")) {
+    pal_set_key_value("bmc_sensor_health", "1");
+  } else if (!strcmp(fru, "all")) {
+    int i;
+    for (i = FRU_TPDB_B; i <= FRU_QFDB_A; i++) {
+      sprintf(key, "slot%d_sensor_health", i);
+      pal_set_key_value(key, "1");
+      sprintf(key, "slot%d_sel_error", i);
+      pal_set_key_value(key, "1");
+    }
+    pal_set_key_value("bmc_sensor_health", "1");
+  }
+}
+
+// We could use these to set the boot seq GPIO pins on the site?
+// Would make sense.
+int
+pal_get_boot_order(uint8_t slot, uint8_t *req_data, uint8_t *boot, uint8_t *res_len) {
+  int i, j = 0;
+  int ret;
+  int msb, lsb;
+  char key[MAX_KEY_LEN] = {0};
+  char str[MAX_VALUE_LEN] = {0};
+  char tstr[4] = {0};
+
+  sprintf(key, "slot%u_boot_order", slot);
+  ret = pal_get_key_value(key, str);
+  if (ret) {
+    *res_len = 0;
+     return ret;
+  }
+
+  memset(boot, 0x00, SIZE_BOOT_ORDER);
+  for (i = 0; i < 2*SIZE_BOOT_ORDER; i += 2) {
+    sprintf(tstr, "%c\n", str[i]);
+    msb = strtol(tstr, NULL, 16);
+
+    sprintf(tstr, "%c\n", str[i+1]);
+    lsb = strtol(tstr, NULL, 16);
+    boot[j++] = (msb << 4) | lsb;
+  }
+
+  *res_len = SIZE_BOOT_ORDER;
+  return 0;
+}
+
+int
+pal_set_boot_order(uint8_t slot, uint8_t *boot, uint8_t *res_data, uint8_t *res_len) {
+  int i;
+  char key[MAX_KEY_LEN] = {0};
+  char str[MAX_VALUE_LEN] = {0};
+  char tstr[10] = {0};
+
+  sprintf(key, "slot%u_boot_order", slot);
+
+  for (i = 0; i < SIZE_BOOT_ORDER; i++) {
+    snprintf(tstr, 3, "%02x", boot[i]);
+    strncat(str, tstr, 3);
+  }
+
+  *res_len = 0;
+  return pal_set_key_value(key, str);
+}
+
+int
+pal_is_crashdump_ongoing(uint8_t slot)
+{
+  char key[MAX_KEY_LEN] = {0};
+  char value[MAX_VALUE_LEN] = {0};
+  int ret;
+  sprintf(key, CRASHDUMP_KEY, slot);
+  ret = edb_cache_get(key, value);
+  if (ret < 0) {
+#ifdef DEBUG
+     syslog(LOG_INFO, "pal_is_crashdump_ongoing: failed");
+#endif
+     return 0;
+  }
+  if (atoi(value) > 0)
+     return 1;
+  return 0;
+}
+
+bool
+pal_is_fw_update_ongoing(uint8_t fru) {
+
+  char key[MAX_KEY_LEN];
+  char value[MAX_VALUE_LEN] = {0};
+  int ret;
+  struct timespec ts;
+
+  switch (fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+      sprintf(key, "slot%d_fwupd", fru);
+      break;
+    case FRU_BMC:
+    default:
+      return false;
+  }
+
+  ret = edb_cache_get(key, value);
+  if (ret < 0) {
+     return false;
+  }
+
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  if (strtoul(value, NULL, 10) > ts.tv_sec)
+     return true;
+
+  return false;
+}
+
+// Pull this from eeprom?
+int
+pal_get_board_rev_id(uint8_t *id) {
+
+      return 0;
+}
+
+// Pull this from slot id switches?
+int
+pal_get_mb_slot_id(uint8_t *id) {
+
+      return 0;
+}
+
+int
+pal_get_slot_cfg_id(uint8_t *id) {
+
+      return 0;
+}
+
+void
+pal_get_chassis_status(uint8_t slot, uint8_t *req_data, uint8_t *res_data, uint8_t *res_len) {
+
+  char key[MAX_KEY_LEN] = {0};
+  sprintf(key, "slot%d_por_cfg", slot);
+  char buff[MAX_VALUE_LEN];
+  int policy = 3;
+  uint8_t status, ret;
+  unsigned char *data = res_data;
+
+  // Platform Power Policy
+  if (pal_get_key_value(key, buff) == 0)
+  {
+    if (!memcmp(buff, "off", strlen("off")))
+      policy = 0;
+    else if (!memcmp(buff, "lps", strlen("lps")))
+      policy = 1;
+    else if (!memcmp(buff, "on", strlen("on")))
+      policy = 2;
+    else
+      policy = 3;
+  }
+
+  // Current Power State
+  ret = pal_get_server_power(slot, &status);
+  if (ret >= 0) {
+    *data++ = status | (policy << 5);
+  } else {
+    // load default
+    syslog(LOG_WARNING, "ipmid: pal_get_server_power failed for slot1\n");
+    *data++ = 0x00 | (policy << 5);
+  }
+  *data++ = 0x00;   // Last Power Event
+  *data++ = 0x40;   // Misc. Chassis Status
+  *data++ = 0x00;   // Front Panel Button Disable
+  *res_len = data - res_data;
+}
+
+uint8_t
+pal_set_power_restore_policy(uint8_t slot, uint8_t *pwr_policy, uint8_t *res_data) {
+
+  uint8_t completion_code;
+  char key[MAX_KEY_LEN] = {0};
+  sprintf(key, "slot%d_por_cfg", slot);
+  completion_code = CC_SUCCESS;   // Fill response with default values
+  unsigned char policy = *pwr_policy & 0x07;  // Power restore policy
+
+  switch (policy)
+  {
+    case 0:
+      if (pal_set_key_value(key, "off") != 0)
+        completion_code = CC_UNSPECIFIED_ERROR; // -1
+      break;
+    case 1:
+      if (pal_set_key_value(key, "lps") != 0)
+        completion_code = CC_UNSPECIFIED_ERROR; // -1
+      break;
+    case 2:
+      if (pal_set_key_value(key, "on") != 0)
+        completion_code = CC_UNSPECIFIED_ERROR; // -1
+      break;
+    case 3:
+    // no change (just get present policy support)
+      break;
+    default:
+        completion_code = CC_PARAM_OUT_OF_RANGE; // -1
+      break;
+  }
+  return completion_code;
+}
+
+// Should this return the "type" of device?
+int
+pal_get_platform_id(uint8_t *id) {
+   return 0;
+}
+
+int
+pal_get_fw_info(unsigned char target, unsigned char* res, unsigned char* res_len)
+{
+    return -1;
+}
+
+//For OEM command "CMD_OEM_GET_PLAT_INFO" 0x7e
+int pal_get_plat_sku_id(void){
+  return 0; // Yosemite V1
+}
+
+int
+pal_get_restart_cause(uint8_t slot, uint8_t *restart_cause) {
+  char key[MAX_KEY_LEN];
+  char value[MAX_VALUE_LEN] = {0};
+  unsigned int cause;
+
+  if ( (slot > FRU_ALL) && (slot <FRU_BMC) ) {
+    sprintf(key, "slot%d_restart_cause", slot);
+
+    if (kv_get(key, value)) {
+      return -1;
+    }
+    if(sscanf(value, "%u", &cause) != 1) {
+      return -1;
+    }
+  } else {
+    return -1;
+  }
+  *restart_cause = cause;
+  return PAL_EOK;
+}
+
+int
+pal_set_restart_cause(uint8_t slot, uint8_t restart_cause) {
+  char key[MAX_KEY_LEN];
+  char value[MAX_VALUE_LEN] = {0};
+
+  if ( (slot > FRU_ALL) && (slot <FRU_BMC) ) {
+    sprintf(key, "slot%d_restart_cause", slot);
+    sprintf(value, "%d", restart_cause);
+
+    if (kv_set(key, value)) {
+      return -1;
+    }
+  } else {
+    return -1;
+  }
+
+  return PAL_EOK;
+}
+
+void
+pal_get_me_name(uint8_t fru, char *target_name) {
+  strcpy(target_name, "ICE");
+  return;
 }
