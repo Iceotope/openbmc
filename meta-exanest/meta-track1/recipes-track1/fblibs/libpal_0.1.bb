@@ -9,12 +9,12 @@ LIC_FILES_CHKSUM = "file://pal.c;beginline=8;endline=20;md5=da35978751a9d71b7367
 SRC_URI = "file://pal \
           "
 
-DEPENDS += " libkv libedb libipmi obmc-pal libgpio libsensor-correction libtrack1-sensor"
+DEPENDS += " libkv libedb libipmi obmc-pal libgpio libsensor-correction libtrack1-sensor libtrack1-fruid"
 
 S = "${WORKDIR}/pal"
 
 do_install() {
-	  install -d ${D}${libdir}
+    install -d ${D}${libdir}
     install -m 0644 libpal.so ${D}${libdir}/libpal.so
 
     install -d ${D}${includedir}/openbmc
@@ -25,4 +25,4 @@ FILES_${PN} = "${libdir}/libpal.so"
 FILES_${PN}-dev = "${includedir}/openbmc/pal.h"
 
 ## Runtime libs needed.
-RDEPENDS_${PN} += " libkv libedb libtrack1-sensor"
+RDEPENDS_${PN} += " libkv libedb libtrack1-sensor libtrack1-fruid"

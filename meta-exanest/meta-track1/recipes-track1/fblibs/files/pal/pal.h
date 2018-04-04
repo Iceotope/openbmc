@@ -33,6 +33,7 @@ extern "C" {
 
 #include <facebook/track1_sensor.h>
 #include <facebook/track1_common.h>
+#include <facebook/track1_fruid.h>
 
 #define BIT(value, index) ((value >> index) & 1)
 
@@ -47,7 +48,6 @@ extern "C" {
 #define LAST_KEY "last_key"
 
 #define TRACK1_PLATFORM_NAME "track1"
-#define LAST_KEY "last_key"
 #define TRACK1_MAX_NUM_SLOTS 12
 
 extern const char pal_server_list[];
@@ -108,7 +108,7 @@ int pal_get_sysfw_ver(uint8_t slot, uint8_t *ver);
 int pal_is_bmc_por(void);
 int pal_get_fru_discrete_list(uint8_t fru, uint8_t **sensor_list, int *cnt);
 int pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
-    uint8_t o_val, uint8_t n_val)
+    uint8_t o_val, uint8_t n_val);
 int pal_set_sensor_health(uint8_t fru, uint8_t value);
 int pal_get_fru_health(uint8_t fru, uint8_t *value);
 void pal_update_ts_sled(void);

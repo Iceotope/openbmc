@@ -18,14 +18,14 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __YOSEMITE_SENSOR_H__
-#define __YOSEMITE_SENSOR_H__
+#ifndef __TRACK1_SENSOR_H__
+#define __TRACK1_SENSOR_H__
 
 #include <stdbool.h>
 #include <openbmc/ipmi.h>
 #include <openbmc/ipmb.h>
 #include <openbmc/obmc-pal.h>
-//#include <facebook/yosemite_common.h>
+#include <facebook/track1_common.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -155,6 +155,33 @@ typedef struct _sensor_info_t {
 //int yosemite_sensor_threshold(uint8_t fru, uint8_t sensor_num, uint8_t thresh, float *value);
 //int yosemite_sensor_sdr_init(uint8_t fru, sensor_info_t *sinfo);
 
+
+/******************************
+ * MPK Ports to Track 1
+ ******************************/
+
+int track1_sensor_read(uint8_t fru, uint8_t sensor_num, void *value);
+int track1_sensor_name(uint8_t fru, uint8_t sensor_num, char *name);
+int track1_sensor_units(uint8_t fru, uint8_t sensor_num, char *units);
+int track1_sensor_sdr_path(uint8_t fru, char *path);
+int track1_sensor_threshold(uint8_t fru, uint8_t sensor_num, uint8_t thresh, float *value);
+int track1_sensor_sdr_init(uint8_t fru, sensor_info_t *sinfo);
+
+
+
+extern const uint8_t qfdb_sensor_list[];
+extern const uint8_t tpdb_sensor_list[];
+extern const uint8_t kdb_sensor_list[];
+extern const uint8_t bmc_sensor_list[];
+
+////extern float spb_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1];
+
+////extern float nic_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1];
+
+extern size_t qfdb_sensor_cnt;
+extern size_t tpdb_sensor_cnt;
+extern size_t kdb_sensor_cnt;
+extern size_t bmc_sensor_cnt;
 
 #ifdef __cplusplus
 } // extern "C"

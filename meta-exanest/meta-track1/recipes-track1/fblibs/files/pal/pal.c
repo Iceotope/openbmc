@@ -33,8 +33,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <time.h>
 
-
+#include <openbmc/obmc-sensor.h>
+#include <openbmc/edb.h>
 #include "pal.h"
 
 #define SITE_GPIO_VAL "/tmp/mezzanine/site_%d/gpio/IO/%d/value"
@@ -103,7 +105,7 @@ const char pal_server_list[] = "tpdb-b, tbpd-a, kdb-a, kdb-b," \
 const char pal_fru_list[] = "all, tpdb-b, tbpd-a, kdb-a, kdb-b," \
           " qfdb-d, qfdb-c, qfdb-b, qfdb-a, bmc";
 
-char * key_list[] = {
+char *key_list[] = {
 "identify_board",
 "identify_slot1",
 "identify_slot2",
@@ -587,7 +589,7 @@ pal_set_server_power(uint8_t slot_id, uint8_t cmd) {
   uint8_t status;
   bool gs_flag = false;
 
-  if (slot_id < 1 || slot_id > 4) {
+  if (slot_id < 1 || slot_id > FRU_QFDB_A) {
     return -1;
   }
 
@@ -1163,8 +1165,8 @@ pal_sensor_threshold_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
 //        case SP_SENSOR_P12V_SLOT3:
 //        case SP_SENSOR_P12V_SLOT4:
 //          *flag = GETMASK(SENSOR_VALID);
-          break;
-      }
+//          break;
+
       break;
 
   }
@@ -1189,7 +1191,7 @@ pal_get_sensor_units(uint8_t fru, uint8_t sensor_num, char *units) {
 
 int
 pal_get_fruid_path(uint8_t fru, char *path) {
-  return track1__get_fruid_path(fru, path);
+  return track1_get_fruid_path(fru, path);
 }
 
 int
@@ -1294,31 +1296,32 @@ pal_set_def_key_value(void) {
 }
 
 /* Return the tty of the first port. */
+int
 pal_get_fru_devtty(uint8_t fru, char *devtty) {
 
   switch(fru) {
     case FRU_KDB_B:
-      sprintf(devtty, "/dev/ttyUL10);
+      sprintf(devtty, "/dev/ttyUL10");
       break;
 
     case FRU_KDB_A:
-      sprintf(devtty, "/dev/ttyUL12);
+      sprintf(devtty, "/dev/ttyUL12");
       break;
 
     case FRU_QFDB_D:
-      sprintf(devtty, "/dev/ttyUL6);
+      sprintf(devtty, "/dev/ttyUL6");
       break;
 
     case FRU_QFDB_C:
-      sprintf(devtty, "/dev/ttyUL8);
+      sprintf(devtty, "/dev/ttyUL8");
       break;
 
     case FRU_QFDB_B:
-      sprintf(devtty, "/dev/ttyUL2);
+      sprintf(devtty, "/dev/ttyUL2");
       break;
 
     case FRU_QFDB_A:
-      sprintf(devtty, "/dev/ttyUL4);
+      sprintf(devtty, "/dev/ttyUL4");
       break;
 
     default:
@@ -1331,31 +1334,32 @@ pal_get_fru_devtty(uint8_t fru, char *devtty) {
 }
 /* Return the tty of the second port. */
 /* Which is numerically lower for some reason */
+int
 pal_get_fru_devtty2(uint8_t fru, char *devtty) {
 
   switch(fru) {
     case FRU_KDB_B:
-      sprintf(devtty, "/dev/ttyUL9);
+      sprintf(devtty, "/dev/ttyUL9");
       break;
 
     case FRU_KDB_A:
-      sprintf(devtty, "/dev/ttyUL11);
+      sprintf(devtty, "/dev/ttyUL11");
       break;
 
     case FRU_QFDB_D:
-      sprintf(devtty, "/dev/ttyUL5);
+      sprintf(devtty, "/dev/ttyUL5");
       break;
 
     case FRU_QFDB_C:
-      sprintf(devtty, "/dev/ttyUL7);
+      sprintf(devtty, "/dev/ttyUL7");
       break;
 
     case FRU_QFDB_B:
-      sprintf(devtty, "/dev/ttyUL1);
+      sprintf(devtty, "/dev/ttyUL1");
       break;
 
     case FRU_QFDB_A:
-      sprintf(devtty, "/dev/ttyUL3);
+      sprintf(devtty, "/dev/ttyUL3");
       break;
 
     default:
@@ -1418,6 +1422,8 @@ pal_set_last_pwr_state(uint8_t fru, char *state) {
 
     default:
         ret = PAL_EOK;
+        break;
+      }
   return ret;
 }
 
@@ -1456,7 +1462,8 @@ pal_get_last_pwr_state(uint8_t fru, char *state) {
 // Needs to get GUID from someplace? eeprom on Mezzanine?
 int
 pal_get_sys_guid(uint8_t slot, char *guid) {
-  return bic_get_sys_guid(slot, (uint8_t*) guid);
+  //return bic_get_sys_guid(slot, (uint8_t*) guid);
+  return PAL_EOK;
 }
 
 int
@@ -1567,6 +1574,8 @@ pal_get_fru_discrete_list(uint8_t fru, uint8_t **sensor_list, int *cnt) {
   return PAL_EOK;
 }
 
+// Not used, so remove it, as it'll abort the build due to Werror
+#if 0
 static void
 _print_sensor_discrete_log(uint8_t fru, uint8_t snr_num, char *snr_name,
     uint8_t val, char *event) {
@@ -1579,7 +1588,7 @@ _print_sensor_discrete_log(uint8_t fru, uint8_t snr_num, char *snr_name,
   }
   pal_update_ts_sled();
 }
-
+#endif
 // This needs to be updated with what ever sensors we decide to use?
 int
 pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
@@ -1701,7 +1710,7 @@ pal_get_fru_health(uint8_t fru, uint8_t *value) {
       sprintf(key, "slot%d_sensor_health", fru);
       break;
 
-    case FRU_bmc:
+    case FRU_BMC:
       sprintf(key, "bmc_sensor_health");
       break;
 
@@ -2049,5 +2058,4 @@ pal_set_restart_cause(uint8_t slot, uint8_t restart_cause) {
 void
 pal_get_me_name(uint8_t fru, char *target_name) {
   strcpy(target_name, "ICE");
-  return;
 }

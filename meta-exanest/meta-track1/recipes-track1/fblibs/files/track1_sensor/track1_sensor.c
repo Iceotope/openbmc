@@ -34,10 +34,65 @@
 
 #define LARGEST_DEVICE_NAME 120
 
+
+/******************************************
+ * Starting of port..
+ ******************************************/
+const uint8_t qfdb_sensor_list[] = {
+};
+
+const uint8_t tpdb_sensor_list[] = {
+};
+
+const uint8_t kdb_sensor_list[] = {
+};
+
+const uint8_t bmc_sensor_list[] = {
+};
+
+size_t qfdb_sensor_cnt = sizeof(qfdb_sensor_list)/sizeof(uint8_t);
+size_t tpdb_sensor_cnt = sizeof(tpdb_sensor_list)/sizeof(uint8_t);
+size_t kdb_sensor_cnt = sizeof(kdb_sensor_list)/sizeof(uint8_t);
+size_t bmc_sensor_cnt = sizeof(bmc_sensor_list)/sizeof(uint8_t);
+
+
+int track1_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
+
+  return 0;
+}
+
+int track1_sensor_name(uint8_t fru, uint8_t sensor_num, char *name) {
+
+  return 0;
+}
+
+int track1_sensor_units(uint8_t fru, uint8_t sensor_num, char *units) {
+
+  return 0;
+}
+
+int track1_sensor_sdr_path(uint8_t fru, char *path) {
+
+  return 0;
+}
+
+int track1_sensor_threshold(uint8_t fru, uint8_t sensor_num,
+  uint8_t thresh, float *value) {
+
+  return 0;
+}
+
+int track1_sensor_sdr_init(uint8_t fru, sensor_info_t *sinfo) {
+
+  return 0;
+}
+
+
+
 /******************************************
  * MPK Removed for now.. needs porting!!
  ******************************************/
- 
+
 //#define GPIO_VAL "/sys/class/gpio/gpio%d/value"
 
 //#define I2C_BUS_9_DIR "/sys/class/i2c-adapter/i2c-9/"
@@ -264,7 +319,7 @@
   //if (!fp) {
     //int err = errno;
 //#ifdef DEBUG
-    //syslog(LOG_INFO, "failed to open device %s", device);
+    //syslog(LOG_INFO, "failed to open device %s", device);track1_sensor_threshold
 //#endif
     //return err;
   //}
@@ -923,18 +978,18 @@
         //case SP_SENSOR_FAN1_TACH:
           //return read_fan_value(FAN1, FAN_TACH_RPM, (float*) value);
 
-			  //// Various Voltages
-			  //case SP_SENSOR_P5V:
- 			    //return read_adc_value(ADC_PIN0, ADC_VALUE, (float*) value);
- 			  //case SP_SENSOR_P12V:
- 			    //return read_adc_value(ADC_PIN1, ADC_VALUE, (float*) value);
- 			  //case SP_SENSOR_P3V3_STBY:
- 			    //return read_adc_value(ADC_PIN2, ADC_VALUE, (float*) value);
- 			  //case SP_SENSOR_P12V_SLOT1:
- 			    //return read_adc_value(ADC_PIN4, ADC_VALUE, (float*) value);
- 			  //case SP_SENSOR_P12V_SLOT2:
- 			    //return read_adc_value(ADC_PIN3, ADC_VALUE, (float*) value);
- 			  //case SP_SENSOR_P12V_SLOT3:
+        //// Various Voltages
+        //case SP_SENSOR_P5V:
+          //return read_adc_value(ADC_PIN0, ADC_VALUE, (float*) value);
+        //case SP_SENSOR_P12V:
+          //return read_adc_value(ADC_PIN1, ADC_VALUE, (float*) value);
+        //case SP_SENSOR_P3V3_STBY:
+          //return read_adc_value(ADC_PIN2, ADC_VALUE, (float*) value);
+        //case SP_SENSOR_P12V_SLOT1:
+          //return read_adc_value(ADC_PIN4, ADC_VALUE, (float*) value);
+        //case SP_SENSOR_P12V_SLOT2:
+          //return read_adc_value(ADC_PIN3, ADC_VALUE, (float*) value);
+        //case SP_SENSOR_P12V_SLOT3:
           //return read_adc_value(ADC_PIN6, ADC_VALUE, (float*) value);
         //case SP_SENSOR_P12V_SLOT4:
           //return read_adc_value(ADC_PIN5, ADC_VALUE, (float*) value);

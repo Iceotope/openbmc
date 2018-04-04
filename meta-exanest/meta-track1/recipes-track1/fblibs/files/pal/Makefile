@@ -2,12 +2,13 @@
 lib: libpal.so
 
 CFLAGS += -Wall -Werror
+LOCALLIBS = -ltrack1_common -ltrack1_fruid -ltrack1_sensor -lkv -ledb -lgpio -lsensor-correction
 
 C_SRCS := $(wildcard *.c)
 C_OBJS := ${C_SRCS:.c=.o}
 
 libpal.so: $(C_OBJS)
-	$(CC) $(CFLAGS) -lkv -ledb -lgpio -lsensor-correction -shared -o libpal.so $^ -lc -lrt -Wl,--whole-archive -lobmc-pal -Wl,--no-whole-archive
+	$(CC) $(CFLAGS) $(LOCALLIBS) -shared -o libpal.so $^ -lc -lrt -Wl,--whole-archive -lobmc-pal -Wl,--no-whole-archive
 
 .PHONY: clean
 

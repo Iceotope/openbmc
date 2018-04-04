@@ -1196,19 +1196,19 @@ crit_proc_monitor() {
   bool is_fw_updating = false;
   bool is_crashdump_ongoing = false;
 
-  while(1) 
+  while(1)
   {
     //if is_fw_updating == true, means BMC is Updating a Device FW
     is_fw_updating = pal_is_fw_update_ongoing_system();
-    
+
     //if is_autodump_ongoing == true, modify the permission
     is_crashdump_ongoing = pal_is_crashdump_ongoing_system();
 
-    if ( (true == is_fw_updating) || (true == is_crashdump_ongoing) ) 
+    if ( (true == is_fw_updating) || (true == is_crashdump_ongoing) )
     {
       crit_proc_ongoing_handle(true);
     }
-    
+
     if ( (false == is_fw_updating) && (false == is_crashdump_ongoing) )
     {
       crit_proc_ongoing_handle(false);
@@ -1241,7 +1241,7 @@ static int get_curr_version(char *vers)
   FILE *fp = fopen("/etc/issue", "r");
   int ret = -1;
   if (fp) {
-    if(fscanf(fp, "OpenBMC Release %s\n", vers) == 1) {
+    if(fscanf(fp, "%*s OpenBMC %s\n", vers) == 1) {
       ret = 0;
     }
     fclose(fp);

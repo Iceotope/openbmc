@@ -49,35 +49,35 @@ track1_common_fru_name(uint8_t fru, char *str) {
 
   switch(fru) {
     case FRU_TPDB_B:
-      sprintf(str, "tpdb_b");
+      sprintf(str, "tpdb-b");
       break;
 
     case FRU_TPDB_A:
-      sprintf(str, "tpdb_a");
+      sprintf(str, "tpdb-a");
       break;
 
     case FRU_KDB_B:
-      sprintf(str, "kdb_b");
+      sprintf(str, "kdb-b");
       break;
 
     case FRU_KDB_A:
-      sprintf(str, "kdb_a");
+      sprintf(str, "kdb-a");
       break;
 
     case FRU_QFDB_D:
-      sprintf(str, "qfdb_d");
-      break;
-	
-	case FRU_QFDB_C:
-      sprintf(str, "qfdb_c");
+      sprintf(str, "qfdb-d");
       break;
 
-	case FRU_QFDB_B:
-      sprintf(str, "qfdb_b");
+  case FRU_QFDB_C:
+      sprintf(str, "qfdb-c");
       break;
 
-	case FRU_QFDB_A:
-      sprintf(str, "qfdb_a");
+  case FRU_QFDB_B:
+      sprintf(str, "qfdb-b");
+      break;
+
+  case FRU_QFDB_A:
+      sprintf(str, "qfdb-a");
       break;
 
     case FRU_BMC:
@@ -86,7 +86,7 @@ track1_common_fru_name(uint8_t fru, char *str) {
 
     default:
 #ifdef DEBUG
-      syslog(LOG_WARNING, "track1_common_fru_id: Wrong fru id");
+      syslog(LOG_WARNING, "track1_common_fru_name: Wrong fru id");
 #endif
     return -1;
   }
@@ -99,21 +99,21 @@ track1_common_fru_id(char *str, uint8_t *fru) {
 
   if (!strcmp(str, "all")) {
     *fru = FRU_ALL;
-  } else if (!strcmp(str, "tpdb_b")) {
+  } else if (!strcmp(str, "tpdb-b")) {
     *fru = FRU_TPDB_B;
-  } else if (!strcmp(str, "tpdb_a")) {
+  } else if (!strcmp(str, "tpdb-a")) {
     *fru = FRU_TPDB_A;
-  } else if (!strcmp(str, "kdb_b")) {
+  } else if (!strcmp(str, "kdb-b")) {
     *fru = FRU_KDB_B;
-  } else if (!strcmp(str, "kdb_a")) {
+  } else if (!strcmp(str, "kdb-a")) {
     *fru = FRU_KDB_A;
-  } else if (!strcmp(str, "qfdb_d")) {
+  } else if (!strcmp(str, "qfdb-d")) {
     *fru = FRU_QFDB_D;
-  } else if (!strcmp(str, "qfdb_c")) {
+  } else if (!strcmp(str, "qfdb-c")) {
     *fru = FRU_QFDB_C;
-  } else if (!strcmp(str, "qfdb_b")) {
+  } else if (!strcmp(str, "qfdb-b")) {
     *fru = FRU_QFDB_B;
-  } else if (!strcmp(str, "qfdb_a")) {
+  } else if (!strcmp(str, "qfdb-a")) {
     *fru = FRU_QFDB_A;
   } else if (!strcmp(str, "bmc")) {
     *fru = FRU_BMC;
