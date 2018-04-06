@@ -107,25 +107,25 @@ get_power_opt(char *option, uint8_t *opt) {
     return -1;
   }
 
-  if (!strcmp(option, "status")) {
+  if (!strncasecmp(option, "status")) {
     *opt = PWR_STATUS;
-  } else if (!strcmp(option, "graceful-shutdown")) {
+  } else if (!strncasecmp(option, "graceful-shutdown")) {
     *opt = PWR_GRACEFUL_SHUTDOWN;
-  } else if (!strcmp(option, "off")) {
+  } else if (!strncasecmp(option, "off")) {
     *opt = PWR_OFF;
-  } else if (!strcmp(option, "on")) {
+  } else if (!strncasecmp(option, "on")) {
     *opt = PWR_ON;
-  } else if (!strcmp(option, "reset")) {
+  } else if (!strncasecmp(option, "reset")) {
     *opt = PWR_RESET;
-  } else if (!strcmp(option, "cycle")) {
+  } else if (!strncasecmp(option, "cycle")) {
     *opt = PWR_CYCLE;
-  } else if (!strcmp(option, "12V-off")) {
+  } else if (!strncasecmp(option, "12V-off")) {
     *opt = PWR_12V_OFF;
-  } else if (!strcmp(option, "12V-on")) {
+  } else if (!strncasecmp(option, "12V-on")) {
     *opt = PWR_12V_ON;
-  } else if (!strcmp(option, "12V-cycle")) {
+  } else if (!strncasecmp(option, "12V-cycle")) {
     *opt = PWR_12V_CYCLE;
-  } else if (!strcmp(option, "sled-cycle")) {
+  } else if (!strncasecmp(option, "sled-cycle")) {
     *opt = PWR_SLED_CYCLE;
   } else {
     return -1;
