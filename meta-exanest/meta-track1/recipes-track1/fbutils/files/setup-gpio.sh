@@ -175,6 +175,10 @@ do
     do
       gpio_export $((lowbase+$j))
       ln -s /sys/class/gpio/gpio$((lowbase+j)) /tmp/mezzanine/site_${i}/gpio/IO/${j}
+
+      # Set direction and value defaults
+      echo "${SITE_LOWIO_DIR_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/${j}/direction
+
     done
   fi
   ## High 16-31 are on -0075
@@ -185,10 +189,27 @@ do
     do
       gpio_export $((highbase+$j))
       ln -s /sys/class/gpio/gpio$((highbase+j)) /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))
+      # Set direction and value defaults
+      echo "${SITE_HIGHIO_DIR_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))/direction
     done
   fi
 
+## Set default values..
+
+  for j in `seq 0 15`
+    do
+      if [ "${SITE_LOWIO_DIR_DEFAULT[j]}" == "out" ]; then
+        echo "${SITE_LOWIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/${j}/value
+      fi
+
+      if [ "${SITE_HIGHIO_DIR_DEFAULT[j]}" == "out" ]; then
+        echo "${SITE_HIGHIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))/value
+      fi
+
+    done
+
 done
+
 
 # Yosemite OOM remediation
 #   enable kernel panic (force reboot)

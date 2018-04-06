@@ -73,3 +73,72 @@ declare -a RST_CTLREG=( ${RST_CTLREG_0} \
   ${RST_CTLREG_13} \
   ${RST_CTLREG_14} \
   ${RST_CTLREG_15} )
+
+# Array for default directions on IO expander
+declare -a SITE_LOWIO_DIR_DEFAULT=( "in" \
+  "in" \
+  "in" \
+  "in" \
+  "out" \
+  "out" \
+  "out" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" )
+
+  declare -a SITE_HIGHIO_DIR_DEFAULT=( "in" \
+  "in" \
+  "in" \
+  "in" \
+  "out" \
+  "out" \
+  "out" \
+  "out" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "out" \
+  "out" \
+  "out" )
+
+declare -a SITE_LOWIO_VAL_DEFAULT=( "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" )
+
+  declare -a SITE_HIGHIO_VAL_DEFAULT=( "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "1" \
+  "1" \
+  "1" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "0" \
+  "1" \
+  "0" \
+  "1" )
