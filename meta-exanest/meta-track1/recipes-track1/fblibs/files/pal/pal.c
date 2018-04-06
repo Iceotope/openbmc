@@ -100,9 +100,9 @@
 #define SITE_GPIO_BIT_STAT_ALARM 1
 #define SITE_GPIO_BIT_STAT_ON_OFF 0
 
-const char pal_server_list[] = "tpdb-b, tbpd-a, kdb-a, kdb-b," \
+const char pal_server_list[] = "tpdb-b, tpdb-a, kdb-a, kdb-b," \
           " qfdb-d, qfdb-c, qfdb-b, qfdb-a";
-const char pal_fru_list[] = "all, tpdb-b, tbpd-a, kdb-a, kdb-b," \
+const char pal_fru_list[] = "all, tpdb-b, tpdb-a, kdb-a, kdb-b," \
           " qfdb-d, qfdb-c, qfdb-b, qfdb-a, bmc";
 
 char *key_list[] = {
@@ -205,14 +205,14 @@ char * def_val_list[] = {
   "1", /* "slot7_sensor_health" */
   "1", /* "slot8_sensor_health" */
   "1", /* "bmc_sensor_health" */
-  "on", /* "slot1_last_state" */
-  "on", /* "slot2_last_state" */
-  "on", /* "slot3_last_state" */
-  "on", /* "slot4_last_state" */
-  "on", /* "slot5_last_state" */
-  "on", /* "slot6_last_state" */
-  "on", /* "slot7_last_state" */
-  "on", /* "slot8_last_state" */
+  "off", /* "slot1_last_state" */
+  "off", /* "slot2_last_state" */
+  "off", /* "slot3_last_state" */
+  "off", /* "slot4_last_state" */
+  "off", /* "slot5_last_state" */
+  "off", /* "slot6_last_state" */
+  "off", /* "slot7_last_state" */
+  "off", /* "slot8_last_state" */
   "0", /* "slot1_restart_cause" */
   "0", /* "slot2_restart_cause" */
   "0", /* "slot3_restart_cause" */
@@ -453,6 +453,11 @@ server_power_off(uint8_t slot_id, bool gs_flag) {
     sleep(DELAY_POWER_OFF);
   }
 
+  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_DATA_LED);
+  if (write_device(vpath, LED_OFF)) {
+    return -1;
+  }
+
   sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_UP);
   if (write_device(vpath, "0")) {
     return -1;
@@ -485,7 +490,7 @@ server_48v_on(uint8_t slot_id) {
   // In theory
   if (!pal_get_key_value("server_48v_status",vpath)) {
     // Convert to binary
-    power_mask = sscanf(vpath, "%u", &power_mask);
+    sscanf(vpath, "%u", &power_mask);
   }
   power_mask |= (1 << (slot_id));
 
@@ -528,7 +533,7 @@ server_48v_off(uint8_t slot_id) {
   //
   if (!pal_get_key_value("server_48v_status",vpath)) {
     // Convert to binary
-    power_mask = sscanf(vpath, "%u", &power_mask);
+    sscanf(vpath, "%u", &power_mask);
   }
   power_mask &= ~(1 << (slot_id));
 
@@ -593,6 +598,7 @@ pal_set_server_power(uint8_t slot_id, uint8_t cmd) {
     return -1;
   }
 
+  // If we're not messing with the 12V(48V) then check that the fru is ready
   if ((cmd != SERVER_12V_OFF) && (cmd != SERVER_12V_ON) && (cmd != SERVER_12V_CYCLE)) {
     ret = pal_is_fru_ready(slot_id, &status); //Break out if fru is not ready
     if ((ret < 0) || (status == 0)) {
@@ -609,7 +615,13 @@ pal_set_server_power(uint8_t slot_id, uint8_t cmd) {
       if (status == SERVER_POWER_ON)
         return 1;
       else
-        return server_power_on(slot_id);
+        // check 12V is on for this slot, if not, we can't
+        // turn on!
+        pal_is_server_12v_on(slot_id, &status);
+        if (status)
+          return server_power_on(slot_id);
+        else
+          return -1;
       break;
 
     case SERVER_POWER_OFF:
@@ -662,9 +674,23 @@ pal_set_server_power(uint8_t slot_id, uint8_t cmd) {
       return server_48v_on(slot_id);
 
     case SERVER_12V_OFF:
+      // Turn off server first.
+      if (pal_get_server_power(slot_id, &status) < 0) {
+        return -1;
+      }
+      if (status == SERVER_POWER_ON)
+        server_power_off(slot_id, gs_flag);
+
       return server_48v_off(slot_id);
 
     case SERVER_12V_CYCLE:
+      // Turn off server first.
+      if (pal_get_server_power(slot_id, &status) < 0) {
+        return -1;
+      }
+      if (status == SERVER_POWER_ON)
+        server_power_off(slot_id, gs_flag);
+
       if (server_48v_off(slot_id) < 0) {
         return -1;
       }
@@ -672,6 +698,8 @@ pal_set_server_power(uint8_t slot_id, uint8_t cmd) {
       sleep(DELAY_48V_CYCLE);
 
       return (server_48v_on(slot_id));
+
+      // <MPK> Should we re-power server? if it was on?
 
     case SERVER_GLOBAL_RESET:
       return server_power_off(slot_id, false);
@@ -700,7 +728,7 @@ pal_is_server_12v_on(uint8_t slot_id, uint8_t *status) {
   // In theory
   if (!pal_get_key_value("server_48v_status",vpath)) {
     // Convert to binary
-    power_mask = sscanf(vpath, "%u", &power_mask);
+    sscanf(vpath, "%u", &power_mask);
   }
 
    sprintf(vpath, GPIO_PS_ON_VAL);
@@ -709,7 +737,8 @@ pal_is_server_12v_on(uint8_t slot_id, uint8_t *status) {
     return -1;
   }
 
-  if ( (val == 0x1) || (power_mask & (1<<slot_id)) != 0x0 ) {
+  // PS is on and slot is "masked as being on"
+  if ( (val == 0x1) && ((power_mask & (1<<slot_id)) != 0x0 ) ) {
     *status = 1;
   } else {
     *status = 0;
@@ -724,18 +753,19 @@ int
 pal_get_server_power(uint8_t slot_id, uint8_t *status) {
   int ret;
   int val;
+  uint8_t status_12v;
   char vpath[VPATH_SIZE] = {0};
   static uint8_t last_status[MAX_NODES+1] = {0};
 
   /* Check whether the system is 12V off or on */
-  ret = pal_is_server_12v_on(slot_id, status);
+  ret = pal_is_server_12v_on(slot_id, &status_12v);
   if (ret < 0) {
     syslog(LOG_ERR, "pal_get_server_power: pal_is_server_12v_on failed");
     return -1;
   }
 
   /* If 12V-off, return */
-  if (!(*status)) {
+  if (!(status_12v)) {
     *status = SERVER_12V_OFF;
     last_status[slot_id] = SERVER_POWER_OFF;
     return PAL_EOK;
