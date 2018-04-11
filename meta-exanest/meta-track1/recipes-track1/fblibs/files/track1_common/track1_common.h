@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-#define MAX_NUM_FRUS 10
+#define MAX_NUM_FRUS 9
 enum {
   FRU_ALL    = 0,
   FRU_TPDB_B = 1,
