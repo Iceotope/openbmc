@@ -23,7 +23,7 @@ SRC_URI += "file://mTerm1/run \
             file://mTerm4/run \
             file://mTerm5/run \
             file://mTerm6/run \
-			file://mTerm7/run \
+            file://mTerm7/run \
             file://mTerm8/run \
             file://mTerm9/run \
             file://mTerm10/run \
