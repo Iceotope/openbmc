@@ -192,3 +192,134 @@ yosemite_is_server_on() {
         echo 0
     fi
 }
+
+get_eeprom() {
+  eeprom_data=`hexdump $1 -s $2 -n 1 -e '/1 "%03d\n"' 2>/dev/null`
+  echo ${eeprom_data}
+}
+
+get_w1max() {
+  MAX_W1=`ls -d -1 /sys/bus/w1/devices/w1_bus_master*/ 2>/dev/null | cut -c 34-|sort -n|tail -n 1`
+  if [ -z $MAX_W1 ]; then
+    echo "0"
+  else
+    echo ${MAX_W1%/}
+  fi
+}
+
+## This detects a site.
+site_detect() {
+  # $1 = site id
+  # $2 = i2c bus for db
+  bus="i2c-$2"
+  SITE_TYPE=`cat /tmp/mezzanine/db_$1/type 2>/dev/null`
+
+  #echo "Site Detect bus ${bus} TYPE=${SITE_TYPE}"
+
+  if [ ${SITE_TYPE} -eq ${SITE_TYPE_AUTO} ]; then
+    #echo "Auto Detecting site db_$1"
+    ## Remove type, incase we fail
+    rm -f /tmp/mezzanine/db_${1}/type
+    ## Rom at 0x50?
+    ## force read it. May or may not work..
+    ##
+    ID1=`i2cget -f -y $2 0x50 0x0 w 2>/dev/null`
+    ID2=`i2cget -f -y $2 0x50 0x2 w 2>/dev/null`
+    #echo "ID1: ${ID1} ID2: ${ID2}"
+    ## TPDB will be 0x4442 5450
+    if [ "$ID1" == "0x4442" ] && [ "$ID2" == "0x5450" ]; then
+      SITE_TYPE=${SITE_TYPE_TPDB}
+    else
+      ## How to detect KDB? QFDB?
+      SITE_TYPE=${SITE_TYPE_NONE}
+    fi
+    echo $SITE_TYPE > /tmp/mezzanine/db_${1}/type
+  fi
+
+}
+
+## This will initilize a TPDB's i2c system
+# $1 = site
+# $2 = db_bus
+# $3 = site bus
+
+init_tpdb() {
+
+  i=$1
+  db_bus=$2
+  site_bus=$3
+
+  ## Load 1Wire Temp Driver, take time to iterate it's driver devices, so do it
+  ## first.
+  W1_BASE=$(get_w1max)
+  echo "ds2482 0x18" >/sys/bus/i2c/devices/i2c-${db_bus}/new_device 2>/dev/null
+
+  ## Load EEPROM driver
+  echo "24c02 0x50" >/sys/bus/i2c/devices/i2c-${db_bus}/new_device 2>/dev/null
+  ln -s /sys/bus/i2c/drivers/at24/${db_bus}-0050/eeprom /tmp/mezzanine/db_${i}/eeprom
+
+  ## Load IOEXP driver
+  echo "pca9554 0x20" >/sys/bus/i2c/devices/i2c-${db_bus}/new_device 2>/dev/null
+  dbiobase=`cat /sys/bus/i2c/devices/${db_bus}-0020/gpio/*/base 2>/dev/null`
+  mkdir -p /tmp/mezzanine/db_${i}/gpio/IO
+
+  if [ "$dbiobase" -gt 0 ]; then
+    for j in `seq 0 7`
+    do
+      gpio_export $((dbiobase+$j))
+      ln -s /sys/class/gpio/gpio$((dbiobase+j)) /tmp/mezzanine/db_${i}/gpio/IO/${j}
+
+      # Set direction and value defaults
+      echo "${DB_TPDB_IO_DIR_DEFAULT[j]}" > /tmp/mezzanine/db_${i}/gpio/IO/${j}/direction
+
+    done
+  for j in `seq 0 7`
+  do
+    if [ "${DB_TPDB_IO_DIR_DEFAULT[j]}" == "out" ]; then
+      echo "${DB_TPDB_IO_VAL_DEFAULT[j]}" > /tmp/mezzanine/db_${i}/gpio/IO/${j}/value
+    fi
+  done
+  fi
+  ## Load PWM driver
+
+  echo "pca9685 0x40" >/sys/bus/i2c/devices/i2c-${db_bus}/new_device 2>/dev/null
+  ln -s /sys/bus/i2c/drivers/pca9685-pwm/${db_bus}-0040/pwm/pwmchip* /tmp/mezzanine/db_${i}/pwmchip
+
+  ## One wire bus calculation, now that the system has had time to read them all
+  ##
+  W1_BASE_NEW=$(get_w1max)
+
+  if [ "$W1_BASE" -ne "$W1_BASE_NEW" ]; then
+  # 1W has been found!
+    mkdir -p /tmp/mezzanine/db_${i}/w1
+    for j in `seq $(($W1_BASE+1)) $W1_BASE_NEW `
+    do
+      ln -s /sys/bus/w1/devices/w1_bus_master${j} /tmp/mezzanine/db_${i}/w1/w1_bus_master$((${j}-${W1_BASE}))
+#      SLAVE_COUNT=`cat /sys/bus/w1/devices/w1_bus_master${j}/w1_master_slave_count`
+#      echo "Slave count $SLAVE_COUNT"
+#      if [ $SLAVE_COUNT -gt 0 ]; then
+#        SLAVE_ID=`cat /sys/bus/w1/devices/w1_bus_master${j}/w1_master_slaves`
+#        echo "SlaveID  $SLAVE_ID"
+#        ln -s /sys/bus/w1/devices/w1_bus_master${j}/${SLAVE_ID}/w1_slave /tmp/mezzanine/db_${i}/w1/sensor_$((${j}-${W1_BASE}))
+#      fi
+    done
+  fi
+}
+
+## This will initilize a TPDB's i2c system
+## $1 site
+remove_tpdb() {
+  site=$1
+
+  db_bus=`readlink /tmp/mezzanine/db_${site}/i2c_bus | cut -d - -f 2`
+  ## Remove all i2c devices
+  echo "0x40" >/sys/bus/i2c/devices/i2c-${db_bus}/delete_device 2>/dev/null
+  echo "0x20" >/sys/bus/i2c/devices/i2c-${db_bus}/delete_device 2>/dev/null
+  echo "0x18" >/sys/bus/i2c/devices/i2c-${db_bus}/delete_device 2>/dev/null
+  echo "0x50" >/sys/bus/i2c/devices/i2c-${db_bus}/delete_device 2>/dev/null
+  rm -rf /tmp/mezzanine/db_${site}/eeprom
+  rm -rf /tmp/mezzanine/db_${site}/w1
+  rm -rf /tmp/mezzanine/db_${site}/gpio
+  rm -rf /tmp/mezzanine/db_${site}/pwmchip
+
+}

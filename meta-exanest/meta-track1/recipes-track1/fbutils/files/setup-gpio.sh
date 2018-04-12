@@ -34,25 +34,41 @@
 # The commented-out sections are generally already defined elsewhere,
 # and defining them twice generates errors.
 
+# Some general helper functions
 . /usr/local/fbpackages/utils/ast-functions
+# Some gpio defs for names
 . /usr/local/fbpackages/utils/gpio_names.sh
+
+# Code for the retimers.
+. /usr/local/fbpackages/utils/retimers.sh
 
 MAX_SITE=7
 
+## Functions
+
+
+
+
+############### MAIN BLOCK ########################
 ## Create the structure of the board with symlinks
 rm -rf /tmp/mezzanine
 mkdir -p /tmp/mezzanine
 mkdir -p /tmp/mezzanine/gpio
+mkdir -p /tmp/mezzanine/bmc
+
 for i in `seq 0 ${MAX_SITE}`
 do
     mkdir -p /tmp/mezzanine/site_${i}
     mkdir -p /tmp/mezzanine/site_${i}/gpio
     mkdir -p /tmp/mezzanine/db_${i}
-    # Set type of node to auto-detect, eg, not present.
-    echo -n "255" > /tmp/mezzanine/db_${i}/type
+
 done
 
 ## Do all the exporting
+
+#BMC xADC block
+
+ln -s /sys/devices/soc0/amba/f8007100.adc/iio:device0 /tmp/mezzanine/bmc/xadc
 
 # I2C
 gpio_export_out ${SITE_I2C_RST}
@@ -90,20 +106,30 @@ gpio_export_out ${SERIAL_LOOPBACK}
 ln -s /sys/class/gpio/gpio${SERIAL_LOOPBACK} /tmp/mezzanine/gpio/SERIAL_LOOPBACK
 gpio_set ${SERIAL_LOOPBACK} 0
 
-
-# Retimer reset, toggle bit.
-gpio_set ${RETIMER_RESET} 0
-gpio_set ${RETIMER_RESET} 1
-
 # Slot ID
 index=0
+SLOT_ID_VALUE=0
 mkdir -p /tmp/mezzanine/gpio/SLOT_ID
 for i in "${SLOT_ID[@]}"
 do
-   gpio_export ${i}
-   ln -s /sys/class/gpio/gpio${i} /tmp/mezzanine/gpio/SLOT_ID/${index}
-   index=$((index+1))
+  gpio_export ${i}
+  ln -s /sys/class/gpio/gpio${i} /tmp/mezzanine/gpio/SLOT_ID/${index}
+  # Read it
+  bitvalue=`cat /tmp/mezzanine/gpio/SLOT_ID/${index}/value 2>/dev/null`
+  bitvalue=$(($bitvalue<<$index))
+  SLOT_ID_VALUE=$(($SLOT_ID_VALUE+$bitvalue))
+  index=$((index+1))
 done
+echo "${SLOT_ID_VALUE}" > /tmp/mezzanine/SLOT_ID
+printf 'Setting up Track1 Mezzanine in slot: %X\n' ${SLOT_ID_VALUE}
+
+
+# Toggle reset
+retimer_reset
+
+# flash the retimers
+retimer_program ${SLOT_ID_VALUE}
+
 
 # IRQ's from the IO Expanders
 index=0
@@ -131,8 +157,31 @@ done
 
 ln -s /sys/bus/i2c/drivers/at24/1-0050/eeprom /tmp/mezzanine/eeprom
 
+# Get site config list from eeprom
+SITE_EEPROM_OFFSET=32
+for i in `seq 0 ${MAX_SITE}`
+do
+  site_type=$(get_eeprom /tmp/mezzanine/eeprom $((${SITE_EEPROM_OFFSET}+$i)) )
+  if [ "$site_type" -gt 3 ]; then
+  ## None
+    if [ "$site_type" -eq 255 ]; then
+      ## Auto mode
+      echo -n "255" > /tmp/mezzanine/db_${i}/type
+    else
+      ## None, out of range.
+      echo -n "0" > /tmp/mezzanine/db_${i}/type
+    fi
+  else
+    echo -n "$site_type" > /tmp/mezzanine/db_${i}/type
+  fi
+done
+
 # PowerManagment chip on baseboard (track 1 at least)
 ## Needa a driver, need to port something over from another LTC chip
+## Currently all code does direct i2c operation in C ti the i2c layer
+## with ioctls/read/writes.
+## One possibilty is to mod a driver, add a "supported chip" and submit
+## to the kernel drivers?
 
 
 ## One wire bus here, we set links for the sensors at the sites to the directories
@@ -144,11 +193,12 @@ ln -s /sys/bus/i2c/drivers/at24/1-0050/eeprom /tmp/mezzanine/eeprom
 #    ln -s ${master}/${slave}/w1_slave /tmp/mezzanine/site_${i}/temperature
 #done
 
-## Now we can search the i2c sub busses an bind all the ioexpanders.
+## Now we can search the i2c sub busses an bind all the ioexpanders, site and
+## other nice things.
 
 for i in `seq 0 ${MAX_SITE}`
 do
-  echo "Site ${i}"
+  #echo "Site ${i}"
   if [ "$i" -gt 7 ]; then
     site_bus=`ls -l /sys/bus/i2c/devices/1-0077/channel-$((i-8))|cut -d- -f5`
     db_bus=`ls -l /sys/bus/i2c/devices/0-0077/channel-$((i-8))|cut -d- -f5`
@@ -160,11 +210,59 @@ do
   ln -s /dev/i2c-${site_bus} /tmp/mezzanine/site_${i}/i2c_bus
   ln -s /dev/i2c-${db_bus} /tmp/mezzanine/db_${i}/i2c_bus
 
-  #echo "Site ${i} bus = ${site_bus}"
-  # push the device name into the bind directory
+  # echo "Site ${i} bus = ${site_bus}"
 
-  echo -n "${site_bus}-0074" > /sys/bus/i2c/drivers/pca953x/bind
-  echo -n "${site_bus}-0075" > /sys/bus/i2c/drivers/pca953x/bind
+  #### DB setup
+  ## Check the type for auto-detect
+  site_detect ${i} ${db_bus}
+  ## Check site for type now
+  SITE_TYPE=`cat /tmp/mezzanine/db_${i}/type 2>/dev/null`
+  case ${SITE_TYPE} in
+    0)
+    ## NONE,
+      echo "EMPTY site ${i}"
+      rm -f /tmp/mezzanine/db_${1}/type
+
+      # Assign site's IO expander defaults, based on TPDB
+      SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_TPDB[@]}")
+      SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_TPDB[@]}")
+      SITE_LOWIO_VAL_DEFAULT=("${SITE_LOWIO_VAL_DEFAULT_TPDB[@]}")
+      SITE_HIGHIO_VAL_DEFAULT=("${SITE_HIGHIO_VAL_DEFAULT_TPDB[@]}")
+    ;;
+    1)
+    ## QFDB,
+      echo "QFDB board in site ${i}"
+    ;;
+    2)
+    ## KDB,
+      echo "KDB board in site ${i}"
+    ;;
+    3)
+    ## TPDB,
+      echo "TPDB board in site ${i}"
+      init_tpdb ${i} ${db_bus} ${site_bus}
+      # Assign site's IO expander defaults
+      SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_TPDB[@]}")
+      SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_TPDB[@]}")
+      SITE_LOWIO_VAL_DEFAULT=("${SITE_LOWIO_VAL_DEFAULT_TPDB[@]}")
+      SITE_HIGHIO_VAL_DEFAULT=("${SITE_HIGHIO_VAL_DEFAULT_TPDB[@]}")
+    ;;
+    *)
+    ## OTHERS
+      echo "Unknown board in site ${i}"
+      # Assign site's IO expander defaults, based on TPDB
+      SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_TPDB[@]}")
+      SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_TPDB[@]}")
+      SITE_LOWIO_VAL_DEFAULT=("${SITE_LOWIO_VAL_DEFAULT_TPDB[@]}")
+      SITE_HIGHIO_VAL_DEFAULT=("${SITE_HIGHIO_VAL_DEFAULT_TPDB[@]}")
+    ;;
+  esac
+
+  #### Back to the mezzanine setup.
+  # push the device name into the bind directory for the IO Expanders
+
+  echo -n "${site_bus}-0074" > /sys/bus/i2c/drivers/pca953x/bind 2>/dev/null
+  echo -n "${site_bus}-0075" > /sys/bus/i2c/drivers/pca953x/bind 2>/dev/null
 
   ## Low 0-15 are on -0074
   mkdir -p /tmp/mezzanine/site_${i}/gpio/IO
@@ -189,25 +287,24 @@ do
     do
       gpio_export $((highbase+$j))
       ln -s /sys/class/gpio/gpio$((highbase+j)) /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))
+
       # Set direction and value defaults
       echo "${SITE_HIGHIO_DIR_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))/direction
+
     done
   fi
 
-## Set default values..
-
+## Set default values.. if not empty
   for j in `seq 0 15`
-    do
-      if [ "${SITE_LOWIO_DIR_DEFAULT[j]}" == "out" ]; then
-        echo "${SITE_LOWIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/${j}/value
-      fi
+  do
+    if [ "${SITE_LOWIO_DIR_DEFAULT[j]}" == "out" ]; then
+      echo "${SITE_LOWIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/${j}/value
+    fi
+    if [ "${SITE_HIGHIO_DIR_DEFAULT[j]}" == "out" ]; then
+      echo "${SITE_HIGHIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))/value
+    fi
 
-      if [ "${SITE_HIGHIO_DIR_DEFAULT[j]}" == "out" ]; then
-        echo "${SITE_HIGHIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))/value
-      fi
-
-    done
-
+  done
 done
 
 

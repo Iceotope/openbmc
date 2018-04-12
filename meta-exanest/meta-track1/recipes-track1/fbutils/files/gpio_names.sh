@@ -74,8 +74,9 @@ declare -a RST_CTLREG=( ${RST_CTLREG_0} \
   ${RST_CTLREG_14} \
   ${RST_CTLREG_15} )
 
-# Array for default directions on IO expander
-declare -a SITE_LOWIO_DIR_DEFAULT=( "in" \
+# Array for default directions on IO expander,
+# This is for TPDB operation
+declare -a SITE_LOWIO_DIR_DEFAULT_TPDB=( "in" \
   "in" \
   "in" \
   "in" \
@@ -92,7 +93,7 @@ declare -a SITE_LOWIO_DIR_DEFAULT=( "in" \
   "in" \
   "in" )
 
-  declare -a SITE_HIGHIO_DIR_DEFAULT=( "in" \
+declare -a SITE_HIGHIO_DIR_DEFAULT_TPDB=( "in" \
   "in" \
   "in" \
   "in" \
@@ -109,7 +110,7 @@ declare -a SITE_LOWIO_DIR_DEFAULT=( "in" \
   "out" \
   "out" )
 
-declare -a SITE_LOWIO_VAL_DEFAULT=( "0" \
+declare -a SITE_LOWIO_VAL_DEFAULT_TPDB=( "0" \
   "0" \
   "0" \
   "0" \
@@ -126,7 +127,7 @@ declare -a SITE_LOWIO_VAL_DEFAULT=( "0" \
   "0" \
   "0" )
 
-  declare -a SITE_HIGHIO_VAL_DEFAULT=( "0" \
+declare -a SITE_HIGHIO_VAL_DEFAULT_TPDB=( "0" \
   "0" \
   "0" \
   "0" \
@@ -142,3 +143,36 @@ declare -a SITE_LOWIO_VAL_DEFAULT=( "0" \
   "1" \
   "0" \
   "1" )
+
+
+declare -a SITE_TYPE_NAMES=( "NONE" \
+  "QFDB" \
+  "KDB" \
+  "TPDB" )
+
+SITE_TYPE_AUTO=255
+SITE_TYPE_NONE=0
+SITE_TYPE_QFDB=1
+SITE_TYPE_KDB=2
+SITE_TYPE_TPDB=3
+
+## TPDB IO defs
+
+
+declare -a DB_TPDB_IO_DIR_DEFAULT=( "out" \
+  "out" \
+  "out" \
+  "out" \
+  "out" \
+  "out" \
+  "out" \
+  "out" )
+
+declare -a DB_TPDB_IO_VAL_DEFAULT=( "1" \
+  "0" \
+  "0" \
+  "1" \
+  "1" \
+  "1" \
+  "1" \
+  "0" )

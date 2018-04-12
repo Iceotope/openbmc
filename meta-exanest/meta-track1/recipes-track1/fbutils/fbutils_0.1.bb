@@ -28,6 +28,7 @@ SRC_URI = "file://ast-functions \
            file://setup-gpio.sh \
            file://gpio_names.sh \
            file://power-on.sh \
+           file://retimers.sh \
            file://fw_env_config.sh \
            file://COPYING \
           "
@@ -45,6 +46,7 @@ do_install() {
   install -d $dst
   install -m 644 ast-functions ${dst}/ast-functions
   install -m 644 gpio_names.sh ${dst}/gpio_names.sh
+  install -m 644 retimers.sh ${dst}/retimers.sh
   localbindir="${D}/usr/local/bin"
   install -d ${localbindir}
   for f in ${binfiles}; do
