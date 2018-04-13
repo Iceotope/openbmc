@@ -12,12 +12,12 @@ SRC_URI = "file://track1-sensors \
 S = "${WORKDIR}/track1-sensors"
 
 do_install() {
-	install -d ${D}${bindir}
+  install -d ${D}${bindir}
     install -m 0755 track1-sensors ${D}${bindir}/track1-sensors
 }
 
-DEPENDS += "libtrack1-sensor"
+DEPENDS += "libtrack1-sensor libpal"
 
-RDEPENDS_${PN} += "libtrack1-sensor"
+RDEPENDS_${PN} += "libtrack1-sensor libpal"
 
 FILES_${PN} = "${bindir}"

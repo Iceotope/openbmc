@@ -26,7 +26,9 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <openbmc/ipmi.h>
+#include <openbmc/pal.h>
 #include <facebook/track1_sensor.h>
+
 
 
 // Do a list of sensors, with 0 as the terminator, then we can just loop
@@ -52,6 +54,9 @@ main(int argc, char **argv) {
   char units[80];
   char name[80];
   uint8_t slot_id = 0;
+  uint8_t *sensor_list = NULL;
+  int sensor_count = 0;
+  int i;
 
   if (argc >1)
     slot_id = atoi(argv[1]);
@@ -61,29 +66,18 @@ main(int argc, char **argv) {
  * It will talk to the PAL library, so that needs doing as well
  */
 
-  if (slot_id == FRU_BMC) {
-    int i = 0;
+  if (PAL_EOK == pal_get_fru_sensor_list(slot_id, &sensor_list,
+            &sensor_count) ) {
+    for (i = 0; i <sensor_count; i++) {
+      track1_sensor_units(slot_id, sensor_list[i], units);
+      track1_sensor_name(slot_id, sensor_list[i], name);
 
-    while (0 != BMC_SENSOR_LIST[i]) {
-      track1_sensor_units(FRU_BMC, BMC_SENSOR_LIST[i], units);
-      track1_sensor_name(FRU_BMC, BMC_SENSOR_LIST[i], name);
-
-      if (track1_sensor_read(FRU_BMC, BMC_SENSOR_LIST[i], &fvalue)) {
+      if (track1_sensor_read(slot_id, sensor_list[i], &fvalue)) {
         printf("track1_sensor_read(%d) failed:\n", i);
       } else {
         printf("Sensor %d (%s): %.2f %s\n", i, name, fvalue, units);
       }
-
-      i++;
-
     }
   }
-  // Now do the slots.
-  //if (track1_sensor_read(slot_id, SP_SENSOR_INLET_TEMP, &fvalue)) {
-    //printf("track1_sensor_read failed: SP_SENSOR_INLET_TEMP\n");
-  //} else {
-    //printf("SP_SENSOR_INLET_TEMP: %.2f C\n", fvalue);
-  //}
-
   return 0;
 }
