@@ -55,9 +55,12 @@
 
 #define XADC_VOLTAGE_RAW_FMT "in_voltage%s_raw"
 #define XADC_VOLTAGE_SCALE_FMT "in_voltage%s_scale"
-#define DB_TYPE_FILE "/tmp/mezzanine/db_%d/type"
 #define UNIT_DIV 1000
 
+#define TPDB_1W_PATH_FMT "/tmp/mezzanine/db_%d/w1/w1_bus_master%d/%s"
+#define TPDB_1W_DATA_PATH_FMT "/tmp/mezzanine/db_%d/w1/w1_bus_master%d/%s/w1_slave"
+#define TPDB_1W_PATH_SLAVE_COUNT "w1_master_slave_count"
+#define TPDB_1W_PATH_SLAVE_LIST "w1_master_slaves"
 // Base board site root bus, retimers and power chip etc.
 #define I2C_DEV_MEZZ "/dev/i2c-1"
 #define I2C_SLAVE_LTC2946_ADDR 0x67
@@ -131,6 +134,12 @@ size_t bmc_sensor_cnt = sizeof(bmc_sensor_list)/sizeof(uint8_t);
 
 static sensor_info_t g_sinfo[MAX_NUM_FRUS][MAX_SENSOR_NUM] = {0};
 
+// Arrays based on DB types.
+float bmc_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1] = {0};
+float tpdb_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1] = {0};
+float kdb_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1] = {0};
+float qfdb_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1] = {0};
+
 /* Helper code to read the device nodes */
 static int
 read_device(const char *device, int *value) {
@@ -190,6 +199,30 @@ read_device_float(const char *device, float *value) {
   return 0;
 }
 
+/* read a string from a device, upto len size */
+static int
+read_device_string(const char *device, char *buffer, int len) {
+  FILE *fp;
+  char *rc;
+
+  fp = fopen(device, "r");
+  if (!fp) {
+    int err = errno;
+#ifdef DEBUG
+    syslog(LOG_INFO, "failed to open device %s", device);
+#endif
+    return err;
+  }
+
+  rc  = fgets(buffer, len, fp);
+  fclose(fp);
+
+  if (rc)
+    return 0;
+  else
+    return -1;
+}
+
 /* Populates all sensor_info_t struct using the path to SDR dump */
 int
 sdr_init(char *path, sensor_info_t *sinfo) {
@@ -245,8 +278,8 @@ track1_sdr_init(uint8_t fru) {
 /* Simple check to see if server/slot is there */
 static bool
 is_server_prsnt(uint8_t fru) {
- char path[LARGEST_DEVICE_NAME];
-  int val = 0;
+  char path[LARGEST_DEVICE_NAME];
+  uint8_t val = 0;
 
   switch(fru) {
     case FRU_QFDB_A:
@@ -257,12 +290,9 @@ is_server_prsnt(uint8_t fru) {
     case FRU_KDB_B:
     case FRU_TPDB_A:
     case FRU_TPDB_B:
-      sprintf(path, DB_TYPE_FILE, fru-1);
-      if (read_device(path, &val)) {
-        return 0;
-      }
+      track1_get_fru_type(fru, &val);
 
-      if (val != 0x0) {
+      if (val != DB_TYPE_NONE) {
         return 1;
       } else {
         return 0;
@@ -417,10 +447,9 @@ read_v48_sensor(uint8_t snr_num, float *value) {
 
           if ( ((float)MIN_48V_LIMIT_MIN < (*value)) && ( (*value) < (float)MIN_48V_LIMIT_MAX) )
             gpio_buf[1] = LTC2946_GPIO1_ON;
-          break;
-
           // Write
           write(dev, gpio_buf, 2);
+          break;
 
         case BMC_SENSOR_I48:
           *value = (float)( ((read_buffer[0]<<4) | (read_buffer[1] >>4)) *
@@ -468,7 +497,66 @@ read_xadc_voltage(uint8_t sensor_num, float *value) {
 
 }
 
+/* Read out the 1Wire TP Temp sensors */
+/* Path to get stuff from is
+ * /tmp/mezzanine/db_n//w1/w1_bus_masterj/
+ * Need to pull the file that says how many slaves, and then
+ * if that is >0 pull the slave name from the other file
+ * then generate the final path name to read the sensor.
+ */
+int
+tpdb_w1_read_temp(uint8_t fru, uint8_t sensor_num, float *value) {
+  char vname[LARGEST_DEVICE_NAME];
+  char tempname[LARGEST_DEVICE_NAME];
+  int bus = 0;
+  int slave_count = 0;
+  FILE *fp;
+
+  *value = 0.0;
+  bus = 1+(sensor_num-TPDB_SENSOR_W1_1);
+
+  sprintf(vname, TPDB_1W_PATH_FMT, fru-1, bus, TPDB_1W_PATH_SLAVE_COUNT);
+  read_device(vname,&slave_count);
+
+  if (0 == slave_count)
+    return -1;
+
+  // Read first entry in list
+  sprintf(vname, TPDB_1W_PATH_FMT, fru-1, bus, TPDB_1W_PATH_SLAVE_LIST);
+  if (0 == read_device_string(vname,tempname,LARGEST_DEVICE_NAME)) {
+    // Remove \n from end of string
+    tempname[strlen(tempname)-1]='\0';
+    // This is the name of the slave, and the data file to read now
+    sprintf(vname, TPDB_1W_DATA_PATH_FMT, fru-1, bus, tempname);
+
+    // format to read is on the second line,
+    // 34 00 4b 46 ff ff 10 10 59 t=25750
+    //
+
+    fp = fopen(vname, "r");
+    if (!fp) {
+      int err = errno;
+#ifdef DEBUG
+      syslog(LOG_INFO, "failed to open device %s", device);
+#endif
+      return err;
+    }
+    // Do two reads
+    fgets(tempname, LARGEST_DEVICE_NAME, fp);
+    fgets(tempname, LARGEST_DEVICE_NAME, fp);
+    fclose(fp);
+
+    // Now sscanf the buffer
+    if (0 == sscanf(tempname, "%*x %*x %*x %*x %*x %*x %*x %*x %*x t=%f", value)) {
+      return -1;
+    }
+    *value=*value/(float)UNIT_DIV;
+  }
+  return 0;
+}
+
 /* Main Sensor reading code */
+/* Based on installed FRU, call the correct functions */
 int track1_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
 
   float volt;
@@ -476,6 +564,7 @@ int track1_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
   int ret;
   bool discrete;
   int i;
+  uint8_t type;
 
   if (!(is_server_prsnt(fru))) {
     return -1;
@@ -493,43 +582,65 @@ int track1_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
     case FRU_QFDB_B:
     case FRU_QFDB_C:
     case FRU_QFDB_D:
-     /* Fake this currently, as we have no data! */
-      switch(sensor_num) {
-        case QFDB_SENSOR_DUMMY:
-        *(float *)value = (0xA0 +fru);
-        break;
-      }
-      break;
-
     case FRU_KDB_A:
     case FRU_KDB_B:
-     /* Fake this currently, as we have no data! */
-      switch(sensor_num) {
-        case KDB_SENSOR_DUMMY:
-        *(float *)value = (0x50 + fru);
-        break;
-      }
-      break;
-
-
     case FRU_TPDB_A:
     case FRU_TPDB_B:
-      switch(sensor_num) {
-        case TPDB_SENSOR_W1_1:
-        case TPDB_SENSOR_W1_2:
-        case TPDB_SENSOR_W1_3:
-        case TPDB_SENSOR_W1_4:
-        case TPDB_SENSOR_W1_5:
-        case TPDB_SENSOR_W1_6:
-        case TPDB_SENSOR_W1_7:
-        case TPDB_SENSOR_W1_8:
-        // i2c->1W bus chat, as we don't have a driver?
-        // need to try instansiating a driver via user space
-        // not sure I can however. TEST it! If we can, it's a lot
-        // easier to pull from sysfs space
-        break;
+      if (0 != track1_get_fru_type(fru, &type) ) {
+        return -1;
       }
 
+      // Switch based on the type now
+      switch (type) {
+        case DB_TYPE_QFDB:
+        /* Fake this currently, as we have no data! */
+          switch(sensor_num) {
+            case QFDB_SENSOR_DUMMY:
+              *(float *)value = (0xA0 +fru);
+              break;
+
+            default:
+              return -1;
+          }
+          break;
+
+        case DB_TYPE_KDB:
+        /* Fake this currently, as we have no data! */
+          switch(sensor_num) {
+            case KDB_SENSOR_DUMMY:
+              *(float *)value = (0x50 + fru);
+              break;
+
+            default:
+              return -1;
+            }
+          break;
+
+        case DB_TYPE_TPDB:
+          switch(sensor_num) {
+            case TPDB_SENSOR_W1_1:
+            case TPDB_SENSOR_W1_2:
+            case TPDB_SENSOR_W1_3:
+            case TPDB_SENSOR_W1_4:
+            case TPDB_SENSOR_W1_5:
+            case TPDB_SENSOR_W1_6:
+            case TPDB_SENSOR_W1_7:
+            case TPDB_SENSOR_W1_8:
+            // We should have links in the /tmp structure
+            // Need to parse the data.
+              return tpdb_w1_read_temp(fru, sensor_num, (float *)value);
+              break;
+
+          default:
+            return -1;
+          }
+          break;
+        // IF NONE or unknown
+        default:
+          return -1;
+      }
+      break;
+    // BMC is always BMC.
     case FRU_BMC:
       switch(sensor_num) {
         /* XADC Temp sensor */
@@ -549,6 +660,7 @@ int track1_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
           // Calculate ((raw*scale)/DIV
           return read_xadc_voltage(sensor_num, (float *)value);
           break;
+
         /* Power Mon */
         case BMC_SENSOR_V48:
         case BMC_SENSOR_I48:
@@ -557,20 +669,30 @@ int track1_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
           // do raw i2c operations?
           return read_v48_sensor(sensor_num, (float *)value);
           break;
+
+        default:
+          return -1;
       }
       break;
 
+    default:
+      return -1;
   }
+  // fall though return
   return 0;
 }
 
 /* Gives sensor readable name */
 int track1_sensor_name(uint8_t fru, uint8_t sensor_num, char *name) {
-  switch(fru) {
-    case FRU_QFDB_A:
-    case FRU_QFDB_B:
-    case FRU_QFDB_C:
-    case FRU_QFDB_D:
+
+  uint8_t type;
+  if (0 != track1_get_fru_type(fru, &type) ) {
+    return -1;
+  }
+
+  /* Switch on installed type, not slot location */
+  switch(type) {
+    case DB_TYPE_QFDB:
       switch(sensor_num) {
         case QFDB_SENSOR_DUMMY:
           sprintf(name, "QFDB_DUMMY_SENSOR");
@@ -582,8 +704,7 @@ int track1_sensor_name(uint8_t fru, uint8_t sensor_num, char *name) {
       }
       break;
 
-    case FRU_KDB_A:
-    case FRU_KDB_B:
+    case DB_TYPE_KDB:
       switch(sensor_num) {
         case KDB_SENSOR_DUMMY:
           sprintf(name, "KDB_DUMMY_SENSOR");
@@ -594,7 +715,7 @@ int track1_sensor_name(uint8_t fru, uint8_t sensor_num, char *name) {
       }
       break;
 
-    case FRU_BMC:
+    case DB_TYPE_BMC:
       switch(sensor_num) {
         case BMC_SENSOR_TEMP:
           sprintf(name, "BMC_Die_Temp");
@@ -632,8 +753,7 @@ int track1_sensor_name(uint8_t fru, uint8_t sensor_num, char *name) {
       }
       break;
 
-    case FRU_TPDB_A:
-    case FRU_TPDB_B:
+    case DB_TYPE_TPDB:
       switch(sensor_num) {
         case TPDB_SENSOR_W1_1:
           sprintf(name, "TPDB_Temp_ext0");
@@ -665,11 +785,20 @@ int track1_sensor_name(uint8_t fru, uint8_t sensor_num, char *name) {
           break;
       }
       break;
+    // Unknown board!
+    default:
+      return -1;
     }
   return 0;
 }
 /* Gives sensor readable unit name */
 int track1_sensor_units(uint8_t fru, uint8_t sensor_num, char *units) {
+
+  uint8_t type;
+  if (0 != track1_get_fru_type(fru, &type) ) {
+    return -1;
+  }
+
   uint8_t op, modifier;
   sensor_info_t *sinfo;
 
@@ -677,34 +806,33 @@ int track1_sensor_units(uint8_t fru, uint8_t sensor_num, char *units) {
 //    return -1;
 //    }
 
-  switch(fru) {
-    case FRU_QFDB_A:
-    case FRU_QFDB_B:
-    case FRU_QFDB_C:
-    case FRU_QFDB_D:
+  switch(type) {
+    case DB_TYPE_QFDB:
+
       switch(sensor_num) {
         case QFDB_SENSOR_DUMMY:
           sprintf(units, "C");
           break;
         default:
           sprintf(units, "");
+          return -1;
           break;
       }
       break;
 
-    case FRU_KDB_A:
-    case FRU_KDB_B:
+    case DB_TYPE_KDB:
       switch(sensor_num) {
         case KDB_SENSOR_DUMMY:
           sprintf(units, "C");
           break;
         default:
           sprintf(units, "");
+          return -1;
           break;
       }
       break;
 
-    case FRU_BMC:
+    case DB_TYPE_BMC:
       switch(sensor_num) {
         case BMC_SENSOR_TEMP:
           sprintf(units, "C");
@@ -738,12 +866,12 @@ int track1_sensor_units(uint8_t fru, uint8_t sensor_num, char *units) {
           break;
          default:
           sprintf(units, "");
+          return -1;
           break;
       }
       break;
 
-    case FRU_TPDB_A:
-    case FRU_TPDB_B:
+    case DB_TYPE_TPDB:
       switch(sensor_num) {
         case TPDB_SENSOR_W1_1:
           sprintf(units, "C");
@@ -772,11 +900,89 @@ int track1_sensor_units(uint8_t fru, uint8_t sensor_num, char *units) {
 
         default:
           sprintf(units, "");
+          return -1;
           break;
       }
       break;
+
+      // No clue on board
+      default:
+        sprintf(units, "");
+        return -1;
+        break;
     }
   return 0;
+}
+
+/* Initilize the threshold arrays */
+static void
+sensor_thresh_array_init() {
+  static bool init_done = false;
+
+  if (init_done)
+    return;
+
+  /* BMC thresholds */
+  /******************/
+  bmc_sensor_threshold[BMC_SENSOR_TEMP][UCR_THRESH] = 80.0;
+  bmc_sensor_threshold[BMC_SENSOR_TEMP][UNC_THRESH] = 70.0;
+
+  // Internal rails
+  // Sensor 1 (BMC_Vcc_int): 1.0V nominal
+  bmc_sensor_threshold[BMC_SENSOR_V0][UCR_THRESH] = 1.0*105.0;
+  bmc_sensor_threshold[BMC_SENSOR_V0][UNC_THRESH] = 1.0*103.0;
+  bmc_sensor_threshold[BMC_SENSOR_V0][LNC_THRESH] = 1.0*97.0;
+  bmc_sensor_threshold[BMC_SENSOR_V0][LCR_THRESH] = 1.0*95.0;
+  // Sensor 2 (BMC_Vcc_aux): 1.8
+  bmc_sensor_threshold[BMC_SENSOR_V1][UCR_THRESH] = 1.8*105.0;
+  bmc_sensor_threshold[BMC_SENSOR_V1][UNC_THRESH] = 1.8*103.0;
+  bmc_sensor_threshold[BMC_SENSOR_V1][LNC_THRESH] = 1.8*97.0;
+  bmc_sensor_threshold[BMC_SENSOR_V1][LCR_THRESH] = 1.8*95.0;
+  // Sensor 3 (BMC_Vcc_bram): 1.0
+  bmc_sensor_threshold[BMC_SENSOR_V2][UCR_THRESH] = 1.0*105.0;
+  bmc_sensor_threshold[BMC_SENSOR_V2][UNC_THRESH] = 1.0*103.0;
+  bmc_sensor_threshold[BMC_SENSOR_V2][LNC_THRESH] = 1.0*97.0;
+  bmc_sensor_threshold[BMC_SENSOR_V2][LCR_THRESH] = 1.0*95.0;
+  // Sensor 4 (BMC_Vcc_pint): 1.0
+  bmc_sensor_threshold[BMC_SENSOR_V3][UCR_THRESH] = 1.0*105.0;
+  bmc_sensor_threshold[BMC_SENSOR_V3][UNC_THRESH] = 1.0*103.0;
+  bmc_sensor_threshold[BMC_SENSOR_V3][LNC_THRESH] = 1.0*97.0;
+  bmc_sensor_threshold[BMC_SENSOR_V3][LCR_THRESH] = 1.0*95.0;
+  // Sensor 5 (BMC_Vcc_paux): 1.8
+  bmc_sensor_threshold[BMC_SENSOR_V4][UCR_THRESH] = 1.8*105.0;
+  bmc_sensor_threshold[BMC_SENSOR_V4][UNC_THRESH] = 1.8*103.0;
+  bmc_sensor_threshold[BMC_SENSOR_V4][LNC_THRESH] = 1.8*97.0;
+  bmc_sensor_threshold[BMC_SENSOR_V4][LCR_THRESH] = 1.8*95.0;
+  // Sensor 6 (BMC_Vcc_ddr): 1.5
+  bmc_sensor_threshold[BMC_SENSOR_V5][UCR_THRESH] = 1.5*105.0;
+  bmc_sensor_threshold[BMC_SENSOR_V5][UNC_THRESH] = 1.5*103.0;
+  bmc_sensor_threshold[BMC_SENSOR_V5][LNC_THRESH] = 1.5*97.0;
+  bmc_sensor_threshold[BMC_SENSOR_V5][LCR_THRESH] = 1.5*95.0;
+
+  // 48V stuff
+  bmc_sensor_threshold[BMC_SENSOR_V48][UCR_THRESH] = 48.0*105.0;
+  bmc_sensor_threshold[BMC_SENSOR_V48][UNC_THRESH] = 48.0*103.0;
+  bmc_sensor_threshold[BMC_SENSOR_V48][LNC_THRESH] = 48.0*97.0;
+  bmc_sensor_threshold[BMC_SENSOR_V48][LCR_THRESH] = 48.0*95.0;
+
+  bmc_sensor_threshold[BMC_SENSOR_I48][UCR_THRESH] = 15.0;
+  bmc_sensor_threshold[BMC_SENSOR_I48][UNC_THRESH] = 14.5;
+
+  bmc_sensor_threshold[BMC_SENSOR_P48][UCR_THRESH] = 700.00;
+  bmc_sensor_threshold[BMC_SENSOR_P48][UNC_THRESH] = 700.00*95.0;
+
+  /* TPDB thresholds */
+  /*******************/
+  tpdb_sensor_threshold[TPDB_SENSOR_W1_5][UCR_THRESH] = 70.00;
+  tpdb_sensor_threshold[TPDB_SENSOR_W1_5][UNC_THRESH] = 75.00;
+  tpdb_sensor_threshold[TPDB_SENSOR_W1_6][UCR_THRESH] = 70.00;
+  tpdb_sensor_threshold[TPDB_SENSOR_W1_6][UNC_THRESH] = 75.00;
+  tpdb_sensor_threshold[TPDB_SENSOR_W1_7][UCR_THRESH] = 70.00;
+  tpdb_sensor_threshold[TPDB_SENSOR_W1_7][UNC_THRESH] = 75.00;
+  tpdb_sensor_threshold[TPDB_SENSOR_W1_8][UCR_THRESH] = 70.00;
+  tpdb_sensor_threshold[TPDB_SENSOR_W1_8][UNC_THRESH] = 75.00;
+
+  init_done = true;
 }
 
 /* Does the thresholds */
@@ -784,7 +990,33 @@ int
 track1_sensor_threshold(uint8_t fru, uint8_t sensor_num,
   uint8_t thresh, float *value) {
 
-  return 0;
+  uint8_t type;
+
+  sensor_thresh_array_init();
+
+  if (0 != track1_get_fru_type(fru, &type) ) {
+    return -1;
+  }
+
+  switch(type) {
+    case DB_TYPE_BMC:
+      *value = bmc_sensor_threshold[sensor_num][thresh];
+      break;
+
+    case DB_TYPE_TPDB:
+      *value = tpdb_sensor_threshold[sensor_num][thresh];
+      break;
+
+    case DB_TYPE_QFDB:
+      break;
+
+    case DB_TYPE_KDB:
+      break;
+
+    default:
+      return -1;
+  }
+   return 0;
 }
 
 /* Path to the sensor data base */
@@ -894,314 +1126,5 @@ int track1_sensor_sdr_init(uint8_t fru, sensor_info_t *sinfo) {
 /******************************************
  * MPK Removed for now.. needs porting!!
  ******************************************/
-
-//#define GPIO_VAL "/sys/class/gpio/gpio%d/value"
-
-//#define I2C_BUS_9_DIR "/sys/class/i2c-adapter/i2c-9/"
-//#define I2C_BUS_10_DIR "/sys/class/i2c-adapter/i2c-10/"
-
-//#define TACH_DIR "/sys/devices/platform/ast_pwm_tacho.0"
-//#define ADC_DIR "/sys/devices/platform/ast_adc.0"
-
-//#define SP_INLET_TEMP_DEVICE I2C_BUS_9_DIR "9-004e"
-//#define SP_OUTLET_TEMP_DEVICE I2C_BUS_9_DIR "9-004f"
-//#define HSC_DEVICE I2C_BUS_10_DIR "10-0040"
-
-//#define FAN_TACH_RPM "tacho%d_rpm"
-//#define ADC_VALUE "adc%d_value"
-//#define HSC_IN_VOLT "in1_input"
-//#define HSC_OUT_CURR "curr1_input"
-//#define HSC_TEMP "temp1_input"
-//#define HSC_IN_POWER "power1_input"
-
-
-
-//#define I2C_DEV_NIC "/dev/i2c-11"
-//#define I2C_NIC_ADDR 0x1f
-//#define I2C_NIC_SENSOR_TEMP_REG 0x01
-
-//#define BIC_SENSOR_READ_NA 0x20
-
-//#define MAX_SENSOR_NUM 0xFF
-//#define ALL_BYTES 0xFF
-//#define LAST_REC_ID 0xFFFF
-
-//#define YOSEMITE_SDR_PATH "/tmp/sdr_%s.bin"
-//#define ADM1278_R_SENSE 0.5
-
-//static float hsc_r_sense = ADM1278_R_SENSE;
-
-
-//float spb_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1] = {0};
-//float nic_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1] = {0};
-
-//static void
-//sensor_thresh_array_init() {
-  //static bool init_done = false;
-
-  //if (init_done)
-    //return;
-
-  //spb_sensor_threshold[SP_SENSOR_INLET_TEMP][UCR_THRESH] = 40;
-  //spb_sensor_threshold[SP_SENSOR_OUTLET_TEMP][UCR_THRESH] = 70;
-  //spb_sensor_threshold[SP_SENSOR_FAN0_TACH][UCR_THRESH] = 11500;
-  //spb_sensor_threshold[SP_SENSOR_FAN0_TACH][UNC_THRESH] = 8500;
-  //spb_sensor_threshold[SP_SENSOR_FAN0_TACH][LCR_THRESH] = 500;
-  //spb_sensor_threshold[SP_SENSOR_FAN1_TACH][UCR_THRESH] = 11500;
-  //spb_sensor_threshold[SP_SENSOR_FAN1_TACH][UNC_THRESH] = 8500;
-  //spb_sensor_threshold[SP_SENSOR_FAN1_TACH][LCR_THRESH] = 500;
-  ////spb_sensor_threshold[SP_SENSOR_AIR_FLOW][UCR_THRESH] =  {75.0, 0, 0, 0, 0, 0, 0, 0};
-  //spb_sensor_threshold[SP_SENSOR_P5V][UCR_THRESH] = 5.493;
-  //spb_sensor_threshold[SP_SENSOR_P5V][LCR_THRESH] = 4.501;
-  //spb_sensor_threshold[SP_SENSOR_P12V][UCR_THRESH] = 13.216;
-  //spb_sensor_threshold[SP_SENSOR_P12V][LCR_THRESH] = 11.269;
-  //spb_sensor_threshold[SP_SENSOR_P3V3_STBY][UCR_THRESH] = 3.625;
-  //spb_sensor_threshold[SP_SENSOR_P3V3_STBY][LCR_THRESH] = 2.973;
-  //spb_sensor_threshold[SP_SENSOR_P12V_SLOT1][UCR_THRESH] = 13.216;
-  //spb_sensor_threshold[SP_SENSOR_P12V_SLOT1][LCR_THRESH] = 11.269;
-  //spb_sensor_threshold[SP_SENSOR_P12V_SLOT2][UCR_THRESH] = 13.216;
-  //spb_sensor_threshold[SP_SENSOR_P12V_SLOT2][LCR_THRESH] = 11.269;
-  //spb_sensor_threshold[SP_SENSOR_P12V_SLOT3][UCR_THRESH] = 13.216;
-  //spb_sensor_threshold[SP_SENSOR_P12V_SLOT3][LCR_THRESH] = 11.269;
-  //spb_sensor_threshold[SP_SENSOR_P12V_SLOT4][UCR_THRESH] = 13.216;
-  //spb_sensor_threshold[SP_SENSOR_P12V_SLOT4][LCR_THRESH] = 11.269;
-  //spb_sensor_threshold[SP_SENSOR_P3V3][UCR_THRESH] = 3.625;
-  //spb_sensor_threshold[SP_SENSOR_P3V3][LCR_THRESH] = 2.973;
-  //spb_sensor_threshold[SP_SENSOR_HSC_IN_VOLT][UCR_THRESH] = 13.2;
-  //spb_sensor_threshold[SP_SENSOR_HSC_IN_VOLT][LCR_THRESH] = 10.8;
-  //spb_sensor_threshold[SP_SENSOR_HSC_OUT_CURR][UCR_THRESH] = 47.705;
-  //spb_sensor_threshold[SP_SENSOR_HSC_TEMP][UCR_THRESH] = 120;
-  //spb_sensor_threshold[SP_SENSOR_HSC_IN_POWER][UCR_THRESH] = 525;
-
-  //nic_sensor_threshold[MEZZ_SENSOR_TEMP][UCR_THRESH] = 95;
-
-  //init_done = true;
-//}
-
-
-
-
-
-
-
-//static int
-//get_current_dir(const char *device, char *dir_name) {
-  //char full_name[LARGEST_DEVICE_NAME + 1];
-  //DIR *dir = NULL;
-  //struct dirent *ent;
-
-  //snprintf(full_name, sizeof(full_name), "%s/hwmon", device);
-  //dir = opendir(full_name);
-  //if (dir == NULL) {
-    //goto close_dir_out;
-  //}
-  //while ((ent = readdir(dir)) != NULL) {
-    //if (strstr(ent->d_name, "hwmon")) {
-      //// found the correct 'hwmon??' directory
-      //snprintf(dir_name, sizeof(full_name), "%s/hwmon/%s/",
-      //device, ent->d_name);
-      //goto close_dir_out;
-    //}
-  //}
-
-//close_dir_out:
-  //if (dir != NULL) {
-    //if (closedir(dir)) {
-      //syslog(LOG_ERR, "%s closedir failed, errno=%s\n",
-              //__FUNCTION__, strerror(errno));
-    //}
-  //}
-  //return 0;
-//}
-
-
-//static int
-//read_temp_attr(const char *device, const char *attr, float *value) {
-  //char full_dir_name[LARGEST_DEVICE_NAME + 1];
-  //char dir_name[LARGEST_DEVICE_NAME + 1];
-  //int tmp;
-
-  //// Get current working directory
-  //if (get_current_dir(device, dir_name))
-  //{
-    //return -1;
-  //}
-  //snprintf(
-      //full_dir_name, LARGEST_DEVICE_NAME, "%s/%s", dir_name, attr);
-
-
-  //if (read_device(full_dir_name, &tmp)) {
-     //return -1;
-  //}
-
-  //*value = ((float)tmp)/UNIT_DIV;
-
-  //return 0;
-//}
-
-
-//static int
-//read_temp(const char *device, float *value) {
-  //return read_temp_attr(device, "temp1_input", value);
-//}
-
-//static int
-//read_fan_value(const int fan, const char *device, float *value) {
-  //char device_name[LARGEST_DEVICE_NAME];
-  //char full_name[LARGEST_DEVICE_NAME];
-
-  //snprintf(device_name, LARGEST_DEVICE_NAME, device, fan);
-  //snprintf(full_name, LARGEST_DEVICE_NAME, "%s/%s", TACH_DIR, device_name);
-  //return read_device_float(full_name, value);
-//}
-
-//static int
-//read_adc_value(const int pin, const char *device, float *value) {
-  //char device_name[LARGEST_DEVICE_NAME];
-  //char full_name[LARGEST_DEVICE_NAME];
-
-  //snprintf(device_name, LARGEST_DEVICE_NAME, device, pin);
-  //snprintf(full_name, LARGEST_DEVICE_NAME, "%s/%s", ADC_DIR, device_name);
-  //return read_device_float(full_name, value);
-//}
-
-//static int
-//read_hsc_value(const char* attr, const char *device, float r_sense, float *value) {
-  //char full_dir_name[LARGEST_DEVICE_NAME];
-  //char dir_name[LARGEST_DEVICE_NAME + 1];
-  //int tmp;
-
-  //// Get current working directory
-  //if (get_current_dir(device, dir_name))
-  //{
-    //return -1;
-  //}
-  //snprintf(
-      //full_dir_name, LARGEST_DEVICE_NAME, "%s/%s", dir_name, attr);
-
-  //if(read_device(full_dir_name, &tmp)) {
-    //return -1;
-  //}
-
-  //if ((strcmp(attr, HSC_OUT_CURR) == 0) || (strcmp(attr, HSC_IN_POWER) == 0)) {
-    //*value = ((float) tmp)/r_sense/UNIT_DIV;
-  //}
-  //else {
-    //*value = ((float) tmp)/UNIT_DIV;
-  //}
-
-  //return 0;
-//}
-
-//static int
-//read_nic_temp(uint8_t snr_num, float *value) {
-  //char command[64];
-  //int dev;
-  //int ret;
-  //uint8_t tmp_val;
-
-  //if (snr_num == MEZZ_SENSOR_TEMP) {
-    //dev = open(I2C_DEV_NIC, O_RDWR);
-    //if (dev < 0) {
-      //syslog(LOG_ERR, "open() failed for read_nic_temp, errno=%s",
-             //strerror(errno));
-      //return -1;
-    //}
-    ///* Assign the i2c device address */
-    //ret = ioctl(dev, I2C_SLAVE, I2C_NIC_ADDR);
-    //if (ret < 0) {
-      //syslog(LOG_ERR, "read_nic_temp: ioctl() assigning i2c addr failed");
-    //}
-
-    //tmp_val = i2c_smbus_read_byte_data(dev, I2C_NIC_SENSOR_TEMP_REG);
-
-    //close(dev);
-
-    //// TODO: This is a HACK till we find the actual root cause
-    //// This condition implies that the I2C bus is busy
-    //if (tmp_val == 0xFF) {
-      //syslog(LOG_INFO, "read_nic_temp: value 0xFF - i2c bus is busy");
-      //return -1;
-    //}
-
-    //*value = (float) tmp_val;
-  //}
-
-  //return 0;
-//}
-
-//static int
-//bic_read_sensor_wrapper(uint8_t fru, uint8_t sensor_num, bool discrete,
-    //void *value) {
-
-  //int ret;
-  //sdr_full_t *sdr;
-  //ipmi_sensor_reading_t sensor;
-
-  //ret = bic_read_sensor(fru, sensor_num, &sensor);
-  //if (ret) {
-    //return ret;
-  //}
-
-  //if (sensor.flags & BIC_SENSOR_READ_NA) {
-//#ifdef DEBUG
-    //syslog(LOG_ERR, "bic_read_sensor_wrapper: Reading Not Available");
-    //syslog(LOG_ERR, "bic_read_sensor_wrapper: sensor_num: 0x%X, flag: 0x%X",
-        //sensor_num, sensor.flags);
-//#endif
-    //return -1;
-  //}
-
-  //if (discrete) {
-    //*(float *) value = (float) sensor.status;
-    //return 0;
-  //}
-
-  //sdr = &g_sinfo[fru-1][sensor_num].sdr;
-
-  //// If the SDR is not type1, no need for conversion
-  //if (sdr->type !=1) {
-    //*(float *) value = sensor.value;
-    //return 0;
-  //}
-
-  //// y = (mx + b * 10^b_exp) * 10^r_exp
-  //uint8_t x;
-  //uint8_t m_lsb, m_msb, m;
-  //uint8_t b_lsb, b_msb, b;
-  //int8_t b_exp, r_exp;
-
-  //x = sensor.value;
-
-  //m_lsb = sdr->m_val;
-  //m_msb = sdr->m_tolerance >> 6;
-  //m = (m_msb << 8) | m_lsb;
-
-  //b_lsb = sdr->b_val;
-  //b_msb = sdr->b_accuracy >> 6;
-  //b = (b_msb << 8) | b_lsb;
-
-  //// exponents are 2's complement 4-bit number
-  //b_exp = sdr->rb_exp & 0xF;
-  //if (b_exp > 7) {
-    //b_exp = (~b_exp + 1) & 0xF;
-    //b_exp = -b_exp;
-  //}
-  //r_exp = (sdr->rb_exp >> 4) & 0xF;
-  //if (r_exp > 7) {
-    //r_exp = (~r_exp + 1) & 0xF;
-    //r_exp = -r_exp;
-  //}
-
-  ////printf("m:%d, x:%d, b:%d, b_exp:%d, r_exp:%d\n", m, x, b, b_exp, r_exp);
-
-  //* (float *) value = ((m * x) + (b * pow(10, b_exp))) * (pow(10, r_exp));
-
-  //if ((sensor_num == BIC_SENSOR_SOC_THERM_MARGIN) && (* (float *) value > 0)) {
-   //* (float *) value -= (float) THERMAL_CONSTANT;
-  //}
-
-  //return 0;
-//}
 
 

@@ -43,7 +43,6 @@
 #define SITE_GPIO_DIR "/tmp/mezzanine/site_%d/gpio/IO/%d/direction"
 #define GPIO_PS_ON_VAL "/tmp/mezzanine/gpio/PS_ON/value"
 #define HB_LED "/sys/class/leds/led-ds23/brightness"
-#define DB_TYPE_FILE "/tmp/mezzanine/db_%d/type"
 
 #define VPATH_SIZE  128
 #define DELAY_GRACEFUL_SHUTDOWN 10
@@ -101,9 +100,9 @@
 #define SITE_GPIO_BIT_STAT_ON_OFF 0
 
 const char pal_server_list[] = "tpdb-b, tpdb-a, kdb-a, kdb-b," \
-          " qfdb-d, qfdb-c, qfdb-b, qfdb-a";
+          " qfdb-c, qfdb-d,  qfdb-b, qfdb-a";
 const char pal_fru_list[] = "all, tpdb-b, tpdb-a, kdb-a, kdb-b," \
-          " qfdb-d, qfdb-c, qfdb-b, qfdb-a, bmc";
+          " qfdb-c, qfdb-d, qfdb-b, qfdb-a, bmc";
 
 char *key_list[] = {
 "identify_board",
@@ -814,8 +813,7 @@ pal_is_slot_server(uint8_t fru) {
 
 int
 pal_is_fru_prsnt(uint8_t fru, uint8_t *status) {
-  int val;
-  char vpath[MAX_VALUE_LEN] = {0};
+  uint8_t val;
 
   switch (fru) {
     case FRU_TPDB_B:
@@ -826,14 +824,11 @@ pal_is_fru_prsnt(uint8_t fru, uint8_t *status) {
     case FRU_QFDB_C:
     case FRU_QFDB_B:
     case FRU_QFDB_A:
-      // Create a string to the file
-      sprintf(vpath, DB_TYPE_FILE, fru-1);
+      // what DB is in the fru slot?
+      track1_get_fru_type(fru, &val);
 
-      if (read_device(vpath, &val)) {
-        return -1;
-      }
       // Is it present, and less than the count?
-      if ( (val > DB_TYPE_NONE) ||(val < DB_TYPE_COUNT) ) {
+      if ( (val != DB_TYPE_NONE) ) {
         *status = 1;
       } else {
         *status = 0;
@@ -848,6 +843,7 @@ pal_is_fru_prsnt(uint8_t fru, uint8_t *status) {
 
   return PAL_EOK;
 }
+
 // Is the FRU ready?
 // We're going to assume if it's present, it' ready!
 int
@@ -973,7 +969,7 @@ pal_get_fru_name(uint8_t fru, char *name) {
   return track1_common_fru_name(fru, name);
 }
 
-// Not sure if this is needed, I think so
+// Not sure if this is needed, I dont think so
 int
 pal_get_fru_sdr_path(uint8_t fru, char *path) {
 
@@ -982,42 +978,49 @@ pal_get_fru_sdr_path(uint8_t fru, char *path) {
 
 // This is the list of sensors etc.
 // these need to be in track1_sensor.c
+// Ask what type of board is in the slot, and return list
+// appropriate to it.
 
 int
 pal_get_fru_sensor_list(uint8_t fru, uint8_t **sensor_list, int *cnt) {
+  uint8_t fru_type = DB_TYPE_NONE;
+  if (PAL_EOK == track1_get_fru_type(fru, &fru_type)) {
+    switch(fru_type) {
 
-  switch(fru) {
-    case FRU_TPDB_B:
-    case FRU_TPDB_A:
-      *sensor_list = (uint8_t *) tpdb_sensor_list;
-      *cnt = tpdb_sensor_cnt;
-      break;
+      case DB_TYPE_QFDB:
+        *sensor_list = (uint8_t *) qfdb_sensor_list;
+        *cnt = qfdb_sensor_cnt;
+        break;
+      case DB_TYPE_KDB:
+        *sensor_list = (uint8_t *) kdb_sensor_list;
+        *cnt = kdb_sensor_cnt;
+        break;
+      case DB_TYPE_TPDB:
+        *sensor_list = (uint8_t *) tpdb_sensor_list;
+        *cnt = tpdb_sensor_cnt;
+        break;
+      case DB_TYPE_BMC:
+        *sensor_list = (uint8_t *) bmc_sensor_list;
+        *cnt = bmc_sensor_cnt;
+        break;
+      case DB_TYPE_NONE:
+        *sensor_list = (uint8_t *) NULL;
+        *cnt = 0;
+        break;
+      default:
+        *sensor_list = (uint8_t *) NULL;
+        *cnt = 0;
+  #ifdef DEBUG
+        syslog(LOG_WARNING, "pal_get_fru_sensor_list: Wrong fru id %u or type %u", fru, fru_type);
+  #endif
+        return -1;
+    }
 
-    case FRU_KDB_B:
-    case FRU_KDB_A:
-      *sensor_list = (uint8_t *) kdb_sensor_list;
-      *cnt = kdb_sensor_cnt;
-      break;
-
-    case FRU_QFDB_D:
-    case FRU_QFDB_C:
-    case FRU_QFDB_B:
-    case FRU_QFDB_A:
-      *sensor_list = (uint8_t *) qfdb_sensor_list;
-      *cnt = qfdb_sensor_cnt;
-      break;
-
-    case FRU_BMC:
-      *sensor_list = (uint8_t *) bmc_sensor_list;
-      *cnt = bmc_sensor_cnt;
-      break;
-    default:
-#ifdef DEBUG
-      syslog(LOG_WARNING, "pal_get_fru_sensor_list: Wrong fru id %u", fru);
-#endif
-      return -1;
+  } else {
+    return -1;
   }
-    return PAL_EOK;
+
+  return PAL_EOK;
 }
 
 // We should do this somehow? maybe into boards eeprom?

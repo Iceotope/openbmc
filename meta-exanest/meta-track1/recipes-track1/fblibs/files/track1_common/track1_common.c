@@ -35,6 +35,7 @@
 
 #define CRASHDUMP_BIN       "/usr/local/bin/dump.sh"
 #define CRASHDUMP_FILE      "/mnt/data/crashdump_"
+#define DB_TYPE_FILE        "/tmp/mezzanine/db_%d/type"
 
 struct threadinfo {
   uint8_t is_running;
@@ -42,7 +43,73 @@ struct threadinfo {
   pthread_t pt;
 };
 
+static int
+read_device(const char *device, int *value) {
+  FILE *fp;
+  int rc;
+
+  fp = fopen(device, "r");
+  if (!fp) {
+    int err = errno;
+#ifdef DEBUG
+    syslog(LOG_INFO, "failed to open device %s", device);
+#endif
+    return err;
+  }
+
+  rc = fscanf(fp, "%d", value);
+  fclose(fp);
+  if (rc != 1) {
+#ifdef DEBUG
+    syslog(LOG_INFO, "failed to read device %s", device);
+#endif
+    return ENOENT;
+  } else {
+    return 0;
+  }
+}
+
+
 static struct threadinfo t_dump[MAX_NUM_FRUS] = {0, };
+
+// Return installed type for DB, NONE if not installed.
+int
+track1_get_fru_type(uint8_t fru, uint8_t *type) {
+
+  int val;
+  char vpath[MAX_VALUE_LEN] = {0};
+  // Default
+  *type = DB_TYPE_NONE;
+
+  switch (fru) {
+    case FRU_TPDB_B:
+    case FRU_TPDB_A:
+    case FRU_KDB_B:
+    case FRU_KDB_A:
+    case FRU_QFDB_D:
+    case FRU_QFDB_C:
+    case FRU_QFDB_B:
+    case FRU_QFDB_A:
+      // Create a string to the file
+      sprintf(vpath, DB_TYPE_FILE, fru-1);
+
+      if (read_device(vpath, &val)) {
+        return -1;
+      }
+      // Is it present, and less than the count?
+      if ( val < DB_TYPE_COUNT) {
+        *type = val;
+      }
+      break;
+    case FRU_BMC:
+      *type = DB_TYPE_BMC;
+      break;
+    default:
+      return -1;
+  }
+
+  return 0;
+}
 
 int
 track1_common_fru_name(uint8_t fru, char *str) {

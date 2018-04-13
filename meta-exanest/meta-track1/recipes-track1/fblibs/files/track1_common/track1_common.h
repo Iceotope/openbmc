@@ -32,8 +32,8 @@ enum {
   FRU_TPDB_A = 2,
   FRU_KDB_B  = 3,
   FRU_KDB_A  = 4,
-  FRU_QFDB_D = 5,
-  FRU_QFDB_C = 6,
+  FRU_QFDB_C = 5,
+  FRU_QFDB_D = 6,
   FRU_QFDB_B = 7,
   FRU_QFDB_A = 8,
   FRU_BMC    = 9,
@@ -46,6 +46,7 @@ typedef enum _DB_SITE_TYPE {
   DB_TYPE_KDB,
   DB_TYPE_TPDB,
   DB_TYPE_COUNT,
+  DB_TYPE_BMC = 0xFE,
   DB_TYPE_AUTO = 0xFF
 } DB_SITE_TYPE_t;
 
@@ -55,6 +56,7 @@ typedef enum _DB_SITE_TYPE {
 int track1_common_fru_name(uint8_t fru, char *str);
 int track1_common_fru_id(char *str, uint8_t *fru);
 int track1_common_crashdump(uint8_t fru);
+int track1_get_fru_type(uint8_t fru, uint8_t *type);
 
 #ifdef __cplusplus
 } // extern "C"
