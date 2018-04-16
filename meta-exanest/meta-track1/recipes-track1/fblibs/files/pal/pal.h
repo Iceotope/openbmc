@@ -122,8 +122,7 @@ void pal_get_chassis_status(uint8_t slot, uint8_t *req_data,
 uint8_t pal_set_power_restore_policy(uint8_t slot, uint8_t *pwr_policy,
   uint8_t *res_data);
 int pal_get_platform_id(uint8_t *id);
-int pal_get_fw_info(unsigned char target, unsigned char* res,
-  unsigned char* res_len);
+int pal_get_fw_info(uint8_t fru, unsigned char target, unsigned char* res, unsigned char* res_len);
 int pal_get_plat_sku_id(void);
 int pal_get_restart_cause(uint8_t slot, uint8_t *restart_cause);
 int pal_set_restart_cause(uint8_t slot, uint8_t restart_cause);
