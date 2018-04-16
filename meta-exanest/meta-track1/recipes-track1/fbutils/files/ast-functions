@@ -1,5 +1,6 @@
 # Copyright 2014-present Facebook. All Rights Reserved.
 DEVMEM=/sbin/devmem
+MAX_SITE=7
 
 devmem_set_bit() {
     local addr
@@ -130,28 +131,14 @@ is_bmc_por() {
 is_server_prsnt() {
   local prsnt
 
-  case $1 in
-    1)
-      prsnt=$(gpio_get H5)
-      ;;
-    2)
-      prsnt=$(gpio_get H4)
-      ;;
-    3)
-      prsnt=$(gpio_get H7)
-      ;;
-    4)
-      prsnt=$(gpio_get H6)
-      ;;
-    *)
-      prsnt=$(gpio_get H4)
-      ;;
-  esac
+  # Cat the type file for the db_x
+  prsnt=0
+  prsnt=`cat /tmp/mezzanine/db_${1}/type`
 
-  if [ $prsnt == "0" ]; then
-    echo 1
-  else
+  if [ ${prsnt} -eq 0 ] || [ ${prsnt} -eq 255 ]; then
     echo 0
+  else
+    echo 1
   fi
 }
 # Check to see if Bridge-IC is ready in given slot or not

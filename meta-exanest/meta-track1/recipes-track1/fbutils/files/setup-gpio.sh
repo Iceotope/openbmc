@@ -42,7 +42,6 @@
 # Code for the retimers.
 . /usr/local/fbpackages/utils/retimers.sh
 
-MAX_SITE=7
 
 ## Functions
 
