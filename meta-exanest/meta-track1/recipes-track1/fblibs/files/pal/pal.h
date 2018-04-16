@@ -48,7 +48,7 @@ extern "C" {
 #define LAST_KEY "last_key"
 
 #define TRACK1_PLATFORM_NAME "track1"
-#define TRACK1_MAX_NUM_SLOTS 12
+#define TRACK1_MAX_NUM_SLOTS 8
 
 extern const char pal_server_list[];
 extern const char pal_fru_list[];
