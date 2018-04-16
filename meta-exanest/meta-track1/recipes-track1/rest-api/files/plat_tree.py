@@ -35,20 +35,25 @@ from node_config import get_node_config
 from tree import tree
 from pal import *
 
+slot_names = ["none" ,"tpdb-b", "tpdb-a", "kdb-b", "kdb-a", "qfdb-d", "qfdb-c", "qfdb-b", "qfdb-a" ]
+def get_slot_name(num)
+    return slot_names[num]
+
 def populate_server_node(num):
+
     prsnt = pal_is_fru_prsnt(num)
     if prsnt == None or prsnt == 0:
         return None
 
-    r_server = tree("server" + repr(num), data = get_node_server(num))
+    r_server = tree(get_slot_name(num), data = get_node_server(num))
 
-    r_fruid = tree("fruid", data = get_node_fruid("slot" + repr(num)))
+    r_fruid = tree("fruid", data = get_node_fruid(slot))
 
-    r_sensors = tree("sensors", data = get_node_sensors("slot" + repr(num)))
+    r_sensors = tree("sensors", data = get_node_sensors(slot))
 
-    r_logs = tree("logs", data = get_node_logs("slot" + repr(num)))
+    r_logs = tree("logs", data = get_node_logs(slot))
 
-    r_config = tree("config", data = get_node_config("slot" + repr(num)))
+    r_config = tree("config", data = get_node_config(slot))
 
     r_server.addChildren([r_fruid, r_sensors, r_logs, r_config])
 
@@ -66,25 +71,26 @@ def init_plat_tree():
 
     # Add servers /api/server[1-max]
     num = pal_get_num_slots()
-    for i in range(1, num+1):
+    print("Slots : " + repr(num))
+    for i in range(1, num-1):
         r_server = populate_server_node(i)
         if r_server:
             r_api.addChild(r_server)
 
-     # /api/spb/bmc end point
-    r_temp = tree("bmc", data = get_node_bmc())
-    r_spb.addChild(r_temp)
+     # /api/mezz/bmc end point
+    r_bmc = tree("bmc", data = get_node_bmc())
+    r_mezz.addChild(r_bmc)
 
-    # Add /api/mezz/fruid end point
-    r_temp = tree("fruid", data = get_node_fruid("nic"))
-    r_mezz.addChild(r_temp)
+    # Add /api/mezz/bmc/fruid end point
+    r_temp = tree("fruid", data = get_node_fruid("bmc"))
+    r_bmc.addChild(r_temp)
 
-    # /api/mezz/sensors end point
-    r_temp = tree("sensors", data = get_node_sensors("nic"))
-    r_mezz.addChild(r_temp)
+    # /api/mezz/bmc/sensors end point
+    r_temp = tree("sensors", data = get_node_sensors("bmc"))
+    r_bmc.addChild(r_temp)
 
-    # /api/mezz/logs end point
-    r_temp = tree("logs", data = get_node_logs("nic"))
-    r_mezz.addChild(r_temp)
+    # /api/mezz/bmc/logs end point
+    r_temp = tree("logs", data = get_node_logs("bmc"))
+    r_bmc.addChild(r_temp)
 
     return r_api

@@ -57,7 +57,7 @@ IMAGE_INSTALL += " \
   packagegroup-openbmc-base \
   packagegroup-openbmc-net \
   packagegroup-openbmc-python3 \
-  packagegroup-openbmc-rest3 \  
+  packagegroup-openbmc-rest3 \
   watchdog-ctrl \
   lldp-util \
   bitbang \
@@ -79,6 +79,7 @@ IMAGE_INSTALL += " \
   vboot-utils \
   spatula \
   track1-sensors \
+  nano \
   "
 
 IMAGE_FEATURES += " \
