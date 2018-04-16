@@ -1,7 +1,7 @@
 # Copyright 2015-present Facebook. All Rights Reserved.
-all: sensor-util 
+all: sensor-util
 
-CFLAGS += -Wall -Werror
+CFLAGS += -Wall -Werror -g
 
 sensor-util: sensor-util.o
 	$(CC) $(CFLAGS) -lsdr -lpal -laggregate-sensor -pthread -lrt -lm -std=gnu99 -o $@ $^ $(LDFLAGS)

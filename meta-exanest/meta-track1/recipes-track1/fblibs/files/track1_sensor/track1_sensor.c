@@ -929,47 +929,47 @@ sensor_thresh_array_init() {
 
   // Internal rails
   // Sensor 1 (BMC_Vcc_int): 1.0V nominal
-  bmc_sensor_threshold[BMC_SENSOR_V0][UCR_THRESH] = 1.0*105.0;
-  bmc_sensor_threshold[BMC_SENSOR_V0][UNC_THRESH] = 1.0*103.0;
-  bmc_sensor_threshold[BMC_SENSOR_V0][LNC_THRESH] = 1.0*97.0;
-  bmc_sensor_threshold[BMC_SENSOR_V0][LCR_THRESH] = 1.0*95.0;
+  bmc_sensor_threshold[BMC_SENSOR_V0][UCR_THRESH] = 1.0*1.050;
+  bmc_sensor_threshold[BMC_SENSOR_V0][UNC_THRESH] = 1.0*1.030;
+  bmc_sensor_threshold[BMC_SENSOR_V0][LNC_THRESH] = 1.0*0.970;
+  bmc_sensor_threshold[BMC_SENSOR_V0][LCR_THRESH] = 1.0*0.950;
   // Sensor 2 (BMC_Vcc_aux): 1.8
-  bmc_sensor_threshold[BMC_SENSOR_V1][UCR_THRESH] = 1.8*105.0;
-  bmc_sensor_threshold[BMC_SENSOR_V1][UNC_THRESH] = 1.8*103.0;
-  bmc_sensor_threshold[BMC_SENSOR_V1][LNC_THRESH] = 1.8*97.0;
-  bmc_sensor_threshold[BMC_SENSOR_V1][LCR_THRESH] = 1.8*95.0;
+  bmc_sensor_threshold[BMC_SENSOR_V1][UCR_THRESH] = 1.8*1.050;
+  bmc_sensor_threshold[BMC_SENSOR_V1][UNC_THRESH] = 1.8*1.030;
+  bmc_sensor_threshold[BMC_SENSOR_V1][LNC_THRESH] = 1.8*0.970;
+  bmc_sensor_threshold[BMC_SENSOR_V1][LCR_THRESH] = 1.8*0.950;
   // Sensor 3 (BMC_Vcc_bram): 1.0
-  bmc_sensor_threshold[BMC_SENSOR_V2][UCR_THRESH] = 1.0*105.0;
-  bmc_sensor_threshold[BMC_SENSOR_V2][UNC_THRESH] = 1.0*103.0;
-  bmc_sensor_threshold[BMC_SENSOR_V2][LNC_THRESH] = 1.0*97.0;
-  bmc_sensor_threshold[BMC_SENSOR_V2][LCR_THRESH] = 1.0*95.0;
+  bmc_sensor_threshold[BMC_SENSOR_V2][UCR_THRESH] = 1.0*1.050;
+  bmc_sensor_threshold[BMC_SENSOR_V2][UNC_THRESH] = 1.0*1.030;
+  bmc_sensor_threshold[BMC_SENSOR_V2][LNC_THRESH] = 1.0*0.970;
+  bmc_sensor_threshold[BMC_SENSOR_V2][LCR_THRESH] = 1.0*0.950;
   // Sensor 4 (BMC_Vcc_pint): 1.0
-  bmc_sensor_threshold[BMC_SENSOR_V3][UCR_THRESH] = 1.0*105.0;
-  bmc_sensor_threshold[BMC_SENSOR_V3][UNC_THRESH] = 1.0*103.0;
-  bmc_sensor_threshold[BMC_SENSOR_V3][LNC_THRESH] = 1.0*97.0;
-  bmc_sensor_threshold[BMC_SENSOR_V3][LCR_THRESH] = 1.0*95.0;
+  bmc_sensor_threshold[BMC_SENSOR_V3][UCR_THRESH] = 1.0*1.050;
+  bmc_sensor_threshold[BMC_SENSOR_V3][UNC_THRESH] = 1.0*1.030;
+  bmc_sensor_threshold[BMC_SENSOR_V3][LNC_THRESH] = 1.0*0.970;
+  bmc_sensor_threshold[BMC_SENSOR_V3][LCR_THRESH] = 1.0*0.950;
   // Sensor 5 (BMC_Vcc_paux): 1.8
-  bmc_sensor_threshold[BMC_SENSOR_V4][UCR_THRESH] = 1.8*105.0;
-  bmc_sensor_threshold[BMC_SENSOR_V4][UNC_THRESH] = 1.8*103.0;
-  bmc_sensor_threshold[BMC_SENSOR_V4][LNC_THRESH] = 1.8*97.0;
-  bmc_sensor_threshold[BMC_SENSOR_V4][LCR_THRESH] = 1.8*95.0;
+  bmc_sensor_threshold[BMC_SENSOR_V4][UCR_THRESH] = 1.8*1.050;
+  bmc_sensor_threshold[BMC_SENSOR_V4][UNC_THRESH] = 1.8*1.030;
+  bmc_sensor_threshold[BMC_SENSOR_V4][LNC_THRESH] = 1.8*0.970;
+  bmc_sensor_threshold[BMC_SENSOR_V4][LCR_THRESH] = 1.8*0.950;
   // Sensor 6 (BMC_Vcc_ddr): 1.5
-  bmc_sensor_threshold[BMC_SENSOR_V5][UCR_THRESH] = 1.5*105.0;
-  bmc_sensor_threshold[BMC_SENSOR_V5][UNC_THRESH] = 1.5*103.0;
-  bmc_sensor_threshold[BMC_SENSOR_V5][LNC_THRESH] = 1.5*97.0;
-  bmc_sensor_threshold[BMC_SENSOR_V5][LCR_THRESH] = 1.5*95.0;
+  bmc_sensor_threshold[BMC_SENSOR_V5][UCR_THRESH] = 1.5*1.050;
+  bmc_sensor_threshold[BMC_SENSOR_V5][UNC_THRESH] = 1.5*1.030;
+  bmc_sensor_threshold[BMC_SENSOR_V5][LNC_THRESH] = 1.5*0.970;
+  bmc_sensor_threshold[BMC_SENSOR_V5][LCR_THRESH] = 1.5*0.950;
 
   // 48V stuff
-  bmc_sensor_threshold[BMC_SENSOR_V48][UCR_THRESH] = 48.0*105.0;
-  bmc_sensor_threshold[BMC_SENSOR_V48][UNC_THRESH] = 48.0*103.0;
-  bmc_sensor_threshold[BMC_SENSOR_V48][LNC_THRESH] = 48.0*97.0;
-  bmc_sensor_threshold[BMC_SENSOR_V48][LCR_THRESH] = 48.0*95.0;
+  bmc_sensor_threshold[BMC_SENSOR_V48][UCR_THRESH] = 48.0*1.050;
+  bmc_sensor_threshold[BMC_SENSOR_V48][UNC_THRESH] = 48.0*1.030;
+  bmc_sensor_threshold[BMC_SENSOR_V48][LNC_THRESH] = 48.0*0.970;
+  bmc_sensor_threshold[BMC_SENSOR_V48][LCR_THRESH] = 48.0*0.950;
 
   bmc_sensor_threshold[BMC_SENSOR_I48][UCR_THRESH] = 15.0;
   bmc_sensor_threshold[BMC_SENSOR_I48][UNC_THRESH] = 14.5;
 
   bmc_sensor_threshold[BMC_SENSOR_P48][UCR_THRESH] = 700.00;
-  bmc_sensor_threshold[BMC_SENSOR_P48][UNC_THRESH] = 700.00*95.0;
+  bmc_sensor_threshold[BMC_SENSOR_P48][UNC_THRESH] = 700.00*0.950;
 
   /* TPDB thresholds */
   /*******************/
