@@ -3788,6 +3788,8 @@ pal_is_bmc_por(void) {
 
 int
 pal_get_fru_discrete_list(uint8_t fru, uint8_t **sensor_list, int *cnt) {
+  int ret = -1;
+  uint8_t server_type = 0xFF;
 
   switch(fru) {
     case FRU_SLOT1:
@@ -3795,8 +3797,30 @@ pal_get_fru_discrete_list(uint8_t fru, uint8_t **sensor_list, int *cnt) {
     case FRU_SLOT3:
     case FRU_SLOT4:
       if (pal_is_slot_server(fru)) {
+#if defined(CONFIG_FBY2_RC)
+        ret = fby2_get_server_type(fru, &server_type);
+        if (ret) {
+          syslog(LOG_ERR, "%s, Get server type failed", __func__);
+        }
+        switch (server_type) {
+          case SERVER_TYPE_RC:
+            *sensor_list = (uint8_t *) bic_rc_discrete_list;
+            *cnt = bic_rc_discrete_cnt;
+            break;
+          case SERVER_TYPE_TL:
+            *sensor_list = (uint8_t *) bic_discrete_list;
+            *cnt = bic_discrete_cnt;
+            break;
+          default:
+            syslog(LOG_ERR, "%s, Undefined server type, using Twin Lake discrete sensor list as default", __func__);
+            *sensor_list = (uint8_t *) bic_discrete_list;
+            *cnt = bic_discrete_cnt;
+            break;
+        }
+#else
         *sensor_list = (uint8_t *) bic_discrete_list;
         *cnt = bic_discrete_cnt;
+#endif
       } else {
         *sensor_list = NULL;
         *cnt = 0;
@@ -3829,8 +3853,62 @@ _print_sensor_discrete_log(uint8_t fru, uint8_t snr_num, char *snr_name,
   pal_update_ts_sled();
 }
 
-int
-pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
+#if defined(CONFIG_FBY2_RC)
+void 
+pal_sensor_discrete_check_rc(uint8_t fru, uint8_t snr_num, char *snr_name,
+    uint8_t o_val, uint8_t n_val) {
+
+  char name[32], crisel[128];
+  bool valid = false;
+  uint8_t diff = o_val ^ n_val;
+
+  if (GETBIT(diff, 0)) {
+    switch(snr_num) {
+      case BIC_RC_SENSOR_SYSTEM_STATUS:
+        sprintf(name, "SOC_Thermal_Trip");
+        valid = true;
+        break;
+    }
+    if (valid) {
+      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 0), name);
+      valid = false;
+    }
+  }
+
+  if (GETBIT(diff, 1)) {
+    switch(snr_num) {
+      case BIC_RC_SENSOR_VR_HOT:
+        sprintf(name, "510_VR_Hot");
+        valid = true;
+        break;
+      case BIC_RC_SENSOR_SYSTEM_STATUS:
+        sprintf(name, "VR_Fault");
+        valid = true;
+        break;
+    }
+    if (valid) {
+      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 1), name);
+      valid = false;
+    }
+  }
+
+  if (GETBIT(diff, 2)) {
+    switch(snr_num) {
+      case BIC_RC_SENSOR_VR_HOT:
+        sprintf(name, "423_VR_Hot");
+        valid = true;
+        break;
+    }
+    if (valid) {
+      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 2), name);
+      valid = false;
+    }
+  }
+}
+#endif
+
+void
+pal_sensor_discrete_check_tl(uint8_t fru, uint8_t snr_num, char *snr_name,
     uint8_t o_val, uint8_t n_val) {
 
   char name[32], crisel[128];
@@ -3906,6 +3984,33 @@ pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
       _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 4), "FRB3");
     }
   }
+}
+
+int
+pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
+    uint8_t o_val, uint8_t n_val) {
+#if defined(CONFIG_FBY2_RC)
+  int ret = -1;
+  uint8_t server_type = 0xFF;
+  ret = fby2_get_server_type(fru, &server_type);
+  if (ret) { 
+    syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
+  }
+  switch (server_type) {
+    case SERVER_TYPE_RC:
+      pal_sensor_discrete_check_rc(fru, snr_num, snr_name, o_val, n_val);
+      break;
+    case SERVER_TYPE_TL:
+      pal_sensor_discrete_check_tl(fru, snr_num, snr_name, o_val, n_val);
+      break;
+    default:
+      syslog(LOG_ERR, "%s, Undefined server type", __func__);
+      return -1;    
+  }
+#else
+  pal_sensor_discrete_check_tl(fru, snr_num, snr_name, o_val, n_val);
+#endif
+
 }
 
 static int
@@ -4029,6 +4134,9 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
             (ed[2] & 0x1C) >> 2, ed[2] & 0x3);
       }
       strcat(error_log, temp_log);
+      return 0;
+    case PROCHOT_EXT:
+      strcpy(error_log, "");  //Just show event raw data for now
       return 0;
   }
 
@@ -5276,9 +5384,98 @@ void pal_post_end_chk(uint8_t *post_end_chk) {
 }
 
 int
-pal_get_fw_info(unsigned char target, unsigned char* res, unsigned char* res_len)
+pal_get_fw_info(uint8_t fru, unsigned char target, unsigned char* res, unsigned char* res_len)
 {
+  uint8_t max_index = FW_P1V05_VR;
+#if defined(CONFIG_FBY2_RC) || defined(CONFIG_FBY2_EP)
+  int ret;
+  uint8_t server_type = 0xFF;
+
+  ret = fby2_get_server_type(fru, &server_type);
+  if (ret) {
+    syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
     return -1;
+  }
+
+  switch (server_type) {
+    case SERVER_TYPE_RC:
+      max_index = FW_DDR423_VR;
+      break;
+    case SERVER_TYPE_EP:
+      max_index = FW_DDR_BH_VR;
+      break;
+  }
+#endif
+
+  if (target > max_index)
+    return -1;
+
+  if (target >= FW_CPLD) {
+    if (bic_get_fw_ver(fru, target, res))
+      return -1;
+
+    switch (target) {
+      case FW_CPLD:
+        *res_len = 4;
+        break;
+      case FW_BIC:
+      case FW_BIC_BOOTLOADER:
+        *res_len = 2;
+        break;
+      default:
+#if defined(CONFIG_FBY2_RC) || defined(CONFIG_FBY2_EP)
+        switch (server_type) {
+          case SERVER_TYPE_RC:
+            switch (target) {
+              case FW_IMC:
+                *res_len = 8;
+                break;
+              default:
+                *res_len = 5;
+                break;
+            }
+            break;
+          case SERVER_TYPE_EP:
+            switch (target) {
+              case FW_M3:
+              case FW_DDR_AG_VR:
+              case FW_DDR_BH_VR:
+                *res_len = 2;
+                break;
+              default:
+                *res_len = 4;
+                break;
+            }
+            break;
+          default:
+            switch (target) {
+              case FW_ME:
+                *res_len = 5;
+                break;
+              default:
+                *res_len = 4;
+                break;
+            }
+            break;
+        }
+#else
+        switch (target) {
+          case FW_ME:
+            *res_len = 5;
+            break;
+          default:
+            *res_len = 4;
+            break;
+        }
+#endif
+        break;
+    }
+  } else {
+    pal_get_sysfw_ver(fru, res);
+    *res_len = SIZE_SYSFW_VER;
+  }
+
+  return 0;
 }
 
 int

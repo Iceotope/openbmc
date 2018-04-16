@@ -508,6 +508,9 @@ pal_get_x86_event_sensor_name(uint8_t fru, uint8_t snr_num,
       case MEMORY_ERR_LOG_DIS:
         sprintf(name, "MEMORY_ERR_LOG_DIS");
         break;
+      case PROCHOT_EXT:
+        sprintf(name, "PROCHOT_EXT");
+        break;
       case PWR_ERR:
         sprintf(name, "PWR_ERR");
         break;
@@ -1254,7 +1257,7 @@ pal_sensor_deassert_handle(uint8_t fru, uint8_t snr_num, float val, uint8_t thre
 }
 
 int __attribute__((weak))
-pal_get_fw_info(unsigned char target, unsigned char* res, unsigned char* res_len)
+pal_get_fw_info(uint8_t fru, unsigned char target, unsigned char* res, unsigned char* res_len)
 {
   return PAL_EOK;
 }
