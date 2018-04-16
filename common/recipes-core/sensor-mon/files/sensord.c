@@ -669,7 +669,7 @@ run_sensord(int argc, char **argv) {
 
   int ret, arg;
   uint8_t fru;
-  uint8_t fru_flag = 0;
+  uint32_t fru_flag = 0;    //  Changed from uint8_t
   pthread_t thread_snr[MAX_NUM_FRUS];
   pthread_t sensor_health;
   pthread_t agg_sensor_mon;
