@@ -35,12 +35,12 @@ from node_config import get_node_config
 from tree import tree
 from pal import *
 
-slot_names = ["none" ,"tpdb-b", "tpdb-a", "kdb-b", "kdb-a", "qfdb-d", "qfdb-c", "qfdb-b", "qfdb-a" ]
-def get_slot_name(num)
+slot_names = ["none" ,"slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "sloy8" ]
+def get_slot_name(num):
     return slot_names[num]
 
 def populate_server_node(num):
-
+    slot=get_slot_name(num)
     prsnt = pal_is_fru_prsnt(num)
     if prsnt == None or prsnt == 0:
         return None

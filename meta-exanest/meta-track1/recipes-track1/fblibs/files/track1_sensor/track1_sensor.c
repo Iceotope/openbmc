@@ -132,7 +132,7 @@ size_t tpdb_sensor_cnt = sizeof(tpdb_sensor_list)/sizeof(uint8_t);
 size_t kdb_sensor_cnt = sizeof(kdb_sensor_list)/sizeof(uint8_t);
 size_t bmc_sensor_cnt = sizeof(bmc_sensor_list)/sizeof(uint8_t);
 
-static sensor_info_t g_sinfo[MAX_NUM_FRUS][MAX_SENSOR_NUM] = {0};
+static sensor_info_t g_sinfo[MAX_NUM_FRUS+1][MAX_SENSOR_NUM] = {0};
 
 // Arrays based on DB types.
 float bmc_sensor_threshold[MAX_SENSOR_NUM][MAX_SENSOR_THRESHOLD + 1] = {0};
@@ -264,7 +264,7 @@ track1_sdr_init(uint8_t fru) {
 
   if (!init_done[fru - 1]) {
 
-    sensor_info_t *sinfo = g_sinfo[fru-1];
+    sensor_info_t *sinfo = g_sinfo[fru];
 
     if (track1_sensor_sdr_init(fru, sinfo) < 0)
       return ERR_NOT_READY;
@@ -515,19 +515,19 @@ tpdb_w1_read_temp(uint8_t fru, uint8_t sensor_num, float *value) {
   *value = 0.0;
   bus = 1+(sensor_num-TPDB_SENSOR_W1_1);
 
-  sprintf(vname, TPDB_1W_PATH_FMT, fru-1, bus, TPDB_1W_PATH_SLAVE_COUNT);
+  sprintf(vname, TPDB_1W_PATH_FMT, fru, bus, TPDB_1W_PATH_SLAVE_COUNT);
   read_device(vname,&slave_count);
 
   if (0 == slave_count)
     return -1;
 
   // Read first entry in list
-  sprintf(vname, TPDB_1W_PATH_FMT, fru-1, bus, TPDB_1W_PATH_SLAVE_LIST);
+  sprintf(vname, TPDB_1W_PATH_FMT, fru, bus, TPDB_1W_PATH_SLAVE_LIST);
   if (0 == read_device_string(vname,tempname,LARGEST_DEVICE_NAME)) {
     // Remove \n from end of string
     tempname[strlen(tempname)-1]='\0';
     // This is the name of the slave, and the data file to read now
-    sprintf(vname, TPDB_1W_DATA_PATH_FMT, fru-1, bus, tempname);
+    sprintf(vname, TPDB_1W_DATA_PATH_FMT, fru, bus, tempname);
 
     // format to read is on the second line,
     // 34 00 4b 46 ff ff 10 10 59 t=25750

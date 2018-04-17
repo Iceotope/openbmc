@@ -91,7 +91,7 @@ track1_get_fru_type(uint8_t fru, uint8_t *type) {
     case FRU_QFDB_B:
     case FRU_QFDB_A:
       // Create a string to the file
-      sprintf(vpath, DB_TYPE_FILE, fru-1);
+      sprintf(vpath, DB_TYPE_FILE, fru);
 
       if (read_device(vpath, &val)) {
         return -1;
@@ -116,35 +116,35 @@ track1_common_fru_name(uint8_t fru, char *str) {
 
   switch(fru) {
     case FRU_TPDB_B:
-      sprintf(str, "tpdb-b");
+      sprintf(str, "slot1");
       break;
 
     case FRU_TPDB_A:
-      sprintf(str, "tpdb-a");
+      sprintf(str, "slot2");
       break;
 
     case FRU_KDB_B:
-      sprintf(str, "kdb-b");
+      sprintf(str, "slot3");
       break;
 
     case FRU_KDB_A:
-      sprintf(str, "kdb-a");
+      sprintf(str, "slot4");
+      break;
+
+    case FRU_QFDB_C:
+      sprintf(str, "slot5");
       break;
 
     case FRU_QFDB_D:
-      sprintf(str, "qfdb-d");
+      sprintf(str, "slot6");
       break;
 
-  case FRU_QFDB_C:
-      sprintf(str, "qfdb-c");
+    case FRU_QFDB_B:
+      sprintf(str, "slot7");
       break;
 
-  case FRU_QFDB_B:
-      sprintf(str, "qfdb-b");
-      break;
-
-  case FRU_QFDB_A:
-      sprintf(str, "qfdb-a");
+    case FRU_QFDB_A:
+      sprintf(str, "slot8");
       break;
 
     case FRU_BMC:
@@ -166,21 +166,21 @@ track1_common_fru_id(char *str, uint8_t *fru) {
 
   if (!strcmp(str, "all")) {
     *fru = FRU_ALL;
-  } else if (!strcmp(str, "tpdb-b")) {
+  } else if (!strcmp(str, "slot1")) {
     *fru = FRU_TPDB_B;
-  } else if (!strcmp(str, "tpdb-a")) {
+  } else if (!strcmp(str, "slot2")) {
     *fru = FRU_TPDB_A;
-  } else if (!strcmp(str, "kdb-b")) {
+  } else if (!strcmp(str, "slot3")) {
     *fru = FRU_KDB_B;
-  } else if (!strcmp(str, "kdb-a")) {
+  } else if (!strcmp(str, "slot4")) {
     *fru = FRU_KDB_A;
-  } else if (!strcmp(str, "qfdb-d")) {
-    *fru = FRU_QFDB_D;
-  } else if (!strcmp(str, "qfdb-c")) {
+  } else if (!strcmp(str, "slot5")) {
     *fru = FRU_QFDB_C;
-  } else if (!strcmp(str, "qfdb-b")) {
+  } else if (!strcmp(str, "slot6")) {
+    *fru = FRU_QFDB_D;
+  } else if (!strcmp(str, "slot7")) {
     *fru = FRU_QFDB_B;
-  } else if (!strcmp(str, "qfdb-a")) {
+  } else if (!strcmp(str, "slot8")) {
     *fru = FRU_QFDB_A;
   } else if (!strcmp(str, "bmc")) {
     *fru = FRU_BMC;
@@ -225,7 +225,7 @@ generate_dump(void *arg) {
 
   syslog(LOG_CRIT, "Crashdump for FRU: %d is generated.", fru);
 
-  t_dump[fru-1].is_running = 0;
+  t_dump[fru].is_running = 0;
 
   sprintf(cmd, CRASHDUMP_KEY, fru);
   edb_cache_set(cmd, "0");
@@ -249,12 +249,12 @@ track1_common_crashdump(uint8_t fru) {
 
   // Check if a crashdump for that fru is already running.
   // If yes, kill that thread and start a new one.
-  if (t_dump[fru-1].is_running) {
-    ret = pthread_cancel(t_dump[fru-1].pt);
+  if (t_dump[fru].is_running) {
+    ret = pthread_cancel(t_dump[fru].pt);
     if (ret == ESRCH) {
       syslog(LOG_INFO, "track1_common_crashdump: No Crashdump pthread exists");
     } else {
-      pthread_join(t_dump[fru-1].pt, NULL);
+      pthread_join(t_dump[fru].pt, NULL);
       // MPK: Maybe slot%d needs changing here? to the name of the slot, not sure
       // if the crash dump will use that?
       sprintf(cmd, "ps | grep '{dump.sh}' | grep 'slot%d' | awk '{print $1}'| xargs kill", fru);
@@ -268,14 +268,14 @@ track1_common_crashdump(uint8_t fru) {
   }
 
   // Start a thread to generate the crashdump
-  t_dump[fru-1].fru = fru;
-  if (pthread_create(&(t_dump[fru-1].pt), NULL, generate_dump, (void*) &t_dump[fru-1].fru) < 0) {
+  t_dump[fru].fru = fru;
+  if (pthread_create(&(t_dump[fru].pt), NULL, generate_dump, (void*) &t_dump[fru].fru) < 0) {
     syslog(LOG_WARNING, "pal_store_crashdump: pthread_create for"
         " FRU %d failed\n", fru);
     return -1;
   }
 
-  t_dump[fru-1].is_running = 1;
+  t_dump[fru].is_running = 1;
 
   syslog(LOG_INFO, "Crashdump for FRU: %d is being generated.", fru);
 

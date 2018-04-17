@@ -1,6 +1,6 @@
 # Copyright 2014-present Facebook. All Rights Reserved.
 DEVMEM=/sbin/devmem
-MAX_SITE=7
+MAX_SITE=8
 
 devmem_set_bit() {
     local addr
@@ -133,7 +133,9 @@ is_server_prsnt() {
 
   # Cat the type file for the db_x
   prsnt=0
-  prsnt=`cat /tmp/mezzanine/db_${1}/type`
+  if [ -e /tmp/mezzanine/db_${1}/type ]; then
+    prsnt=`cat /tmp/mezzanine/db_${1}/type`
+  fi
 
   if [ ${prsnt} -eq 0 ] || [ ${prsnt} -eq 255 ]; then
     echo 0

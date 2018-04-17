@@ -6,10 +6,11 @@ echo -n "Setup sensor monitoring for track1... "
 # Check for the slots present and run sensord for those slots only.
 SLOTS=
 
-for i in `seq 0 ${MAX_SITE}`
+# Slots start at 1
+for i in `seq 1 ${MAX_SITE}`
 do
   if [ $(is_server_prsnt ${i}) == "1" ]; then
-    SLOTS="$SLOTS ${DB_SLOT_NAMES[$i]}"
+    SLOTS="$SLOTS slot${i}"
   fi
 done
 

@@ -42,10 +42,10 @@ track1_get_fruid_path(uint8_t fru, char *path) {
     case FRU_KDB_A:
       sprintf(fname, "slot4");
       break;
-    case FRU_QFDB_D:
+    case FRU_QFDB_C:
       sprintf(fname, "slot5");
       break;
-    case FRU_QFDB_C:
+    case FRU_QFDB_D:
       sprintf(fname, "slot6");
       break;
     case FRU_QFDB_B:
@@ -81,7 +81,7 @@ track1_get_fruid_eeprom_path(uint8_t fru, char *path) {
     case FRU_QFDB_B:
     case FRU_QFDB_C:
     case FRU_QFDB_D:
-      sprintf(path, "/tmp/mezzanine/db_%d/eeprom",fru-1);
+      sprintf(path, "/tmp/mezzanine/db_%d/eeprom",fru);
       break;
 
     case FRU_BMC:
@@ -103,36 +103,37 @@ track1_get_fruid_name(uint8_t fru, char *name) {
 
   switch(fru) {
     case FRU_TPDB_B:
-      sprintf(name, "Thermal Proxy B");
+      sprintf(name, "Thermal Proxy B (slot1)");
       break;
 
     case FRU_TPDB_A:
-      sprintf(name, "Thermal Proxy A");
+      sprintf(name, "Thermal Proxy A (slot2)");
       break;
 
     case FRU_KDB_A:
-      sprintf(name, "KDB A");
+      sprintf(name, "KDB A (slot4)");
       break;
 
     case FRU_KDB_B:
-      sprintf(name, "KDB B");
-      break;
-
-    case FRU_QFDB_A:
-      sprintf(name, "Quad FPGA A");
-      break;
-
-    case FRU_QFDB_B:
-      sprintf(name, "Quad FPGA B");
+      sprintf(name, "KDB B (slot3)");
       break;
 
     case FRU_QFDB_C:
-      sprintf(name, "Quad FPGA C");
+      sprintf(name, "Quad FPGA C (slot5)");
       break;
 
     case FRU_QFDB_D:
-      sprintf(name, "Quad FPGA D");
+      sprintf(name, "Quad FPGA D (slot6)");
       break;
+
+    case FRU_QFDB_B:
+      sprintf(name, "Quad FPGA B (slot7)");
+      break;
+
+    case FRU_QFDB_A:
+      sprintf(name, "Quad FPGA A (slot8)");
+      break;
+
 
     case FRU_BMC:
       sprintf(name, "MicroZynq BMC");

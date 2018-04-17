@@ -176,13 +176,3 @@ declare -a DB_TPDB_IO_VAL_DEFAULT=( "1" \
   "1" \
   "1" \
   "0" )
-
-declare -a DB_SLOT_NAMES=( "tpdb-b" \
- "tpdb-a" \
- "kdb-b" \
- "kdb-a" \
- "qfdb-c" \
- "qfdb-d" \
- "qfdb-b" \
- "qfdb-a" \
- "bmc" )

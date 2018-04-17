@@ -55,7 +55,7 @@ mkdir -p /tmp/mezzanine
 mkdir -p /tmp/mezzanine/gpio
 mkdir -p /tmp/mezzanine/bmc
 
-for i in `seq 0 ${MAX_SITE}`
+for i in `seq 1 ${MAX_SITE}`
 do
     mkdir -p /tmp/mezzanine/site_${i}
     mkdir -p /tmp/mezzanine/site_${i}/gpio
@@ -157,8 +157,11 @@ done
 ln -s /sys/bus/i2c/drivers/at24/1-0050/eeprom /tmp/mezzanine/eeprom
 
 # Get site config list from eeprom
-SITE_EEPROM_OFFSET=32
-for i in `seq 0 ${MAX_SITE}`
+# Offset takes into account we start counting slots at 1, so real offset
+# is 32.
+SITE_EEPROM_OFFSET=31
+
+for i in `seq 1 ${MAX_SITE}`
 do
   site_type=$(get_eeprom /tmp/mezzanine/eeprom $((${SITE_EEPROM_OFFSET}+$i)) )
   if [ "$site_type" -gt 3 ]; then
@@ -195,15 +198,17 @@ done
 ## Now we can search the i2c sub busses an bind all the ioexpanders, site and
 ## other nice things.
 
-for i in `seq 0 ${MAX_SITE}`
+for i in `seq 1 ${MAX_SITE}`
 do
   #echo "Site ${i}"
-  if [ "$i" -gt 7 ]; then
-    site_bus=`ls -l /sys/bus/i2c/devices/1-0077/channel-$((i-8))|cut -d- -f5`
-    db_bus=`ls -l /sys/bus/i2c/devices/0-0077/channel-$((i-8))|cut -d- -f5`
+  if [ "$i" -gt 8 ]; then
+  #i2c goes 0-7, so sub 9
+    site_bus=`ls -l /sys/bus/i2c/devices/1-0077/channel-$((i-9))|cut -d- -f5`
+    db_bus=`ls -l /sys/bus/i2c/devices/0-0077/channel-$((i-9))|cut -d- -f5`
   else
-    site_bus=`ls -l /sys/bus/i2c/devices/1-0070/channel-${i}|cut -d- -f5`
-    db_bus=`ls -l /sys/bus/i2c/devices/0-0070/channel-${i}|cut -d- -f5`
+    #i2c goes 0-7, so sub 1
+    site_bus=`ls -l /sys/bus/i2c/devices/1-0070/channel-$((i-1))|cut -d- -f5`
+    db_bus=`ls -l /sys/bus/i2c/devices/0-0070/channel-$((i-1))|cut -d- -f5`
   fi
 
   ln -s /dev/i2c-${site_bus} /tmp/mezzanine/site_${i}/i2c_bus
