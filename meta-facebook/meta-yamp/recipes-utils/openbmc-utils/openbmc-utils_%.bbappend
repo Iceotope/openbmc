@@ -18,27 +18,17 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 
 SRC_URI += "file://board-utils.sh \
-            file://cpld_ver.sh \
-            file://disable_watchdog.sh \
             file://eth0_mac_fixup.sh \
-            file://fpga_ver.sh \
             file://power-on.sh \
             file://reset_brcm.sh \
             file://setup_board.sh \
             file://setup_i2c.sh \
-            file://sol.sh \
-            file://us_console.sh \
             file://wedge_power.sh \
            "
 
 OPENBMC_UTILS_FILES += " \
     board-utils.sh \
-    cpld_ver.sh \
-    disable_watchdog.sh \
-    fpga_ver.sh \
     reset_brcm.sh \
-    sol.sh \
-    us_console.sh \
     wedge_power.sh \
     "
 
@@ -75,9 +65,6 @@ do_install_board() {
 
     install -m 0755 ${WORKDIR}/rc.local ${D}${sysconfdir}/init.d/rc.local
     update-rc.d -r ${D} rc.local start 99 2 3 4 5 .
-
-    install -m 0755 ${WORKDIR}/disable_watchdog.sh ${D}${sysconfdir}/init.d/disable_watchdog.sh
-    update-rc.d -r ${D} disable_watchdog.sh start 99 2 3 4 5 .
 }
 
 do_install_append() {

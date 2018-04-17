@@ -1,4 +1,4 @@
-# Copyright 2014-present Facebook. All Rights Reserved.
+# Copyright 2018-present Facebook. All rights reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -9,7 +9,13 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
+# You should have received a copy of the GNU General Public License
+# along with this program in a file named COPYING; if not, write to the
+# Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor,
+# Boston, MA 02110-1301 USA
 
-SRC_URI = "file://sensor-setup.sh \
-		   "
+board_py_modules=[
+    'board_gpio_table_p1',
+    'board_gpio_rev_table',
+]
