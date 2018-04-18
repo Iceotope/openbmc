@@ -165,6 +165,19 @@ class bmcNode(node):
 #        #ASD status - check if ASD daemon/asd-test is currently running
 #        asd_status = bool(Popen('ps | grep -i [a]sd', shell=True, stdout=PIPE).stdout.read())
 
+        # Serial loopbac
+        gpioPath="/tmp/mezzanine/gpio/SERIAL_LOOPBACK/value"
+        if os.path.isfile(gpioPath):
+          tpfile = open(gpioPath,"r")
+          tpval = int(tpfile.readline(2))
+          tpfile.close()
+
+          if (tpval == 1):
+            loopback_status =  "Enabled"
+          else:
+            loopback_status =  "Disabled"
+
+        # Vboot info (Not used currently)
         vboot_info = get_vboot_status()
 
         info = {
@@ -182,22 +195,69 @@ class bmcNode(node):
 #            "SPI0 Vendor": spi0_vendor,
 #            "SPI1 Vendor": spi1_vendor,
 #            "At-Scale-Debug Running": asd_status,
+            "Serial Loopback" : loopback_status,
             "vboot": vboot_info,
             }
 
         return info
 
     def doAction(self, data):
-        if (data["action"] != 'reboot'):
-            result = 'failure'
-        else:
-            Popen('sleep 1; /sbin/reboot', shell=True, stdout=PIPE)
+        if (data["action"] == 'reboot'):
+          Popen('sleep 1; /sbin/reboot', shell=True, stdout=PIPE)
+          result = 'success'
+
+        elif (data["action"] == 'reset_site_i2c'):
+          result = 'failure'
+          gpioPath="/tmp/mezzanine/gpio/SITE_I2C_RST/value"
+          if os.path.isfile(gpioPath):
+            tpfile = open(gpioPath,"w")
+            tpfile.write ("0\n")
+            tpfile.close()
+            tpfile = open(gpioPath,"w")
+            tpfile.write ("1\n")
+            tpfile.close()
             result = 'success'
 
-        result = {"result": result}
+        elif (data["action"] == 'reset_db_i2c'):
+          result = 'failure'
+          gpioPath="/tmp/mezzanine/gpio/DB_I2C_RST/value"
+          if os.path.isfile(gpioPath):
+            tpfile = open(gpioPath,"w")
+            tpfile.write ("0\n")
+            tpfile.close()
+            tpfile = open(gpioPath,"w")
+            tpfile.write ("1\n")
+            tpfile.close()
+            result = 'success'
 
-        return result
+        elif (data["action"] == 'serial_loopback_on'):
+          result = 'failure'
+          gpioPath="/tmp/mezzanine/gpio/SERIAL_LOOPBACK/value"
+          if os.path.isfile(gpioPath):
+            tpfile = open(gpioPath,"w")
+            tpfile.write ("1\n")
+            tpfile.close()
+
+          result = 'success'
+
+        elif (data["action"] == 'serial_loopback_off'):
+          result = 'failure'
+          gpioPath="/tmp/mezzanine/gpio/SERIAL_LOOPBACK/value"
+          if os.path.isfile(gpioPath):
+            tpfile = open(gpioPath,"w")
+            tpfile.write ("0\n")
+            tpfile.close()
+
+          result = 'success'
+
+        else:
+          result = 'failure'
+
+        results = {"result": result}
+
+        return results
 
 def get_node_bmc():
-    actions = ["reboot"]
+    actions = ["reboot", "reset_site_i2c", "reset_db_i2c",
+                "serial_loopback_on", "serial_loopback_off"]
     return bmcNode(actions = actions)
