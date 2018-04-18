@@ -418,19 +418,19 @@ server_power_on(uint8_t slot_id) {
   if (slot_id < 1 || slot_id > TRACK1_MAX_NUM_SLOTS) {
     return -1;
   }
-  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_UP);
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP);
 
   if (write_device(vpath, "1")) {
     return -1;
   }
 
   // Do the LED now
-  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_UP_LED);
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP_LED);
   if (write_device(vpath, LED_ON)) {
     return -1;
   }
 
-  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_DWN_LED);
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_DWN_LED);
   if (write_device(vpath, LED_OFF)) {
     return -1;
   }
@@ -447,7 +447,7 @@ server_power_off(uint8_t slot_id, bool gs_flag) {
     return -1;
   }
 
-  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_DATA_LED);
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_DATA_LED);
   if (write_device(vpath, LED_ON)) {
     return -1;
   }
@@ -460,21 +460,21 @@ server_power_off(uint8_t slot_id, bool gs_flag) {
     sleep(DELAY_POWER_OFF);
   }
 
-  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_DATA_LED);
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_DATA_LED);
   if (write_device(vpath, LED_OFF)) {
     return -1;
   }
 
-  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_UP);
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP);
   if (write_device(vpath, "0")) {
     return -1;
   }
 
-  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_UP_LED);
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP_LED);
   if (write_device(vpath, LED_OFF)) {
     return -1;
   }
-  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_DWN_LED);
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_DWN_LED);
   if (write_device(vpath, LED_ON)) {
     return -1;
   }
@@ -780,7 +780,7 @@ pal_get_server_power(uint8_t slot_id, uint8_t *status) {
 
   /* If 12V-on, check if the CPU is turned on or not */
   // Check the Site GPIO for PWR_UP.
-  sprintf(vpath, SITE_GPIO_VAL, slot_id-1, SITE_GPIO_BIT_PWR_UP);
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP);
   if (read_device(vpath, &val)) {
       *status = last_status[slot_id];
       return -1;
@@ -925,7 +925,7 @@ pal_set_rst_btn(uint8_t slot, uint8_t status) {
     val = GPIO_LOW;
   }
 
-  sprintf(vpath, SITE_GPIO_VAL, slot-1, SITE_GPIO_BIT_SRESET);
+  sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_SRESET);
 
   if (write_device(vpath, val)) {
     return -1;
