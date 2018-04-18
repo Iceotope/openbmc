@@ -274,6 +274,12 @@ init_tpdb() {
   echo "pca9685 0x40" >/sys/bus/i2c/devices/i2c-${db_bus}/new_device 2>/dev/null
   ln -s /sys/bus/i2c/drivers/pca9685-pwm/${db_bus}-0040/pwm/pwmchip* /tmp/mezzanine/db_${i}/pwmchip
 
+  ## Export all PWM devices
+  for j in `seq 0 4`
+  do
+    echo ${j} >/tmp/mezzanine/db_${i}/pwmchip/export
+  done
+
   ## One wire bus calculation, now that the system has had time to read them all
   ##
   W1_BASE_NEW=$(get_w1max)
