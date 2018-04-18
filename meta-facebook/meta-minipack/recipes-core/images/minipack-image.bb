@@ -21,6 +21,8 @@ IMAGE_INSTALL += " \
   cpldupdate \
   flashrom \
   fscd \
+  ipmbd \
+  ipmid \
   libcpldupdate-dll-echo \
   libcpldupdate-dll-gpio \
   lldp-util \
@@ -30,6 +32,7 @@ IMAGE_INSTALL += " \
   spatula \
   trousers \
   tpm-tools \
+  usb-console \
   watchdog-ctrl \
   "
 IMAGE_FEATURES += " \
