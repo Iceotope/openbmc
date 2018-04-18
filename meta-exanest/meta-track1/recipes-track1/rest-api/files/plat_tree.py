@@ -32,6 +32,9 @@ from node_fruid import get_node_fruid
 from node_sensors import get_node_sensors
 from node_logs import get_node_logs
 from node_config import get_node_config
+from node_tpdb import get_node_tpdb
+from node_tpdb import get_node_tpdb_led
+from node_tpdb import get_node_tpdb_pwm
 from tree import tree
 from pal import *
 
@@ -57,6 +60,28 @@ def populate_server_node(num):
 
     r_server.addChildren([r_fruid, r_sensors, r_logs, r_config])
 
+# Need to check the type here, and add the required tpdb, kdb or qfdb nodes
+    typeFile = open("/tmp/mezzanine/db_" + repr(num) + "/type","r")
+    nodeType = int(typeFile.readline(4))
+    if nodeType == 1:
+      # QFDB
+      print("QFDB board")
+    elif nodeType == 2:
+      # KDB
+      print("KDB board")
+    elif nodeType == 3:
+      # TPDB
+      r_tpdb = tree("tpdb", data = get_node_tpdb(num))
+      # Leds on the board
+      for i in range(0,4):
+        r_tpdb.addChild(tree("led"+repr(i), data = get_node_tpdb_led(num, i)))
+
+      # PWMs on the board
+      for i in range(0,5):
+        r_tpdb.addChild(tree("pwm"+repr(i), data = get_node_tpdb_pwm(num, i)))
+
+      r_server.addChild(r_tpdb)
+
     return r_server
 
 # Initialize Platform specific Resource Tree
@@ -75,9 +100,10 @@ def init_plat_tree():
     for i in range(1, num-1):
         r_server = populate_server_node(i)
         if r_server:
-            r_api.addChild(r_server)
+            r_mezz.addChild(r_server)
 
-     # /api/mezz/bmc end point
+
+    # /api/mezz/bmc end point, and sub points
     r_bmc = tree("bmc", data = get_node_bmc())
     r_mezz.addChild(r_bmc)
 
@@ -93,4 +119,8 @@ def init_plat_tree():
     r_temp = tree("logs", data = get_node_logs("bmc"))
     r_bmc.addChild(r_temp)
 
+
+    # Add Retimer locations, and each module
+
+    # Maybe add jtag module control/status here.
     return r_api
