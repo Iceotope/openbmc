@@ -24,7 +24,7 @@ from subprocess import *
 from node import node
 from pal import *
 from tree import tree
-## CLASSES
+## CLASSES for the sub nodes.
 #
 # LEDs
 #

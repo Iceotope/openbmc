@@ -35,6 +35,8 @@ from node_config import get_node_config
 from node_tpdb import get_node_tpdb
 from node_tpdb import get_node_tpdb_led
 from node_tpdb import get_node_tpdb_pwm
+from node_retimers import get_node_retimers
+from node_retimer import get_node_retimer
 from tree import tree
 from pal import *
 
@@ -121,6 +123,13 @@ def init_plat_tree():
 
 
     # Add Retimer locations, and each module
+    r_retimers = tree("retimers", data = get_node_retimers())
+    for i in range(0, 6):
+      r_retimers.addChild(tree("retimer"+repr(i), data=get_node_retimer(i)))
+
+    r_mezz.addChild(r_retimers)
+
+
 
     # Maybe add jtag module control/status here.
     return r_api
