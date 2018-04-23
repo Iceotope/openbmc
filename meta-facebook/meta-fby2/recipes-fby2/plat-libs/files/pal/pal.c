@@ -304,6 +304,22 @@ static const struct power_coeff pwr_cali_table[] = {
   { 0.0,    0.0 }
 };
 
+static const char *sock_path_asd_bic[MAX_NODES+1] = {
+  "",
+  SOCK_PATH_ASD_BIC "_1",
+  SOCK_PATH_ASD_BIC "_2",
+  SOCK_PATH_ASD_BIC "_3",
+  SOCK_PATH_ASD_BIC "_4"
+};
+
+static const char *sock_path_jtag_msg[MAX_NODES+1] = {
+  "",
+  SOCK_PATH_JTAG_MSG "_1",
+  SOCK_PATH_JTAG_MSG "_2",
+  SOCK_PATH_JTAG_MSG "_3",
+  SOCK_PATH_JTAG_MSG "_4"
+};
+
 //check power policy and power state to power on/off server after AC power restore
 static void
 pal_power_policy_control(uint8_t slot_id, char *last_ps) {
@@ -2514,6 +2530,11 @@ set_usb_mux(uint8_t state) {
   return 0;
 }
 
+int
+pal_enable_usb_mux(uint8_t state) {
+  return set_usb_mux(state);
+}
+
 // Update the VGA Mux to the server at given slot
 int
 pal_switch_vga_mux(uint8_t slot) {
@@ -2568,6 +2589,7 @@ int
 pal_switch_usb_mux(uint8_t slot) {
   char *gpio_sw0, *gpio_sw1;
   char path[64] = {0};
+  uint8_t status;
 
   // Based on the USB mux table in Schematics
   switch(slot) {
@@ -2597,9 +2619,12 @@ pal_switch_usb_mux(uint8_t slot) {
     return 0;
   }
 
-  // Enable the USB MUX
-  if (set_usb_mux(USB_MUX_ON) < 0)
-    return -1;
+  if (!pal_is_slot_server(slot) || (!pal_get_server_power(slot, &status) && (status != SERVER_POWER_ON))) {
+    if (set_usb_mux(USB_MUX_OFF) < 0) {
+      return -1;
+    }
+    return 0;
+  }
 
   sprintf(path, GPIO_VAL, GPIO_USB_SW0);
   if (write_device(path, gpio_sw0) < 0) {
@@ -2616,6 +2641,10 @@ pal_switch_usb_mux(uint8_t slot) {
 #endif
     return -1;
   }
+
+  // Enable the USB MUX
+  if (set_usb_mux(USB_MUX_ON) < 0)
+    return -1;
 
   return 0;
 }
@@ -3993,7 +4022,7 @@ pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
   int ret = -1;
   uint8_t server_type = 0xFF;
   ret = fby2_get_server_type(fru, &server_type);
-  if (ret) { 
+  if (ret) {
     syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
   }
   switch (server_type) {
@@ -4005,12 +4034,33 @@ pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
       break;
     default:
       syslog(LOG_ERR, "%s, Undefined server type", __func__);
-      return -1;    
+      return -1;
   }
 #else
   pal_sensor_discrete_check_tl(fru, snr_num, snr_name, o_val, n_val);
 #endif
 
+}
+
+int
+pal_get_event_sensor_name(uint8_t fru, uint8_t *sel, char *name) {
+  uint8_t snr_type = sel[10];
+  uint8_t snr_num = sel[11];
+
+  // If SNR_TYPE is OS_BOOT, sensor name is OS
+  switch (snr_type) {
+    case OS_BOOT:
+      // OS_BOOT used by OS
+      sprintf(name, "OS");
+      return 0;
+    default:
+      if (fby2_sensor_name(fru, snr_num, name) != 0) {
+        break;
+      }
+      return 0;
+  }
+  // Otherwise, translate it based on snr_num
+  return pal_get_x86_event_sensor_name(fru, snr_num, name);
 }
 
 static int
@@ -4073,8 +4123,9 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
   uint8_t snr_num = sel[11];
   uint8_t *event_data = &sel[10];
   uint8_t *ed = &event_data[3];
-  char temp_log[512] = {0};
   uint8_t sen_type = event_data[0];
+  char temp_log[512] = {0};
+  bool parsed = false;
 
   switch(snr_num) {
     case MEMORY_ECC_ERR:
@@ -4134,10 +4185,66 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
             (ed[2] & 0x1C) >> 2, ed[2] & 0x3);
       }
       strcat(error_log, temp_log);
-      return 0;
+      parsed = true;
+      break;
     case PROCHOT_EXT:
       strcpy(error_log, "");  //Just show event raw data for now
-      return 0;
+      parsed = true;
+      break;
+    case BIC_SENSOR_SYSTEM_STATUS:
+      strcpy(error_log, "");
+      switch (ed[0] & 0x0F) {
+        case 0x00:
+          strcat(error_log, "SOC_Thermal_Trip");
+          break;
+        case 0x02:
+          strcat(error_log, "SYS_Throttle");
+          break;
+        case 0x03:
+          strcat(error_log, "PCH_Thermal_Trip");
+          break;
+        case 0x04:
+          strcat(error_log, "FM_Throttle");
+          break;
+        case 0x05:
+          strcat(error_log, "HSC_Throttle");
+          break;
+        case 0x06:
+          strcat(error_log, "MB_Throttle");
+          break;
+        default:
+          strcat(error_log, "Unknown");
+          break;
+      }
+      parsed = true;
+      break;
+    case BIC_SENSOR_VR_HOT:
+      strcpy(error_log, "");
+      switch (ed[0] & 0x0F) {
+        case 0x00:
+          strcat(error_log, "SOC_VR_Hot");
+          break;
+        case 0x01:
+          strcat(error_log, "SOC_DIMM_AB_VR_Hot");
+          break;
+        case 0x02:
+          strcat(error_log, "SOC_DIMM_DE_VR_Hot");
+          break;
+        default:
+          strcat(error_log, "Unknown");
+          break;
+      }
+      parsed = true;
+      break;
+  }
+
+  if (parsed == true) {
+    if ((event_data[2] & 0x80) == 0) {
+      strcat(error_log, " Assertion");
+    } else {
+      strcat(error_log, " Deassertion");
+    }
+    return 0;
   }
 
   pal_parse_sel_helper(fru, sel, error_log);
@@ -5177,7 +5284,7 @@ pal_nic_otp_disable (float val) {
       pal_get_server_power(slot, &status);
       if ((SERVER_12V_ON != status) && (1 == otp_server_12v_off_flag[slot])) {
         // power on server 12V HSC
-        syslog(LOG_CRIT, "FRU: %u, Power On Server 12V due to NIC temp UCR deassert. (val = %.2f)", slot, val);
+        syslog(LOG_CRIT, "FRU: %u, Power On Server 12V due to NIC temp UNC deassert. (val = %.2f)", slot, val);
         pal_get_last_pwr_state(slot, pwr_state);
         ret = server_12v_on(slot);
         if (ret) {
@@ -5367,7 +5474,7 @@ pal_sensor_deassert_handle(uint8_t fru, uint8_t snr_num, float val, uint8_t thre
       sprintf(crisel, "%s %s %.2fV - DEASSERT", snr_desc->name, thresh_name, val);
       break;
     case MEZZ_SENSOR_TEMP:
-      if (thresh <= UNC_THRESH) {
+      if (thresh == UNC_THRESH) {
         pal_nic_otp_disable(val);
       }
       return;
@@ -5615,8 +5722,6 @@ pal_handle_oem_1s_intr(uint8_t slot, uint8_t *data)
   int sock;
   int err;
   struct sockaddr_un server;
-  char sock_path[64] = {0};
-  #define SOCK_PATH_ASD_BIC "/tmp/asd_bic_socket"
 
   if ((data[0] == PLTRST_N) && (data[1] == 0x01)) {
     if (fby2_common_get_ierr(slot)) {
@@ -5625,9 +5730,8 @@ pal_handle_oem_1s_intr(uint8_t slot, uint8_t *data)
     fby2_common_set_ierr(slot,false);
   }
 
-  sprintf(sock_path, "%s_%d", SOCK_PATH_ASD_BIC, slot);
-  if (access(sock_path, F_OK) == -1) {
-    // SOCK_PATH_ASD_BIC  doesn't exist, means ASD daemon for this
+  if (access(sock_path_asd_bic[slot], F_OK) == -1) {
+    // SOCK_PATH_ASD_BIC doesn't exist, means ASD daemon for this
     // slot is not running, exit
     return 0;
   }
@@ -5640,7 +5744,7 @@ pal_handle_oem_1s_intr(uint8_t slot, uint8_t *data)
   }
 
   server.sun_family = AF_UNIX;
-  strcpy(server.sun_path, sock_path);
+  strcpy(server.sun_path, sock_path_asd_bic[slot]);
 
   if (connect(sock, (struct sockaddr *) &server, sizeof(struct sockaddr_un)) < 0) {
     err = errno;
@@ -5665,8 +5769,12 @@ pal_handle_oem_1s_asd_msg_in(uint8_t slot, uint8_t *data, uint8_t data_len)
   int sock;
   int err;
   struct sockaddr_un server;
-  char sock_path[64] = {0};
-  #define SOCK_PATH_JTAG_MSG "/tmp/jtag_msg_socket"
+
+  if (access(sock_path_jtag_msg[slot], F_OK) == -1) {
+    // SOCK_PATH_JTAG_MSG doesn't exist, means ASD daemon for this
+    // slot is not running, exit
+    return 0;
+  }
 
   sock = socket(AF_UNIX, SOCK_STREAM, 0);
   if (sock < 0) {
@@ -5676,8 +5784,7 @@ pal_handle_oem_1s_asd_msg_in(uint8_t slot, uint8_t *data, uint8_t data_len)
   }
 
   server.sun_family = AF_UNIX;
-  sprintf(sock_path, "%s_%d", SOCK_PATH_JTAG_MSG, slot);
-  strcpy(server.sun_path, sock_path);
+  strcpy(server.sun_path, sock_path_jtag_msg[slot]);
 
   if (connect(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_un)) < 0) {
     err = errno;

@@ -1,6 +1,4 @@
-#!/bin/bash
-#
-# Copyright 2015-present Facebook. All Rights Reserved.
+# Copyright 2018-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -16,7 +14,13 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
-#
-logger "run-dhc6.sh: dhclient -6 Started.."
-pid="/var/run/dhclient6.eth0.pid"
-exec dhclient -6 -d -D LL -pf ${pid} eth0 "$@"
+
+all: m95m02-util
+
+m95m02-util: m95m02-util.o
+	$(CC) -o $@ $^
+
+.PHONY: clean
+
+clean:
+	rm -rf *.o m95m02-util

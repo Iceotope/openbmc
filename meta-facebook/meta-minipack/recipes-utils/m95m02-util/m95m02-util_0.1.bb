@@ -1,6 +1,4 @@
-#!/bin/bash
-#
-# Copyright 2015-present Facebook. All Rights Reserved.
+# Copyright 2018-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -16,7 +14,25 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
-#
-logger "run-dhc6.sh: dhclient -6 Started.."
-pid="/var/run/dhclient6.eth0.pid"
-exec dhclient -6 -d -D LL -pf ${pid} eth0 "$@"
+SUMMARY = "M95M02 EEPROM Utility"
+DESCRIPTION = "Utility to Read/Write M95M02 EEPROM."
+SECTION = "base"
+PR = "r1"
+LICENSE = "GPLv2"
+LIC_FILES_CHKSUM = "file://Readme.txt;beginline=4;endline=16;md5=d41d8cd98f00b204e9800998ecf8427e"
+
+
+SRC_URI = "file://m95m02-util.c \
+           file://Makefile \
+           file://Readme.txt \
+          "
+
+S = "${WORKDIR}"
+
+
+do_install() {
+  install -d ${D}${bindir}
+  install -m 755 m95m02-util ${D}${bindir}/m95m02-util
+}
+
+FILES_${PN} = "${bindir}"

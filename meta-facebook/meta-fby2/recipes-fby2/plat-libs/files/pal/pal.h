@@ -51,6 +51,9 @@ extern "C" {
 
 #define MAX_NIC_TEMP_RETRY 3
 
+#define SOCK_PATH_ASD_BIC "/tmp/asd_bic_socket"
+#define SOCK_PATH_JTAG_MSG "/tmp/jtag_msg_socket"
+
 extern char * key_list[];
 extern size_t pal_pwm_cnt;
 extern size_t pal_tach_cnt;
@@ -109,6 +112,7 @@ int pal_sled_cycle(void);
 int pal_is_debug_card_prsnt(uint8_t *status);
 int pal_get_hand_sw_physically(uint8_t *pos);
 int pal_get_hand_sw(uint8_t *pos);
+int pal_enable_usb_mux(uint8_t state);
 int pal_switch_vga_mux(uint8_t slot);
 int pal_switch_usb_mux(uint8_t slot);
 int pal_switch_uart_mux(uint8_t slot);
@@ -161,6 +165,7 @@ int pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name, uint
 int pal_get_event_sensor_name(uint8_t fru, uint8_t *sel, char *name);
 int pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log);
 int pal_parse_oem_sel(uint8_t fru, uint8_t *sel, char *error_log);
+int pal_get_event_sensor_name(uint8_t fru, uint8_t *sel, char *name);
 int pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data);
 void msleep(int msec);
 int pal_set_sensor_health(uint8_t fru, uint8_t value);

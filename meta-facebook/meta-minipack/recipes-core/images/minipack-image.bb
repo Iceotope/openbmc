@@ -17,6 +17,7 @@ IMAGE_INSTALL += " \
   at93cx6-util \
   ast-mdio \
   bcm5396-util \
+  bic-util \
   bitbang \
   cpldupdate \
   flashrom \
@@ -26,9 +27,11 @@ IMAGE_INSTALL += " \
   libcpldupdate-dll-echo \
   libcpldupdate-dll-gpio \
   lldp-util \
+  m95m02-util \
   mterm \
   openbmc-gpio \
   openbmc-utils \
+  sensor-setup \
   spatula \
   trousers \
   tpm-tools \
