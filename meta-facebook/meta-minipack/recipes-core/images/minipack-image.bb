@@ -22,11 +22,13 @@ IMAGE_INSTALL += " \
   cpldupdate \
   flashrom \
   fscd \
+  gpiod \
   ipmbd \
   ipmid \
   libcpldupdate-dll-echo \
   libcpldupdate-dll-gpio \
   lldp-util \
+  log-util \
   m95m02-util \
   mterm \
   openbmc-gpio \
@@ -37,6 +39,7 @@ IMAGE_INSTALL += " \
   tpm-tools \
   usb-console \
   watchdog-ctrl \
+  wedge-eeprom \
   "
 IMAGE_FEATURES += " \
   ssh-server-openssh \

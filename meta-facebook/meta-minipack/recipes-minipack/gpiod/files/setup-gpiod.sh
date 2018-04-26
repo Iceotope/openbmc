@@ -1,4 +1,6 @@
-# Copyright 2015-present Facebook. All Rights Reserved.
+#!/bin/sh
+#
+# Copyright 2018-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -14,20 +16,21 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
+#
 
-obj-m := supcpld.o fancpld.o scdcpld.o
+### BEGIN INIT INFO
+# Provides:          setup-sensord
+# Required-Start:
+# Required-Stop:
+# Default-Start:     S
+# Default-Stop:
+# Short-Description: Setup sensor monitoring
+### END INIT INFO
 
-ccflags-y += -I$(KERNEL_EXTRA_HEADER_PATH)
+. /usr/local/fbpackages/utils/ast-functions
 
-SRC := $(shell pwd)
+echo -n "Setup gpio monitoring for minipack... "
 
-all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC)
+runsv /etc/sv/gpiod > /dev/null 2>&1 &
 
-modules_install:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules_install
-
-clean:
-	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
-	rm -f Module.markers Module.symvers modules.order
-	rm -rf .tmp_versions Modules.symvers
+echo "done."

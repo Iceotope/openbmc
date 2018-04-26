@@ -1,4 +1,4 @@
-# Copyright 2015-present Facebook. All Rights Reserved.
+# Copyright 2018-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -15,19 +15,12 @@
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-obj-m := supcpld.o fancpld.o scdcpld.o
+all: gpiod
 
-ccflags-y += -I$(KERNEL_EXTRA_HEADER_PATH)
+sensord: gpiod.c
+	$(CC) $(CFLAGS) -D _XOPEN_SOURCE -pthread -lm -std=c99 -o $@ $^ $(LDFLAGS)
 
-SRC := $(shell pwd)
-
-all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC)
-
-modules_install:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules_install
+.PHONY: clean
 
 clean:
-	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
-	rm -f Module.markers Module.symvers modules.order
-	rm -rf .tmp_versions Modules.symvers
+	rm -rf *.o gpiod

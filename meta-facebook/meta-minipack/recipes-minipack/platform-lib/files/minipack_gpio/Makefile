@@ -1,4 +1,4 @@
-# Copyright 2015-present Facebook. All Rights Reserved.
+# Copyright 2018-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -15,19 +15,13 @@
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-obj-m := supcpld.o fancpld.o scdcpld.o
+lib: libminipack_gpio.so
 
-ccflags-y += -I$(KERNEL_EXTRA_HEADER_PATH)
+libminipack_gpio.so: minipack_gpio.c
+	$(CC) $(CFLAGS) -fPIC -c -o minipack_gpio.o minipack_gpio.c
+	$(CC) -shared -o libminipack_gpio.so minipack_gpio.o -lc
 
-SRC := $(shell pwd)
-
-all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC)
-
-modules_install:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules_install
+.PHONY: clean
 
 clean:
-	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
-	rm -f Module.markers Module.symvers modules.order
-	rm -rf .tmp_versions Modules.symvers
+	rm -rf *.o libminipack_gpio.so

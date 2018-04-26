@@ -1,4 +1,4 @@
-# Copyright 2015-present Facebook. All Rights Reserved.
+# Copyright 2018-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -14,20 +14,14 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
+#
+from board_endpoint import boardApp_Handler
+from boardroutes import *
 
-obj-m := supcpld.o fancpld.o scdcpld.o
+def setup_board_routes(app):
+    bhandler = boardApp_Handler()
+    app.router.add_get(board_routes[0], bhandler.rest_usb2i2c_reset_hdl)
+    app.router.add_get(board_routes[1], bhandler.rest_fruid_scm_hdl)
+    app.router.add_get(board_routes[2], bhandler.rest_pim_present_hdl)
+    app.router.add_get(board_routes[0], bhandler.rest_piminfo_hdl)
 
-ccflags-y += -I$(KERNEL_EXTRA_HEADER_PATH)
-
-SRC := $(shell pwd)
-
-all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC)
-
-modules_install:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules_install
-
-clean:
-	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
-	rm -f Module.markers Module.symvers modules.order
-	rm -rf .tmp_versions Modules.symvers

@@ -1,4 +1,6 @@
-# Copyright 2015-present Facebook. All Rights Reserved.
+#!/usr/bin/env python3
+#
+# Copyright 2018-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -14,20 +16,17 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
+#
 
-obj-m := supcpld.o fancpld.o scdcpld.o
+import json
+import re
+import subprocess
+import bmc_command
+from rest_fruid import get_fruid
 
-ccflags-y += -I$(KERNEL_EXTRA_HEADER_PATH)
-
-SRC := $(shell pwd)
-
-all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC)
-
-modules_install:
-	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules_install
-
-clean:
-	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
-	rm -f Module.markers Module.symvers modules.order
-	rm -rf .tmp_versions Modules.symvers
+# Handler for SCM FRUID resource endpoint
+def get_fruid_scm():
+    scm_eeprom = '/sys/class/i2c-dev/i2c-18/device/18-0052/eeprom'
+    cmd = ['weutil', scm_eeprom]
+    fresult = get_fruid(cmd)
+    return fresult
