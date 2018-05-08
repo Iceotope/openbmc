@@ -20,37 +20,37 @@ DEVICE_TREE_BINARY_NAME = "track1-zynq7.dtb"
 ## FB orignal list from one of their servers, we cut it down for now
 ## Include modules in rootfs
 ##IMAGE_INSTALL += " \
-#  packagegroup-openbmc-base \
-#  healthd \
+#  packagegroup-openbmc-base \ *
+#  healthd \ *
 #  fbutils \
-#  fan-util \
-#  fscd \
-#  watchdog-ctrl \
-#  sensor-setup \
+#  fan-util \ -
+#  fscd \ -
+#  watchdog-ctrl \ *
+#  sensor-setup \ -
 #  ipmid \
-#  packagegroup-openbmc-net \
-#  packagegroup-openbmc-python3 \
-#  packagegroup-openbmc-rest3 \
-#  fruid \
-#  ipmbd \
-#  bic-cached \
-#  bic-util \
-#  sensor-util \
-#  sensor-mon \
-#  gpiod \
-#  front-paneld \
-#  power-util \
-#  mterm\
-#  cfg-util \
-#  fw-util \
-#  fpc-util \
-#  me-util \
-#  log-util \
-#  lldp-util \
-#  spatula \
-#  openbmc-utils \
-#  conf-util \
-#  ncsi-util \
+#  packagegroup-openbmc-net \ *
+#  packagegroup-openbmc-python3 \ *
+#  packagegroup-openbmc-rest3 \ *
+#  fruid \ *
+#  ipmbd \ *
+#  bic-cached \ -
+#  bic-util \ -
+#  sensor-util \ *
+#  sensor-mon \ *
+#  gpiod \ -
+#  front-paneld \ -
+#  power-util \ *
+#  mterm\ *
+#  cfg-util \ *
+#  fw-util \ -
+#  fpc-util \ -
+#  me-util \ -
+#  log-util \ *
+#  lldp-util \ *
+#  spatula \ *
+#  openbmc-utils \ *
+#  conf-util \ -
+#  ncsi-util \ -
 #  "
 
 IMAGE_INSTALL += " \
