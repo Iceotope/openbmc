@@ -133,13 +133,24 @@ def get_mtds():
     mtd_info = []
     with open('/proc/mtd', 'r') as proc_mtd:
         mtd_info = proc_mtd_regex.findall(proc_mtd.read())
+    vboot_support = "none"
+    if any(name == 'romx' for (_, _, name) in mtd_info):
+        vboot_support = "software-enforce"
+        if 'Flags hardware_enforce:  0x01' in subprocess.check_output(['vboot-util']).decode():
+            vboot_support = 'hardware-enforce'
     all_mtds = []
     full_flash_mtds = []
     for (device, size_in_hex, name) in mtd_info:
         if name.startswith('flash') or name == 'Partition_000':
-            full_flash_mtds.append(MemoryTechnologyDevice(
-                device, int(size_in_hex, 16), name
-            ))
+            if vboot_support == 'none' or \
+               (vboot_support == 'software-enforce' and (name in ['flash0', 'flash1'])):
+                    full_flash_mtds.append(MemoryTechnologyDevice(
+                        device, int(size_in_hex, 16), name
+                    ))
+            elif vboot_support == 'hardware-enforce' and name in ['flash1']:
+                    full_flash_mtds.append(MemoryTechnologyDevice(
+                        device, int(size_in_hex, 16), name, 384
+                    ))
         all_mtds.append(MemoryTechnologyDevice(
             device, int(size_in_hex, 16), name
         ))
@@ -176,6 +187,8 @@ def get_partitions(images, checksums, logger):
     # type: (VirtualCat, List[str], logging.Logger) -> List[Partition]
     partitions = []  # type: List[Partition]
     next_magic = images.peek()
+    # First 384K is u-boot for legacy or regular-fit images OR
+    # the combination of SPL + recovery u-boot. Treat them as the same.
     if next_magic in ExternalChecksumPartition.UBootMagics:
         partitions.append(ExternalChecksumPartition(
             0x060000, 0x000000, 'u-boot', images, checksums, logger
@@ -185,9 +198,13 @@ def get_partitions(images, checksums, logger):
             next_magic, 0
         ))
         sys.exit(1)
+
+    # Env is always in the same location for both legacy and FIT images.
     partitions.append(EnvironmentPartition(
         0x020000, 0x060000, 'env', images, logger
     ))
+
+    # Either we are using the legacy image format or the FIT format.
     next_magic = images.peek()
     if next_magic == LegacyUBootPartition.magic:
         partitions.append(LegacyUBootPartition(
@@ -202,9 +219,20 @@ def get_partitions(images, checksums, logger):
             logger,
         ))
     elif next_magic == DeviceTreePartition.magic:
-        partitions.append(DeviceTreePartition(
-            0x1400000, 0x80000, 'fit', images, logger
-        ))
+        # The FIT image at 0x80000 could be a u-boot image (size 0x60000)
+        # or the kernel+rootfs FIT which is much larger.
+        # DeviceTreePartition() will pick the smallest which fits.
+        part = DeviceTreePartition(
+            [0x60000, 0x1B200000], 0x80000, "fit1", images, logger
+        )
+        partitions.append(part)
+
+        # If the end of the above partition is 0xE0000 then we need to
+        # check a second FIT image. This is definitely the larger one.
+        if (part.end() == 0xE0000):
+            partitions.append(DeviceTreePartition(
+                [0x1B200000], 0xE0000, "fit2", images, logger
+            ))
     else:
         logging.error('Unrecognized magic 0x{:x} at offset 0x{:x}.'.format(
             next_magic, 0x80000
@@ -302,8 +330,21 @@ def flash(attempts, image_file, mtd, logger):
     if other_flasher_running(logger):
         sys.exit(1)
 
+    image_name = image_file.file_name
+    # If MTD has a read-only offset, create a new image file with the
+    # readonly offset from the device and the remaining from the image
+    # file and use that for flashcp.
+    if mtd.offset > 0:
+        image_name = image_name + '.tmp'
+        with open(image_name, 'wb') as out_f:
+            with open(mtd.file_name, 'rb') as in_f:
+                out_f.write(in_f.read(mtd.offset * 1024))
+            with open(image_file.file_name, 'rb') as in_f:
+                in_f.seek(mtd.offset * 1024)
+                out_f.write(in_f.read())
+
     # TODO only write bytes that have changed
-    flash_command = ['flashcp', image_file.file_name, mtd.file_name]
+    flash_command = ['flashcp', image_name, mtd.file_name]
     if attempts < 1:
         flash_command = ['dd', 'if={}'.format(image_file.file_name),
                          'of=/dev/null']
@@ -320,6 +361,9 @@ def flash(attempts, image_file, mtd, logger):
             logger.warning('flashcp attempt {} returned {}.'.format(
                 attempt, result.returncode
             ))
+    # Remove temp file.
+    if (image_file.file_name != image_name):
+        os.remove(image_name)
 
 
 # Unfortunately there is no mutual exclusion between flashing and rebooting.
