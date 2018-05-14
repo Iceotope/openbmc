@@ -1,6 +1,4 @@
-#!/bin/bash
-#
-# Copyright 2015-present Facebook. All Rights Reserved.
+# Copyright 2014-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -16,10 +14,14 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
-#
 
-rev=$(head -1 /sys/class/i2c-adapter/i2c-12/12-0031/cpld_rev)
-sub_rev=$(head -1 /sys/class/i2c-adapter/i2c-12/12-0031/cpld_sub_rev)
+FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 
-echo $(($rev)).$(($sub_rev))
-
+SRC_URI += "file://vr.cpp \
+            file://platform.cpp \
+            file://bic_bios.cpp \
+           "
+CXXFLAGS += " -DBIC_SUPPORT "
+DEPENDS += "libipmi libipmb libbic libyosemite-sensor"
+RDEPENDS_${PN} += "libipmi libipmb libbic libyosemite-sensor"
+LDFLAGS += " -lipmi -lipmb -lbic -lyosemite_sensor "

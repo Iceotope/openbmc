@@ -331,11 +331,6 @@ pwr_btn_handler() {
         pal_update_ts_sled();
         syslog(LOG_CRIT, "Power Button Long Press for FRU: %d\n", pos);
 
-        if (!pal_is_hsvc_ongoing(pos) || st_12v) {
-          sprintf(tstr, "/usr/bin/hsvc-util slot%u --start", pos);
-          run_command(tstr);
-          goto pwr_btn_out;
-        }
       }
 
       if (st_12v) {
@@ -353,10 +348,7 @@ pwr_btn_handler() {
       // if long press (>4s) and hand-switch position == bmc, then initiate
       // sled-cycle
       if (pos == HAND_SW_BMC) {
-        pal_update_ts_sled();
-        syslog(LOG_CRIT, "SLED_CYCLE using power button successful");
-        sleep(1);
-        pal_sled_cycle();
+          // minilaketb do nothing here.
       } else {
         if (i < BTN_HSVC) {
           pal_update_ts_sled();
@@ -364,8 +356,6 @@ pwr_btn_handler() {
         }
 
         if (!st_12v) {
-          sprintf(tstr, "/usr/bin/hsvc-util slot%u --stop", pos);
-          run_command(tstr);
           sprintf(tstr, "/usr/local/bin/power-util slot%u 12V-on", pos);
           run_command(tstr);
           goto pwr_btn_out;
@@ -566,7 +556,6 @@ led_sync_handler() {
   char id_arr[5] = {0};
   uint8_t slot;
   uint8_t spb_hlth = 0;
-  uint8_t nic_hlth = 0;
 
 #ifdef DEBUG
   syslog(LOG_INFO, "led_handler for slot %d\n", slot);
@@ -604,13 +593,7 @@ led_sync_handler() {
       continue;
     }
 
-    ret = pal_get_fru_health(FRU_NIC, &nic_hlth);
-    if (ret) {
-      sleep(1);
-      continue;
-    }
-
-    if (spb_hlth == FRU_STATUS_BAD || nic_hlth == FRU_STATUS_BAD) {
+    if (spb_hlth == FRU_STATUS_BAD) {
       // Turn OFF Blue LED
       for (slot = 1; slot <= MAX_NUM_SLOTS; slot++) {
         g_sync_led[slot] = 1;

@@ -6,7 +6,7 @@ SRCREV = "1774946fa0b2a23397b1341a065e81bb315faf86"
 SRC_URI = "git://github.com/theopolis/linux.git;branch=${SRCBRANCH};protocol=https \
           "
 
-LINUX_VERSION ?= "4.1.15"
+LINUX_VERSION ?= "4.1.51"
 LINUX_VERSION_EXTENSION ?= "-aspeed"
 
 PR = "r1"

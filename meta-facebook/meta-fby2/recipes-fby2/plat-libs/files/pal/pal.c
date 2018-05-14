@@ -1487,7 +1487,7 @@ pal_system_config_check(uint8_t slot_id) {
   system(cmd);
 
   if ( slot_type != last_slot_type) {
-    syslog(LOG_CRIT, "Unexpected swap on SLOT%u from %s to %s",slot_id,last_slot_str,slot_str);
+    syslog(LOG_CRIT, "Unexpected swap on SLOT%u from %s to %s, FRU: %u",slot_id, last_slot_str, slot_str, slot_id);
   }
 
   return 0;
@@ -1502,6 +1502,7 @@ server_12v_on(uint8_t slot_id) {
   int rc, pid_file;
   int retry = MAX_BIC_CHECK_RETRY;
   bic_gpio_t gpio;
+  uint8_t pair_slot_id;
   int pair_set_type=-1;
 #if defined(CONFIG_FBY2_EP)
   uint8_t server_type, config;
@@ -1530,19 +1531,8 @@ server_12v_on(uint8_t slot_id) {
     return -1;
   }
 
-#if 0
-  // Delay 2 seconds to check if slot is inserted entirely
-  sleep(2);
-  sprintf(vpath, GPIO_VAL, gpio_slot_latch[slot_id]);
-  if (read_device(vpath, &slot_latch)) {
-    return -1;
-  }
-#else
-  slot_latch = 0;
-#endif
-
   // Reject 12V-on action when SLOT is not present or SLOT ejector latch pin is high
-  if ((1 != slot_prsnt) || (slot_latch)) {
+  if (1 != slot_prsnt) {
     flock(pid_file, LOCK_UN);
     close(pid_file);
     return -1;
@@ -1561,6 +1551,37 @@ server_12v_on(uint8_t slot_id) {
     sprintf(vpath, GPIO_VAL, gpio_12v[slot_id]);
     if (write_device(vpath, "1"))
       return -1;
+  }
+
+  sleep(2); // Wait for latch pin stable
+
+  ret = pal_is_slot_latch_closed(slot_id, &slot_latch);
+  if (ret < 0) {
+    syslog(LOG_WARNING,"%s: pal_is_slot_latch_closed failed for slot: %d", __func__, slot_id);
+    return -1;
+  }
+
+  if (1 != slot_latch) {
+    server_12v_off(slot_id);
+    return -1;
+  }
+
+  if (pal_is_device_pair(slot_id)) {
+    if (0 == slot_id%2)
+      pair_slot_id = slot_id - 1;
+    else
+      pair_slot_id = slot_id + 1;
+
+    ret = pal_is_slot_latch_closed(pair_slot_id, &slot_latch);
+    if (ret < 0) {
+      syslog(LOG_WARNING,"%s: pal_is_slot_latch_closed failed for slot: %d", __func__, pair_slot_id);
+      return -1;
+    }
+
+    if (1 != slot_latch) {
+      server_12v_off(pair_slot_id);
+      return -1;
+    }
   }
 
   if (!pal_is_slot_server(slot_id))
@@ -1842,6 +1863,34 @@ pal_get_platform_name(char *name) {
 int
 pal_get_num_slots(uint8_t *num) {
   *num = FBY2_MAX_NUM_SLOTS;
+
+  return 0;
+}
+
+int
+pal_is_slot_latch_closed(uint8_t slot_id, uint8_t *status) {
+  int val_latch;
+  char path[64] = {0};
+
+  switch (slot_id) {
+    case FRU_SLOT1:
+    case FRU_SLOT2:
+    case FRU_SLOT3:
+    case FRU_SLOT4:
+      sprintf(path, GPIO_VAL, gpio_slot_latch[slot_id]);
+      if (read_device(path, &val_latch)) {
+        return -1;
+      }
+
+      if (val_latch == 0x0) {
+        *status = 1;
+      } else {
+        *status = 0;
+      }
+      break;
+    default:
+      return -1;
+  }
 
   return 0;
 }
@@ -3196,7 +3245,7 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
         if (last_post != current_post) {
           if (current_post == 0) {
             // set POST end timestamp
-            pal_set_post_end_timestamp(current_time_stamp);
+            pal_set_post_end_timestamp(current_time_stamp+FAN_WAIT_TIME_AFTER_POST);
           }
           // update POST status;
           pal_set_last_post(current_post);
@@ -3217,7 +3266,7 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
             // no timestamp yet
             pal_set_post_end_timestamp(0);
           }
-          if (current_time_stamp <  post_end_timestamp + FAN_WAIT_TIME_AFTER_POST ) {
+          if (current_time_stamp <  post_end_timestamp ) {
             // wait for fan speed deassert after POST
             sprintf(str, "%.2f",*((float*)value));
             edb_cache_set(key, str);
@@ -3249,9 +3298,7 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
 int
 pal_sensor_threshold_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
 
-  uint8_t val;
   int ret;
-  uint8_t slot_id;
   uint8_t server_type = 0xFF;
 
   switch(fru) {
@@ -3289,58 +3336,65 @@ pal_sensor_threshold_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
       break;
 #endif
     case FRU_SPB:
-      /*
-       * TODO: This is a HACK (t11229576)
-       */
-      switch(snr_num) {
-        case SP_SENSOR_P12V_SLOT1:
-        case SP_SENSOR_P12V_SLOT2:
-        case SP_SENSOR_P12V_SLOT3:
-        case SP_SENSOR_P12V_SLOT4:
-          /* Check whether the system is 12V off or on */
-          slot_id = snr_num - SP_SENSOR_P12V_SLOT1 + 1;
-          ret = pal_is_server_12v_on(slot_id, &val);
-          if (ret < 0) {
-            syslog(LOG_ERR, "%s: pal_is_server_12v_on failed",__func__);
-          }
-          if (!val || !_check_slot_12v_en_time(slot_id)) {
-            *flag = GETMASK(SENSOR_VALID);
-          }
-          break;
-        case SP_SENSOR_FAN0_TACH:
-        case SP_SENSOR_FAN1_TACH:
-
-          // Check POST status
-          if (pal_is_post_ongoing()) {
-            // POST is ongoing
-            *flag = CLEARBIT(*flag,UNC_THRESH);
-          } else {
-            long current_time_stamp = 0;
-            long post_end_timestamp = 0;
-            struct timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts);
-            current_time_stamp = ts.tv_sec;
-
-            int ret = pal_get_post_end_timestamp(&post_end_timestamp);
-            if (ret < 0) {
-              // no timestamp yet
-              pal_set_post_end_timestamp(0);
-            }
-
-            if ( current_time_stamp < post_end_timestamp + FAN_WAIT_TIME_AFTER_POST ) {
-              // wait for fan speed deassert after POST
-              *flag = CLEARBIT(*flag,UNC_THRESH);
-            }
-
-          }
-          break;
-      }
     case FRU_NIC:
       break;
   }
 
   return 0;
 }
+
+int
+pal_alter_sensor_thresh_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
+
+  uint8_t val;
+  int ret;
+  uint8_t slot_id;
+
+  if ( fru == FRU_SPB ) {
+    /*
+     * TODO: This is a HACK (t11229576)
+     */
+    if(( snr_num == SP_SENSOR_P12V_SLOT1 ) || ( snr_num == SP_SENSOR_P12V_SLOT2 )
+      || ( snr_num == SP_SENSOR_P12V_SLOT3 ) || ( snr_num == SP_SENSOR_P12V_SLOT4 )){
+      /* Check whether the system is 12V off or on */
+      slot_id = snr_num - SP_SENSOR_P12V_SLOT1 + 1;
+      ret = pal_is_server_12v_on(slot_id, &val);
+      if (ret < 0) {
+        syslog(LOG_ERR, "%s: pal_is_server_12v_on failed",__func__);
+      }
+      if (!val || !_check_slot_12v_en_time(slot_id)) {
+        *flag = GETMASK(SENSOR_VALID);
+      }
+    } else if (( snr_num == SP_SENSOR_FAN0_TACH ) || ( snr_num == SP_SENSOR_FAN1_TACH )) {
+      // Check POST status
+      if (pal_is_post_ongoing()) {
+        // POST is ongoing
+        *flag = CLEARBIT(*flag,UNC_THRESH);
+      } else {
+        long current_time_stamp = 0;
+        long post_end_timestamp = 0;
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        current_time_stamp = ts.tv_sec;
+
+        int ret = pal_get_post_end_timestamp(&post_end_timestamp);
+        if (ret < 0) {
+          // no timestamp yet
+          pal_set_post_end_timestamp(0);
+        }
+
+        if ( current_time_stamp < post_end_timestamp ) {
+          // wait for fan speed deassert after POST
+          *flag = CLEARBIT(*flag,UNC_THRESH);
+        }
+
+      }
+    }
+  }
+
+  return 0;
+}
+
 
 int
 pal_get_sensor_threshold(uint8_t fru, uint8_t sensor_num, uint8_t thresh, void *value) {
@@ -3891,27 +3945,10 @@ pal_sensor_discrete_check_rc(uint8_t fru, uint8_t snr_num, char *snr_name,
   bool valid = false;
   uint8_t diff = o_val ^ n_val;
 
-  if (GETBIT(diff, 0)) {
-    switch(snr_num) {
-      case BIC_RC_SENSOR_SYSTEM_STATUS:
-        sprintf(name, "SOC_Thermal_Trip");
-        valid = true;
-        break;
-    }
-    if (valid) {
-      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 0), name);
-      valid = false;
-    }
-  }
-
   if (GETBIT(diff, 1)) {
     switch(snr_num) {
       case BIC_RC_SENSOR_VR_HOT:
         sprintf(name, "510_VR_Hot");
-        valid = true;
-        break;
-      case BIC_RC_SENSOR_SYSTEM_STATUS:
-        sprintf(name, "VR_Fault");
         valid = true;
         break;
     }
@@ -3923,6 +3960,10 @@ pal_sensor_discrete_check_rc(uint8_t fru, uint8_t snr_num, char *snr_name,
 
   if (GETBIT(diff, 2)) {
     switch(snr_num) {
+      case BIC_RC_SENSOR_SYSTEM_STATUS:
+        sprintf(name, "CPU0_Thermal_Trip");
+        valid = true;
+        break;
       case BIC_RC_SENSOR_VR_HOT:
         sprintf(name, "423_VR_Hot");
         valid = true;
@@ -3930,6 +3971,19 @@ pal_sensor_discrete_check_rc(uint8_t fru, uint8_t snr_num, char *snr_name,
     }
     if (valid) {
       _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 2), name);
+      valid = false;
+    }
+  }
+
+  if (GETBIT(diff, 4)) {
+    switch(snr_num) {
+      case BIC_RC_SENSOR_SYSTEM_STATUS:
+        sprintf(name, "CPU0_FIVR_Fault");
+        valid = true;
+        break;
+    }
+    if (valid) {
+      _print_sensor_discrete_log(fru, snr_num, snr_name, GETBIT(n_val, 4), name);
       valid = false;
     }
   }
@@ -4040,12 +4094,39 @@ pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
   pal_sensor_discrete_check_tl(fru, snr_num, snr_name, o_val, n_val);
 #endif
 
+  return 0;
 }
+
+#if defined(CONFIG_FBY2_RC)
+int 
+fby2_rc_event_sensor_name(uint8_t fru, uint8_t sensor_num, char *name) {
+
+  switch(sensor_num) {
+    case BIC_RC_SENSOR_RAS_UNCORR:
+      sprintf(name, "RAS_UNCORR");
+      break;
+    case BIC_RC_SENSOR_RAS_CORR_INFO:
+      sprintf(name, "RAS_CORR_INFO");
+      break;
+    case BIC_RC_SENSOR_RAS_FATAL:
+      sprintf(name, "RAS_FATAL");
+      break;
+    case BIC_RC_SENSOR_PWR_FAIL:
+      sprintf(name, "POWER_FAILURE");
+      break;
+    default:
+      return -1;
+  }
+  return 0;
+}
+#endif
 
 int
 pal_get_event_sensor_name(uint8_t fru, uint8_t *sel, char *name) {
   uint8_t snr_type = sel[10];
   uint8_t snr_num = sel[11];
+  uint8_t server_type = 0xFF;
+  int ret = -1;
 
   // If SNR_TYPE is OS_BOOT, sensor name is OS
   switch (snr_type) {
@@ -4059,6 +4140,23 @@ pal_get_event_sensor_name(uint8_t fru, uint8_t *sel, char *name) {
       }
       return 0;
   }
+
+#if defined(CONFIG_FBY2_RC)
+  ret = fby2_get_server_type(fru, &server_type);
+  if (ret) {
+    syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
+  }
+  switch(server_type){
+    case SERVER_TYPE_RC:
+      if(fby2_rc_event_sensor_name(fru, snr_num, name) == 0) {
+        return 0;
+      }
+      break;
+    case SERVER_TYPE_TL:
+      break;
+  }
+#endif
+
   // Otherwise, translate it based on snr_num
   return pal_get_x86_event_sensor_name(fru, snr_num, name);
 }
@@ -4117,8 +4215,67 @@ pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
   return pal_set_key_value(key, cvalue);
 }
 
+#if defined(CONFIG_FBY2_RC)
 int
-pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
+pal_parse_sel_rc(uint8_t fru, uint8_t *sel, char *error_log)
+{
+  uint8_t snr_num = sel[11];
+  uint8_t *event_data = &sel[10];
+  uint8_t *ed = &event_data[3];
+  uint8_t sen_type = event_data[0];
+  char temp_log[512] = {0};
+  bool parsed = false;
+
+  switch(snr_num) {
+    case PROCHOT_EXT:
+      strcpy(error_log, "");  //Just show event raw data for now
+      parsed = true;
+      break;
+    case BIC_RC_SENSOR_RAS_UNCORR:
+    case BIC_RC_SENSOR_RAS_CORR_INFO:
+    case BIC_RC_SENSOR_RAS_FATAL:
+      strcpy(error_log, "");
+      switch (ed[0] & 0x0F) {
+        case 0x01:
+          strcat(error_log, "State Asserted");
+          break;
+        default:
+          strcat(error_log, "Unknown");
+          break;
+      }
+      parsed = true;
+      break;
+    case BIC_RC_SENSOR_PWR_FAIL:
+      strcpy(error_log, "");
+      switch (ed[0] & 0x0F) {
+        case 0x06:
+          strcat(error_log, "Power Unit Failure Detected");
+          break;
+        default:
+          strcat(error_log, "Unknown");
+          break;
+      }
+      parsed = true;
+      break;
+  }
+
+  if (parsed == true) {
+    if ((event_data[2] & 0x80) == 0) {
+      strcat(error_log, " Assertion");
+    } else {
+      strcat(error_log, " Deassertion");
+    }
+    return 0;
+  }
+
+  pal_parse_sel_helper(fru, sel, error_log);
+
+  return 0;
+}
+#endif
+
+int
+pal_parse_sel_tl(uint8_t fru, uint8_t *sel, char *error_log)
 {
   uint8_t snr_num = sel[11];
   uint8_t *event_data = &sel[10];
@@ -4236,7 +4393,7 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
       }
       parsed = true;
       break;
-  }
+  }  
 
   if (parsed == true) {
     if ((event_data[2] & 0x80) == 0) {
@@ -4248,6 +4405,35 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
   }
 
   pal_parse_sel_helper(fru, sel, error_log);
+
+  return 0;
+
+}
+
+int
+pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
+{
+#if defined(CONFIG_FBY2_RC)
+  int ret = -1;
+  uint8_t server_type = 0xFF;
+  ret = fby2_get_server_type(fru, &server_type);
+  if (ret) {
+    syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
+  }
+  switch (server_type) {
+    case SERVER_TYPE_RC:
+      pal_parse_sel_rc(fru, sel, error_log);
+      break;
+    case SERVER_TYPE_TL:
+      pal_parse_sel_tl(fru, sel, error_log);
+      break;
+    default:
+      syslog(LOG_ERR, "%s, Undefined server type", __func__);
+      return -1;
+  }
+#else
+  pal_parse_sel_tl(fru, sel, error_log);
+#endif
 
   return 0;
 }
@@ -5754,7 +5940,9 @@ pal_handle_oem_1s_intr(uint8_t slot, uint8_t *data)
   struct sockaddr_un server;
 
   if ((data[0] == PLTRST_N) && (data[1] == 0x01)) {
-    if (fby2_common_get_ierr(slot)) {
+    bool ierr = false;
+    int ret = fby2_common_get_ierr(slot, &ierr);
+    if ((ret == 0) && ierr) {
       fby2_common_crashdump(slot,true);
     }
     fby2_common_set_ierr(slot,false);

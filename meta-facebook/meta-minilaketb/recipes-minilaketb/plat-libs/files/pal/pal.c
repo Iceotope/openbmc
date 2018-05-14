@@ -120,7 +120,7 @@ const static uint8_t gpio_power_en[] = { 0, GPIO_SLOT1_POWER_EN, GPIO_SLOT2_POWE
 const static uint8_t gpio_12v[] = { 0, GPIO_P12V_STBY_SLOT1_EN, GPIO_P12V_STBY_SLOT2_EN, GPIO_P12V_STBY_SLOT3_EN, GPIO_P12V_STBY_SLOT4_EN };
 const static uint8_t gpio_slot_latch[] = { 0, GPIO_SLOT1_EJECTOR_LATCH_DETECT_N, GPIO_SLOT2_EJECTOR_LATCH_DETECT_N, GPIO_SLOT3_EJECTOR_LATCH_DETECT_N, GPIO_SLOT4_EJECTOR_LATCH_DETECT_N};
 
-const char pal_fru_list[] = "all, slot1, slot2, slot3, slot4, spb, nic";
+const char pal_fru_list[] = "all, slot1, slot2, slot3, slot4, spb";
 const char pal_server_list[] = "slot1, slot2, slot3, slot4";
 
 size_t pal_pwm_cnt = 2;
@@ -1141,92 +1141,6 @@ server_12v_on(uint8_t slot_id) {
   return 0;
 }
 
-// Debug Card's UART and BMC/SoL port share UART port and need to enable only
-// one TXD i.e. either BMC's TXD or Debug Port's TXD.
-static int
-control_sol_txd(uint8_t slot, uint8_t dis_tx) {
-  uint32_t scu_fd;
-  uint32_t ctrl;
-  void *scu_reg;
-  void *scu_pin_ctrl1;
-  void *scu_pin_ctrl2;
-
-  scu_fd = open("/dev/mem", O_RDWR | O_SYNC );
-  if (scu_fd < 0) {
-#ifdef DEBUG
-    syslog(LOG_WARNING, "control_sol_txd: open fails\n");
-#endif
-    return -1;
-  }
-
-  scu_reg = mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, scu_fd,
-             AST_SCU_BASE);
-  scu_pin_ctrl1 = (char*)scu_reg + PIN_CTRL1_OFFSET;
-  scu_pin_ctrl2 = (char*)scu_reg + PIN_CTRL2_OFFSET;
-
-  switch(slot) {
-  case 1:
-    // Disable UART1's TXD and enable others
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl2;
-    ctrl = (dis_tx) ? ctrl & ~UART1_TXD : ctrl | UART1_TXD;
-    ctrl |= UART2_TXD;
-    *(volatile uint32_t*) scu_pin_ctrl2 = ctrl;
-
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl1;
-    ctrl |= UART3_TXD | UART4_TXD;
-    *(volatile uint32_t*) scu_pin_ctrl1 = ctrl;
-    break;
-  case 2:
-    // Disable UART2's TXD and enable others
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl2;
-    ctrl |= UART1_TXD;
-    ctrl = (dis_tx) ? ctrl & ~UART2_TXD : ctrl | UART2_TXD;
-    *(volatile uint32_t*) scu_pin_ctrl2 = ctrl;
-
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl1;
-    ctrl |= UART3_TXD | UART4_TXD;
-    *(volatile uint32_t*) scu_pin_ctrl1 = ctrl;
-    break;
-  case 3:
-    // Disable UART3's TXD and enable others
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl2;
-    ctrl |= UART1_TXD | UART2_TXD;
-    *(volatile uint32_t*) scu_pin_ctrl2 = ctrl;
-
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl1;
-    ctrl = (dis_tx) ? ctrl & ~UART3_TXD : ctrl | UART3_TXD;
-    ctrl |= UART4_TXD;
-    *(volatile uint32_t*) scu_pin_ctrl1 = ctrl;
-    break;
-  case 4:
-    // Disable UART4's TXD and enable others
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl2;
-    ctrl |= UART1_TXD | UART2_TXD;
-    *(volatile uint32_t*) scu_pin_ctrl2 = ctrl;
-
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl1;
-    ctrl |= UART3_TXD;
-    ctrl = (dis_tx) ? ctrl & ~UART4_TXD : ctrl | UART4_TXD;
-    *(volatile uint32_t*) scu_pin_ctrl1 = ctrl;
-    break;
-  default:
-    // Any other slots we need to enable all TXDs
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl2;
-    ctrl |= UART1_TXD ; //XG1 need GPIOM6,7
-    *(volatile uint32_t*) scu_pin_ctrl2 = ctrl;
-
-    ctrl = *(volatile uint32_t*) scu_pin_ctrl1;
-    ctrl |= UART3_TXD | UART4_TXD;
-    *(volatile uint32_t*) scu_pin_ctrl1 = ctrl;
-    break;
-  }
-
-  munmap(scu_reg, PAGE_SIZE);
-  close(scu_fd);
-
-  return 0;
-}
-
 // Display the given POST code using GPIO port
 static int
 pal_post_display(uint8_t status) {
@@ -1399,7 +1313,6 @@ pal_is_fru_prsnt(uint8_t fru, uint8_t *status) {
       //XG1 doesn't have present pin
       *status = 1;
     case FRU_SPB:
-    case FRU_NIC:
       *status = 1;
       break;
     default:
@@ -1455,7 +1368,6 @@ pal_is_fru_ready(uint8_t fru, uint8_t *status) {
       }
       break;
    case FRU_SPB:
-   case FRU_NIC:
      *status = 1;
      break;
    default:
@@ -1741,11 +1653,6 @@ pal_get_fan_latch(uint8_t *status) {
 
 int
 pal_sled_cycle(void) {
-  // Remove the adm1275 module as the HSC device is busy
-  system("rmmod adm1275");
-
-  // Send command to HSC power cycle
-  system("i2cset -y 10 0x40 0xd9 c");
 
   return 0;
 }
@@ -2074,12 +1981,6 @@ pal_switch_uart_mux(uint8_t slot) {
     break;
   }
 
-  //  Diable TXD path from BMC to avoid conflict with SoL
-  ret = control_sol_txd(slot, prsnt);
-  if (ret) {
-    goto uart_exit;
-  }
-
   // Enable Debug card path
   sprintf(path, GPIO_VAL, GPIO_UART_SEL2);
   ret = write_device(path, gpio_uart_sel2);
@@ -2313,10 +2214,7 @@ pal_get_fru_sensor_list(uint8_t fru, uint8_t **sensor_list, int *cnt) {
       *sensor_list = (uint8_t *) spb_sensor_list;
       *cnt = spb_sensor_cnt;
       break;
-    case FRU_NIC:
-      *sensor_list = (uint8_t *) nic_sensor_list;
-      *cnt = nic_sensor_cnt;
-      break;
+
     default:
 #ifdef DEBUG
       syslog(LOG_WARNING, "pal_get_fru_sensor_list: Wrong fru id %u", fru);
@@ -2326,99 +2224,9 @@ pal_get_fru_sensor_list(uint8_t fru, uint8_t **sensor_list, int *cnt) {
     return 0;
 }
 
-int
-pal_read_nic_fruid(const char *path, int size) {  // for 1-byte offset length
-  uint8_t wbuf[8], rbuf[32];
-  int offset, count;
-  int fd = -1, dev = -1, ret = -1;
-
-  fd = open(path, O_WRONLY | O_CREAT, 0644);
-  if (fd < 0) {
-    goto error_exit;
-  }
-
-  dev = open("/dev/i2c-12", O_RDWR);
-  if (dev < 0) {
-    goto error_exit;
-  }
-
-  // Read chunks of FRUID binary data in a loop
-  for (offset = 0; offset < size; offset += 8) {
-    wbuf[0] = offset;
-    ret = i2c_rdwr_msg_transfer(dev, 0xA2, wbuf, 1, rbuf, 8);
-    if (ret) {
-      break;
-    }
-
-    count = write(fd, rbuf, 8);
-    if (count != 8) {
-      ret = -1;
-      break;
-    }
-  }
-
-error_exit:
-  if (fd > 0 ) {
-    close(fd);
-  }
-
-  if (dev > 0 ) {
-    close(dev);
-  }
-
-  return ret;
-}
-
-static int
-_write_nic_fruid(const char *path) {  // for 1-byte offset length
-  uint8_t wbuf[32];
-  int offset, count;
-  int fd = -1, dev = -1, ret = -1;
-
-  fd = open(path, O_RDONLY);
-  if (fd < 0) {
-    goto error_exit;
-  }
-
-  dev = open("/dev/i2c-12", O_RDWR);
-  if (dev < 0) {
-    goto error_exit;
-  }
-
-  // Write chunks of FRUID binary data in a loop
-  offset = 0;
-  while (1) {
-    count = read(fd, &wbuf[1], 8);
-    if (count <= 0) {
-      break;
-    }
-
-    wbuf[0] = offset;
-    ret = i2c_rdwr_msg_transfer(dev, 0xA2, wbuf, count+1, NULL, 0);
-    if (ret) {
-      break;
-    }
-
-    offset += count;
-  }
-
-error_exit:
-  if (fd > 0 ) {
-    close(fd);
-  }
-
-  if (dev > 0 ) {
-    close(dev);
-  }
-
-  return ret;
-}
 
 int
 pal_fruid_write(uint8_t fru, char *path) {
-  if (fru == FRU_NIC) {
-    return _write_nic_fruid(path);
-  }
   return bic_write_fruid(fru, 0, path);
 }
 
@@ -2434,7 +2242,6 @@ pal_sensor_sdr_init(uint8_t fru, sensor_info_t *sinfo) {
       pal_is_fru_prsnt(fru, &status);
       break;
     case FRU_SPB:
-    case FRU_NIC:
       status = 1;
       break;
   }
@@ -2493,9 +2300,7 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
     case FRU_SPB:
       sprintf(key, "spb_sensor%d", sensor_num);
       break;
-    case FRU_NIC:
-      sprintf(key, "nic_sensor%d", sensor_num);
-      break;
+
     default:
       return -1;
   }
@@ -2518,7 +2323,7 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
     if (ret == EER_READ_NA)
       return ERR_SENSOR_NA;
 
-    if(fru == FRU_SPB || fru == FRU_NIC)
+    if(fru == FRU_SPB)
       return -1;
     if(pal_get_server_power(fru, &status) < 0)
       return -1;
@@ -2634,8 +2439,7 @@ pal_sensor_threshold_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
           }
           break;
       }
-    case FRU_NIC:
-      break;
+
   }
 
   return 0;
@@ -2719,9 +2523,6 @@ pal_set_def_key_value() {
         case FRU_SPB:
           continue;
 
-        case FRU_NIC:
-          continue;
-
         default:
           return -1;
       }
@@ -2741,9 +2542,6 @@ pal_set_def_key_value() {
         break;
 
         case FRU_SPB:
-          continue;
-
-        case FRU_NIC:
           continue;
 
         default:
@@ -2842,7 +2640,6 @@ pal_get_last_pwr_state(uint8_t fru, char *state) {
       }
       return ret;
     case FRU_SPB:
-    case FRU_NIC:
       sprintf(state, "on");
       return 0;
   }
@@ -3145,7 +2942,6 @@ pal_get_fru_discrete_list(uint8_t fru, uint8_t **sensor_list, int *cnt) {
       }
       break;
     case FRU_SPB:
-    case FRU_NIC:
       *sensor_list = NULL;
       *cnt = 0;
       break;
@@ -3286,9 +3082,6 @@ pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
     case FRU_SPB:
       return 0;
 
-    case FRU_NIC:
-      return 0;
-
     default:
       return -1;
   }
@@ -3405,9 +3198,6 @@ pal_set_sensor_health(uint8_t fru, uint8_t value) {
     case FRU_SPB:
       sprintf(key, "spb_sensor_health");
       break;
-    case FRU_NIC:
-      sprintf(key, "nic_sensor_health");
-      break;
 
     default:
       return -1;
@@ -3435,9 +3225,6 @@ pal_get_fru_health(uint8_t fru, uint8_t *value) {
     case FRU_SPB:
       sprintf(key, "spb_sensor_health");
       break;
-    case FRU_NIC:
-      sprintf(key, "nic_sensor_health");
-      break;
 
     default:
       return -1;
@@ -3461,9 +3248,6 @@ pal_get_fru_health(uint8_t fru, uint8_t *value) {
       sprintf(key, "slot%d_sel_error", fru);
       break;
     case FRU_SPB:
-      return 0;
-
-    case FRU_NIC:
       return 0;
 
     default:
@@ -4217,48 +4001,6 @@ pal_get_platform_id(uint8_t *id) {
    return 0;
 }
 
-int
-pal_nic_otp_enable (float val) {
-  uint8_t slot, status = 0xFF, slot_type=0xFF;
-  int retry = MAX_NIC_TEMP_RETRY;  // no retry here, since check_thresh_assert has retried
-  int ret;
-  float thresh_val = nic_sensor_threshold[MEZZ_SENSOR_TEMP][UNR_THRESH];
-  sensor_check_t *snr_chk;
-
-  if ((snr_chk = get_sensor_check(FRU_NIC, MEZZ_SENSOR_TEMP)) != NULL) {
-    thresh_val = snr_chk->unr;
-  }
-
-  while (retry < MAX_NIC_TEMP_RETRY) {
-    ret = pal_sensor_read_raw(FRU_NIC, MEZZ_SENSOR_TEMP, &val);
-    if (!ret && (val < thresh_val)) {
-      break;
-    }
-    retry++;
-    msleep(200);
-  }
-  if (retry < MAX_NIC_TEMP_RETRY)
-    return 0;
-
-  for (slot = 1; slot <= 4; slot++) {
-    slot_type = minilaketb_get_slot_type(slot);
-    if (SLOT_TYPE_SERVER == slot_type) {
-      pal_get_server_power(slot, &status);
-      if (SERVER_12V_OFF != status) {
-        // power off server 12V HSC
-        syslog(LOG_CRIT, "FRU: %u, Power Off Server 12V due to NIC temp UNR reached. (val = %.2f)", slot, val);
-        ret = server_12v_off(slot);
-        if (ret) {
-          syslog(LOG_ERR, "server_12v_off() failed, slot%d", slot);
-        } else {
-          otp_server_12v_off_flag[slot] = 1;
-        }
-      }
-    }
-  }
-
-  return 0;
-}
 
 int
 pal_nic_otp_disable (float val) {
@@ -4369,11 +4111,6 @@ pal_sensor_assert_handle(uint8_t fru, uint8_t snr_num, float val, uint8_t thresh
       snr_desc = get_sensor_desc(FRU_SPB, snr_num);
       sprintf(crisel, "%s %s %.2fV - ASSERT", snr_desc->name, thresh_name, val);
       break;
-    case MEZZ_SENSOR_TEMP:
-      if (thresh >= UNR_THRESH) {
-        pal_nic_otp_enable(val);
-      }
-      return;
     default:
       return;
   }
@@ -4462,11 +4199,6 @@ pal_sensor_deassert_handle(uint8_t fru, uint8_t snr_num, float val, uint8_t thre
       snr_desc = get_sensor_desc(FRU_SPB, snr_num);
       sprintf(crisel, "%s %s %.2fV - DEASSERT", snr_desc->name, thresh_name, val);
       break;
-    case MEZZ_SENSOR_TEMP:
-      if (thresh <= UNC_THRESH) {
-        pal_nic_otp_disable(val);
-      }
-      return;
     default:
       return;
   }
