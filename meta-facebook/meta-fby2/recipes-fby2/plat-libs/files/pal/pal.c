@@ -106,6 +106,8 @@
 
 #define IMC_VER_SIZE 8
 
+#define RAS_CRASHDUMP_FILE "/mnt/data/crashdump_slot"
+
 #define REINIT_TYPE_FULL            0
 #define REINIT_TYPE_HOST_RESOURCE   1
 
@@ -141,6 +143,8 @@ static bool m_sled_ac_start = false;
 
 static void *m_gpio_hand_sw = NULL;
 static void *m_hbled_output = NULL;
+
+static int ignore_thresh = 0;
 
 typedef struct {
   uint16_t flag;
@@ -318,6 +322,14 @@ static const char *sock_path_jtag_msg[MAX_NODES+1] = {
   SOCK_PATH_JTAG_MSG "_2",
   SOCK_PATH_JTAG_MSG "_3",
   SOCK_PATH_JTAG_MSG "_4"
+};
+
+static const char *ras_dump_path[MAX_NODES+1] = {
+  "",
+  RAS_CRASHDUMP_FILE "1",
+  RAS_CRASHDUMP_FILE "2",
+  RAS_CRASHDUMP_FILE "3",
+  RAS_CRASHDUMP_FILE "4"
 };
 
 //check power policy and power state to power on/off server after AC power restore
@@ -2367,7 +2379,7 @@ pal_get_hand_sw_physically(uint8_t *pos) {
 
 int
 pal_get_hand_sw(uint8_t *pos) {
-  char value[MAX_VALUE_LEN];
+  char value[MAX_VALUE_LEN] = {0};
   uint8_t loc;
   int ret;
 
@@ -3234,8 +3246,9 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
         uint8_t current_post = pal_is_post_ongoing();
         long current_time_stamp;
         struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
+        clock_gettime(CLOCK_MONOTONIC, &ts);
         current_time_stamp = ts.tv_sec;
+        ignore_thresh=0;
 
         ret = pal_get_last_post(&last_post);
         if (ret < 0) {
@@ -3251,14 +3264,14 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
           pal_set_last_post(current_post);
           sprintf(str, "%.2f",*((float*)value));
           edb_cache_set(key, str);
-          return -1;
+          ignore_thresh=1;
         }
 
         if (current_post == 1) {
           // POST is ongoing
           sprintf(str, "%.2f",*((float*)value));
           edb_cache_set(key, str);
-          return -1;
+          ignore_thresh=1;
         } else {
           long post_end_timestamp = 0;
           int ret = pal_get_post_end_timestamp(&post_end_timestamp);
@@ -3270,7 +3283,7 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
             // wait for fan speed deassert after POST
             sprintf(str, "%.2f",*((float*)value));
             edb_cache_set(key, str);
-            return -1;
+            ignore_thresh=1;
           }
         }
       }
@@ -3293,6 +3306,20 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
   }
 
   return ret;
+}
+
+int
+pal_ignore_thresh(uint8_t fru, uint8_t snr_num, uint8_t thresh) {
+  if(fru== FRU_SPB) {
+    if ((snr_num == SP_SENSOR_FAN0_TACH) || (snr_num == SP_SENSOR_FAN1_TACH)) {
+      if (thresh == UNC_THRESH) {
+        if(ignore_thresh){
+          return 1;
+        }
+      }
+    }
+  }
+  return 0;
 }
 
 int
@@ -3374,7 +3401,7 @@ pal_alter_sensor_thresh_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
         long current_time_stamp = 0;
         long post_end_timestamp = 0;
         struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
+        clock_gettime(CLOCK_MONOTONIC, &ts);
         current_time_stamp = ts.tv_sec;
 
         int ret = pal_get_post_end_timestamp(&post_end_timestamp);
@@ -4274,6 +4301,171 @@ pal_parse_sel_rc(uint8_t fru, uint8_t *sel, char *error_log)
 }
 #endif
 
+#if defined(CONFIG_FBY2_EP)
+int
+pal_parse_sel_ep(uint8_t fru, uint8_t *sel, char *error_log)
+{
+  uint8_t snr_num = sel[11];
+  uint8_t *event_data = &sel[10];
+  uint8_t *ed = &event_data[3];
+  uint8_t sen_type = event_data[0];
+  char temp_log[512] = {0};
+  bool parsed = false;
+
+  switch(snr_num) {
+    case MEMORY_ECC_ERR:
+    case MEMORY_ERR_LOG_DIS:
+      strcpy(error_log, "");
+      if (snr_num == MEMORY_ECC_ERR) {
+        // SEL from MEMORY_ECC_ERR Sensor
+        if ((ed[0] & 0x0F) == 0x0) {
+          if (sen_type == 0x0C) {
+            strcat(error_log, "Correctable");
+          } else if (sen_type == 0x10)
+            strcat(error_log, "Correctable ECC error Logging Disabled");
+        } else if ((ed[0] & 0x0F) == 0x1) {
+          strcat(error_log, "Uncorrectable");
+        } else if ((ed[0] & 0x0F) == 0x2) {
+          strcat(error_log, "Parity Error");
+        } else if ((ed[0] & 0x0F) == 0x5)
+          strcat(error_log, "Correctable ECC error Logging Limit Reached");
+        else
+          strcat(error_log, "Unknown");
+      } else {
+        // SEL from MEMORY_ERR_LOG_DIS Sensor
+        if ((ed[0] & 0x0F) == 0x0)
+          strcat(error_log, "Correctable Memory Error Logging Disabled");
+        else
+          strcat(error_log, "Unknown");
+      }
+
+      if (((ed[1] & 0xC) >> 2) == 0x0) {  /* All Info Valid */
+        /* If critical SEL logging is available, do it */
+        if (sen_type == 0x0C) {
+          if ((ed[0] & 0x0F) == 0x0) {
+            sprintf(temp_log, "DIMM%02X ECC err,FRU:%u", ed[2], fru);
+            pal_add_cri_sel(temp_log);
+          } else if ((ed[0] & 0x0F) == 0x1) {
+            sprintf(temp_log, "DIMM%02X UECC err,FRU:%u", ed[2], fru);
+            pal_add_cri_sel(temp_log);
+          } else if ((ed[0] & 0x0F) == 0x2) {
+            sprintf(temp_log, "DIMM%02X Parity err,FRU:%u", ed[2], fru);
+            pal_add_cri_sel(temp_log);
+          }
+        }
+        /* Then continue parse the error into a string. */
+        /* All Info Valid                               */
+        sprintf(temp_log, " (DIMM %02X) Logical Rank %d", ed[2], ed[1] & 0x03);
+      } else if (((ed[1] & 0xC) >> 2) == 0x1) {
+        /* DIMM info not valid */
+        sprintf(temp_log, " (CPU# %d, CHN# %d)",
+            (ed[2] & 0xE0) >> 5, (ed[2] & 0x1C) >> 2);
+      } else if (((ed[1] & 0xC) >> 2) == 0x2) {
+        /* CHN info not valid */
+        sprintf(temp_log, " (CPU# %d, DIMM# %d)",
+            (ed[2] & 0xE0) >> 5, ed[2] & 0x3);
+      } else if (((ed[1] & 0xC) >> 2) == 0x3) {
+        /* CPU info not valid */
+        sprintf(temp_log, " (CHN# %d, DIMM# %d)",
+            (ed[2] & 0x1C) >> 2, ed[2] & 0x3);
+      }
+      strcat(error_log, temp_log);
+      parsed = true;
+      break;
+    case BIC_EP_SENSOR_SYSTEM_STATUS:
+      strcpy(error_log, "");
+      switch (ed[0] & 0x0F) {
+        case 0x05:
+          strcat(error_log, "HSC_Throttle");
+          break;
+        case 0x06:
+          strcat(error_log, "MB_Throttle");
+          break;
+        default:
+          strcat(error_log, "Unknown");
+          break;
+      }
+      parsed = true;
+      break;
+    case BIC_EP_SENSOR_VR_HOT:
+      strcpy(error_log, "");
+      switch (ed[0] & 0x0F) {
+        case 0x00:
+          strcat(error_log, "SRAM_CORE_VR_HOT");
+          break;
+        case 0x01:
+          strcat(error_log, "MEM_SOC_VR_HOT");
+          break;
+        default:
+          strcat(error_log, "Unknown");
+          break;
+      }
+      parsed = true;
+      break;
+    case BIC_EP_SENSOR_CPU_DIMM_HOT:
+      strcpy(error_log, "");
+      if ((ed[0] << 16 | ed[1] << 8 | ed[2]) == 0x00FFFF)
+        strcat(error_log, "PROCHOT");
+      else
+        strcat(error_log, "Unknown");
+      sprintf(temp_log, "CPU_DIMM_HOT %s", error_log);
+      pal_add_cri_sel(temp_log);
+      parsed = true;
+      break;
+    case NBU_ERROR:
+      strcpy(error_log, "");
+      if (ed[0] == 0xAB) {
+        strcat(error_log, "Uncorrectable");
+      } else if (ed[0] == 0xAC) {
+        strcat(error_log, "Correctable");
+      } else {
+        strcat(error_log, "Unknown");
+      }
+      sprintf(temp_log, " (POST code %02X) ", ed[1]);
+      strcat(error_log, temp_log);
+      switch (ed[2]) {
+        case 0x00:
+          strcat(error_log, "NBU Tag Correctable ECC Error");
+          break;
+        case 0x01:
+          strcat(error_log, "NBU Tag Uncorrectable ECC Error");
+          break;
+        case 0x02:
+          strcat(error_log, "NBU BAR Address Error");
+          break;
+        case 0x03:
+          strcat(error_log, "NBU Snoop Filter Correctable ECC Error");
+          break;
+        case 0x04:
+          strcat(error_log, "NBU Snoop Filter Uncorrectable ECC Error");
+          break;
+        case 0x05:
+          strcat(error_log, "NBU Timeout Error");
+          break;
+        default:
+          strcat(error_log, "Unknown");
+          break;
+      }
+      parsed = true;
+      break;
+  }
+
+  if (parsed == true) {
+    if ((event_data[2] & 0x80) == 0) {
+      strcat(error_log, " Assertion");
+    } else {
+      strcat(error_log, " Deassertion");
+    }
+    return 0;
+  }
+
+  pal_parse_sel_helper(fru, sel, error_log);
+
+  return 0;
+
+}
+#endif
+
 int
 pal_parse_sel_tl(uint8_t fru, uint8_t *sel, char *error_log)
 {
@@ -4393,7 +4585,7 @@ pal_parse_sel_tl(uint8_t fru, uint8_t *sel, char *error_log)
       }
       parsed = true;
       break;
-  }  
+  }
 
   if (parsed == true) {
     if ((event_data[2] & 0x80) == 0) {
@@ -4413,7 +4605,7 @@ pal_parse_sel_tl(uint8_t fru, uint8_t *sel, char *error_log)
 int
 pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
 {
-#if defined(CONFIG_FBY2_RC)
+#if defined(CONFIG_FBY2_RC) || defined(CONFIG_FBY2_EP)
   int ret = -1;
   uint8_t server_type = 0xFF;
   ret = fby2_get_server_type(fru, &server_type);
@@ -4421,9 +4613,16 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
     syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
   }
   switch (server_type) {
+#if defined(CONFIG_FBY2_RC)
     case SERVER_TYPE_RC:
       pal_parse_sel_rc(fru, sel, error_log);
       break;
+#endif
+#if defined(CONFIG_FBY2_EP)
+    case SERVER_TYPE_EP:
+      pal_parse_sel_ep(fru, sel, error_log);
+      break;
+#endif
     case SERVER_TYPE_TL:
       pal_parse_sel_tl(fru, sel, error_log);
       break;
@@ -4909,7 +5108,7 @@ pal_fan_dead_handle(int fan_num) {
     return 0;
 
   fan_dead_actived_flag = SETBIT(fan_dead_actived_flag, fan_num);
-  if (GETBIT(fan_dead_actived_flag, fan_num) && GETBIT(fan_dead_actived_flag, fan_num))
+  if (GETBIT(fan_dead_actived_flag, 0) && GETBIT(fan_dead_actived_flag, 1))
     both_fan_dead_control = 1;
 
   if (1 == both_fan_dead_control) {
@@ -5181,6 +5380,18 @@ pal_set_ppin_info(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *res
 	int i;
 	int completion_code = CC_UNSPECIFIED_ERROR;
 	*res_len = 0;
+#if defined(CONFIG_FBY2_EP)
+	int ret;
+	uint8_t server_type = 0xFF;
+	ret = fby2_get_server_type(slot, &server_type);
+	if (ret) {
+		syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
+	}
+
+	if (server_type == SERVER_TYPE_EP) {
+		return CC_INVALID_CMD;
+	}
+#endif
 	sprintf(key, "slot%d_cpu_ppin", slot);
 
 	for (i = 0; i < SIZE_CPU_PPIN; i++) {
@@ -6018,6 +6229,39 @@ pal_handle_oem_1s_asd_msg_in(uint8_t slot, uint8_t *data, uint8_t data_len)
   }
 
   close(sock);
+  return 0;
+}
+
+int
+pal_handle_oem_1s_ras_dump_in(uint8_t slot, uint8_t *data, uint8_t data_len)
+{
+  static uint32_t last_dump_ts[MAX_NODES + 1] = {0};
+  struct timespec ts;
+  FILE *fp;
+
+  switch (data[0]) {
+    case 0x02:  // only one package
+    case 0x03:  // the first package
+    case 0x04:  // the middle package
+    case 0x05:  // the last package
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      fp = fopen(ras_dump_path[slot], (ts.tv_sec > last_dump_ts[slot])?"w":"a+");
+      last_dump_ts[slot] = ts.tv_sec + 60;
+      if (fp == NULL) {
+        syslog(LOG_ERR, "%s: fopen", __FUNCTION__);
+        return -1;
+      }
+
+      if (fwrite(&data[1], 1, data_len, fp) <= 0) {
+        syslog(LOG_ERR, "%s: fwrite", __FUNCTION__);
+        fclose(fp);
+        return -1;
+      }
+
+      fclose(fp);
+      break;
+  }
+
   return 0;
 }
 

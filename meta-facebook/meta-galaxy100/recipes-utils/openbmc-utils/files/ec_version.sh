@@ -1,4 +1,6 @@
-# Copyright 2014-present Facebook. All Rights Reserved.
+#!/bin/bash
+#
+# Copyright 2015-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -6,7 +8,7 @@
 #
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -14,19 +16,12 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
+#
 
-FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
+r=$(head -n 1 /sys/class/i2c-adapter/i2c-0/0-0033/version | awk '{print substr ($1, 2, 2)}')
+e=$(head -n 1 /sys/class/i2c-adapter/i2c-0/0-0033/version | awk '{print substr ($1, 5, 2)}')
 
-SRC_URI += "file://time-sync.sh \
-            file://power-on.sh \
-           "
+released_date=$(head -n 1 /sys/class/i2c-adapter/i2c-0/0-0033/build_date_input)
 
-binfiles += "time-sync.sh"
-
-do_install_append() {
-  # init
-  install -d ${D}${sysconfdir}/init.d
-  install -m 755 power-on.sh ${D}${sysconfdir}/init.d/power-on.sh
-  update-rc.d -r ${D} power-on.sh start 70 5 .
-}
-
+echo "EC Released Version: R$(printf '%02d' $r).E$(printf '%02d' $e)"
+echo "EC Released Date: $released_date"

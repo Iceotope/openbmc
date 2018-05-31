@@ -1380,18 +1380,11 @@ pal_is_fru_ready(uint8_t fru, uint8_t *status) {
 int
 pal_is_slot_server(uint8_t fru)
 {
-  switch(minilaketb_get_slot_type(fru))
-  {
-    case SLOT_TYPE_SERVER:
-      break;
-    case SLOT_TYPE_CF:
-    case SLOT_TYPE_GP:
-    case SLOT_TYPE_NULL:
-      return 0;
-      break;
+  if( fru == FRU_SLOT1 ) {
+    return 1; // only have server slot1 
+  } else {
+    return 0;
   }
-
-  return 1;
 }
 
 int
@@ -2284,6 +2277,7 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
   uint8_t val;
   uint8_t retry = MAX_READ_RETRY;
   sensor_check_t *snr_chk;
+  bic_gpio_t gpio;
 
   switch(fru) {
     case FRU_SLOT1:
@@ -2357,6 +2351,27 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
           edb_cache_set(key, str);
           return -1;
         }
+      }
+      if ( sensor_num == SP_SENSOR_P3V3 ) {
+          while (retry) {
+            ret = bic_get_gpio(FRU_SLOT1, &gpio);
+            if (!ret)
+              break;
+            sleep(1);
+            retry--;
+          }
+
+          if (ret) {
+              val = 0;
+          } else {
+              val = gpio.pwrgd_pch_pwrok;
+          }
+
+          if (val == 0) {
+            sprintf(str, "%.2f",*((float*)value));
+            edb_cache_set(key, str);
+            return -1;
+          }
       }
     }
     if ((GETBIT(snr_chk->flag, UCR_THRESH) && (*((float*)value) >= snr_chk->ucr)) ||
@@ -3098,6 +3113,7 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
   uint8_t *ed = &event_data[3];
   char temp_log[512] = {0};
   uint8_t sen_type = event_data[0];
+  uint8_t chn_num, dimm_num;
 
   switch(snr_num) {
     case MEMORY_ECC_ERR:
@@ -3108,12 +3124,14 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
         if ((ed[0] & 0x0F) == 0x0) {
           if (sen_type == 0x0C) {
             strcat(error_log, "Correctable");
+            sprintf(temp_log, "DIMM%02X ECC err", ed[2]);
+            pal_add_cri_sel(temp_log);
           } else if (sen_type == 0x10)
             strcat(error_log, "Correctable ECC error Logging Disabled");
         } else if ((ed[0] & 0x0F) == 0x1) {
           strcat(error_log, "Uncorrectable");
-        } else if ((ed[0] & 0x0F) == 0x2) {
-          strcat(error_log, "Parity Error");
+          sprintf(temp_log, "DIMM%02X UECC err", ed[2]);
+          pal_add_cri_sel(temp_log);
         } else if ((ed[0] & 0x0F) == 0x5)
           strcat(error_log, "Correctable ECC error Logging Limit Reached");
         else
@@ -3126,35 +3144,43 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
           strcat(error_log, "Unknown");
       }
 
-      if (((ed[1] & 0xC) >> 2) == 0x0) {  /* All Info Valid */
+      // DIMM number (ed[2]):
+      // Bit[7:5]: Socket number  (Range: 0-7)
+      // Bit[4:3]: Channel number (Range: 0-3)
+      // Bit[2:0]: DIMM number    (Range: 0-7)
+      if (((ed[1] & 0xC) >> 2) == 0x0) {
+        /* All Info Valid */
+        chn_num = (ed[2] & 0x18) >> 3;
+        dimm_num = ed[2] & 0x7;
+
         /* If critical SEL logging is available, do it */
         if (sen_type == 0x0C) {
           if ((ed[0] & 0x0F) == 0x0) {
-            sprintf(temp_log, "DIMM%02X ECC err,FRU:%u", ed[2], fru);
+            sprintf(temp_log, "DIMM%c%d ECC err,FRU:%u", 'A'+chn_num,
+                    dimm_num, fru);
             pal_add_cri_sel(temp_log);
           } else if ((ed[0] & 0x0F) == 0x1) {
-            sprintf(temp_log, "DIMM%02X UECC err,FRU:%u", ed[2], fru);
-            pal_add_cri_sel(temp_log);
-          } else if ((ed[0] & 0x0F) == 0x2) {
-            sprintf(temp_log, "DIMM%02X Parity err,FRU:%u", ed[2], fru);
+            sprintf(temp_log, "DIMM%c%d UECC err,FRU:%u", 'A'+chn_num,
+                    dimm_num, fru);
             pal_add_cri_sel(temp_log);
           }
         }
         /* Then continue parse the error into a string. */
         /* All Info Valid                               */
-        sprintf(temp_log, " (DIMM %02X) Logical Rank %d", ed[2], ed[1] & 0x03);
+        sprintf(temp_log, " DIMM %c%d Logical Rank %d (CPU# %d, CHN# %d, DIMM# %d)",
+            'A'+chn_num, dimm_num, ed[1] & 0x03, (ed[2] & 0xE0) >> 5, chn_num, dimm_num);
       } else if (((ed[1] & 0xC) >> 2) == 0x1) {
         /* DIMM info not valid */
         sprintf(temp_log, " (CPU# %d, CHN# %d)",
-            (ed[2] & 0xE0) >> 5, (ed[2] & 0x1C) >> 2);
+            (ed[2] & 0xE0) >> 5, (ed[2] & 0x18) >> 3);
       } else if (((ed[1] & 0xC) >> 2) == 0x2) {
         /* CHN info not valid */
         sprintf(temp_log, " (CPU# %d, DIMM# %d)",
-            (ed[2] & 0xE0) >> 5, ed[2] & 0x3);
+            (ed[2] & 0xE0) >> 5, ed[2] & 0x7);
       } else if (((ed[1] & 0xC) >> 2) == 0x3) {
         /* CPU info not valid */
         sprintf(temp_log, " (CHN# %d, DIMM# %d)",
-            (ed[2] & 0x1C) >> 2, ed[2] & 0x3);
+            (ed[2] & 0x18) >> 3, ed[2] & 0x7);
       }
       strcat(error_log, temp_log);
       return 0;
@@ -4392,7 +4418,7 @@ pal_ipmb_processing(int bus, void *buf, uint16_t size) {
   struct timespec ts;
   static time_t last_time = 0;
 
-  if ((bus == 13) && (((uint8_t *)buf)[0] == 0x20)) {  // OCP LCD debug card
+  if ((bus == 4) && (((uint8_t *)buf)[0] == 0x20)) {  // OCP LCD debug card
     clock_gettime(CLOCK_MONOTONIC, &ts);
     if (ts.tv_sec >= (last_time + 5)) {
       last_time = ts.tv_sec;

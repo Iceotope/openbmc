@@ -51,6 +51,7 @@
 #define HOTSERVICE_FILE "/tmp/slot%d_reinit"
 #define HSLOT_PID  "/tmp/slot%u_reinit.pid"
 #define PWR_UTL_LOCK "/var/run/power-util_%d.lock"
+#define POST_FLAG_FILE "/tmp/cache_store/slot%d_post_flag" 
 
 #define DEBUG_ME_EJECTOR_LOG 0 // Enable log "GPIO_SLOTX_EJECTOR_LATCH_DETECT_N is 1 and SLOT_12v is ON" before mechanism issue is fixed
 
@@ -61,7 +62,6 @@ static struct timespec last_ejector_ts[MAX_NODES + 1];
 static uint8_t IsLatchOpenStart[MAX_NODES + 1] = {0};
 static void *latch_open_handler(void *ptr);
 static pthread_mutex_t latch_open_mutex[MAX_NODES + 1];
-static uint8_t insert_check[MAX_NODES + 1] = {0};
 
 char *fru_prsnt_log_string[3 * MAX_NUM_FRUS] = {
   // slot1, slot2, slot3, slot4
@@ -248,10 +248,6 @@ static void gpio_event_handle(gpio_poll_st *gp)
       // HOT SERVER event would be detected when SLED is pulled out
       if (value) {
         syslog(LOG_CRIT,"FRU: %u, SLOT%u_EJECTOR_LATCH is not closed", slot_id, slot_id);
-        if(insert_check[slot_id]) {
-          insert_check[slot_id] = false;
-          return;
-        }
 
         pthread_mutex_lock(&latch_open_mutex[slot_id]);
         if ( IsLatchOpenStart[slot_id] )
@@ -264,6 +260,7 @@ static void gpio_event_handle(gpio_poll_st *gp)
         //Create thread for latch open detect
         if (pthread_create(&latch_open_tid[slot_id], NULL, latch_open_handler, (void*)&slot_id) < 0) {
           syslog(LOG_WARNING, "[%s] Create latch_open_handler thread failed for slot%u\n",__func__, slot_id);
+          pthread_mutex_unlock(&latch_open_mutex[slot_id]);
           return;
         }
         IsLatchOpenStart[slot_id] = true;
@@ -439,6 +436,7 @@ hsvc_event_handler(void *ptr) {
   uint8_t status;
   char vpath[80] = {0};
   char hspath[80] = {0};
+  char postpath[80] = {0};
   char cmd[128] = {0};
   char slotrcpath[80] = {0};
   char hslotpid[80] = {0};
@@ -494,6 +492,12 @@ hsvc_event_handler(void *ptr) {
           }
         }
 
+        // Remove post flag file when board has been removed
+        sprintf(postpath, POST_FLAG_FILE, hsvc_info->slot_id);
+        memset(cmd, 0, sizeof(cmd));
+        sprintf(cmd,"rm %s",postpath);
+        system(cmd);
+
         // Create file for 12V-on re-init
         sprintf(hspath, HOTSERVICE_FILE, hsvc_info->slot_id);
         memset(cmd, 0, sizeof(cmd));
@@ -544,7 +548,6 @@ hsvc_event_handler(void *ptr) {
         if (!status) {
           sprintf(cmd, "/usr/local/bin/power-util slot%u 12V-on &",hsvc_info->slot_id);
           system(cmd);
-          insert_check[hsvc_info->slot_id] = true;
         }
       }
       else {

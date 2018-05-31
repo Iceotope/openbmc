@@ -267,6 +267,8 @@ bic_ipmb_wrapper(uint8_t slot_id, uint8_t netfn, uint8_t cmd,
   int i = 0;
   int ret;
   uint8_t bus_id;
+  uint8_t dataCksum;
+  int retry = 0;
 
   if (!_is_slot_12v_on(slot_id)) {
     return -1;
@@ -301,12 +303,21 @@ bic_ipmb_wrapper(uint8_t slot_id, uint8_t netfn, uint8_t cmd,
 
   tlen = IPMB_HDR_SIZE + IPMI_REQ_HDR_SIZE + txlen;
 
-  // Invoke IPMB library handler
-  lib_ipmb_handle(bus_id, tbuf, tlen, rbuf, &rlen);
+  while(retry < 5) {
+    // Invoke IPMB library handler
+    lib_ipmb_handle(bus_id, tbuf, tlen, rbuf, &rlen);
+
+    if (rlen == 0) {
+      retry++;
+      msleep(20);
+    }
+    else
+      break;
+  }
 
   if (rlen == 0) {
 #ifdef DEBUG
-    syslog(LOG_DEBUG, "bic_ipmb_wrapper: Zero bytes received\n");
+    syslog(LOG_DEBUG, "bic_ipmb_wrapper: Zero bytes received, retry:%d\n", retry);
 #endif
     return -1;
   }
@@ -324,6 +335,19 @@ bic_ipmb_wrapper(uint8_t slot_id, uint8_t netfn, uint8_t cmd,
   // copy the received data back to caller
   *rxlen = rlen - IPMB_HDR_SIZE - IPMI_RESP_HDR_SIZE;
   memcpy(rxbuf, res->data, *rxlen);
+
+  // Calculate dataCksum
+  // Note: dataCkSum byte is last byte
+  dataCksum = 0;
+  for (i = IPMB_DATA_OFFSET; i < (rlen - 1); i++) {
+    dataCksum += rbuf[i];
+  }
+  dataCksum = ZERO_CKSUM_CONST - dataCksum;
+
+  if (dataCksum != rbuf[rlen - 1]) {
+    syslog(LOG_ERR, "%s: Receive Data cksum does not match (expectative 0x%x, actual 0x%x)", __func__, dataCksum, rbuf[rlen - 1]);
+    return -1;
+  }
 
   return 0;
 }
@@ -517,8 +541,23 @@ bic_get_fw_ver(uint8_t slot_id, uint8_t comp, uint8_t *ver) {
   int ret;
 
 #ifdef CONFIG_FBY2_RC
-  if (comp == FW_ME)
-    return get_imc_version(slot_id, ver);
+  uint8_t server_type = 0xFF;
+
+  if (comp == FW_ME) {
+    ret = fby2_get_server_type(slot_id, &server_type);
+    if (ret) {
+      syslog(LOG_ERR, "%s, Get server type failed for slot%u", __func__, slot_id);
+      return -1;
+    }
+
+    switch (server_type) {
+      case SERVER_TYPE_RC:
+        return get_imc_version(slot_id, ver);
+      case SERVER_TYPE_TL:
+      default:
+        break;
+    }
+  }
 #endif
 
   // Fill the component for which firmware is requested
@@ -1765,6 +1804,7 @@ int
 bic_get_sdr(uint8_t slot_id, ipmi_sel_sdr_req_t *req, ipmi_sel_sdr_res_t *res, uint8_t *rlen) {
   int ret;
   uint8_t tbuf[MAX_IPMB_RES_LEN] = {0};
+  uint8_t rbuf[MAX_IPMB_RES_LEN] = {0};
   uint8_t tlen;
   uint8_t len;
   ipmi_sel_sdr_res_t *tres;
@@ -1773,13 +1813,15 @@ bic_get_sdr(uint8_t slot_id, ipmi_sel_sdr_req_t *req, ipmi_sel_sdr_res_t *res, u
   tres = (ipmi_sel_sdr_res_t *) tbuf;
 
   // Get SDR reservation ID for the given record
-  ret = _get_sdr_rsv(slot_id, &req->rsv_id);
+  ret = _get_sdr_rsv(slot_id, rbuf);
   if (ret) {
 #ifdef DEBUG
     syslog(LOG_ERR, "bic_read_sdr: _get_sdr_rsv returns %d\n", ret);
 #endif
     return ret;
   }
+
+  req->rsv_id = (rbuf[1] << 8) | rbuf[0];
 
   // Initialize the response length to zero
   *rlen = 0;
@@ -2099,7 +2141,7 @@ int get_imc_version(uint8_t slot, uint8_t *ver) {
   char str[MAX_VALUE_LEN] = {0};
 
   sprintf(key, "slot%d_imc_ver", (int)slot);
-  ret = kv_get(key, str);
+  ret = kv_get(key, str, NULL, KV_FPERSIST);
   if (ret) {
     return ret;
   }

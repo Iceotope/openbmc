@@ -26,7 +26,6 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/wait.h>
-#include <openbmc/edb.h>
 #include <openbmc/kv.h>
 #include <openbmc/ipmi.h>
 
@@ -214,6 +213,12 @@ pal_set_imc_version(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *r
 
 uint8_t __attribute__((weak))
 pal_parse_ras_sel(uint8_t slot, uint8_t *sel, char *error_log)
+{
+  return PAL_EOK;
+}
+
+int __attribute__((weak))
+pal_set_fru_post(uint8_t fru, uint8_t value)
 {
   return PAL_EOK;
 }
@@ -629,11 +634,11 @@ pal_parse_sel_helper(uint8_t fru, uint8_t *sel, char *error_log)
                      "Host Communication Error", "Real-time Clock Synchronization Failure",
                      "Platform Shutdown Initiated by Intel NM Policy", "Unknown"};
   char *nm_health_type[4] = {"Unknown", "Unknown", "SensorIntelNM", "Unknown"};
-  const char *thres_event_name[16] = {[0] = "Lower Non-critical", 
-                                      [2] = "Lower Critical", 
-                                      [4] = "Lower Non-recoverable", 
-                                      [7] = "Upper Non-critical", 
-                                      [9] = "Upper Critical", 
+  const char *thres_event_name[16] = {[0] = "Lower Non-critical",
+                                      [2] = "Lower Critical",
+                                      [4] = "Lower Non-recoverable",
+                                      [7] = "Upper Non-critical",
+                                      [9] = "Upper Critical",
                                       [11] = "Upper Non-recoverable"};
 
 
@@ -962,56 +967,69 @@ pal_parse_sel_helper(uint8_t fru, uint8_t *sel, char *error_log)
       }
       break;
     case SPS_FW_HEALTH:
-      if (event_data[0] == 0xDC && ed[1] == 0x06) {
-        strcat(error_log, "FW UPDATE");
+      if ((ed[0] & 0x0F) == 0x00) {
+        switch (ed[1]) {
+          case 0x00:
+            strcat(error_log, "Recovery GPIO forced");
+            return 1;
+          case 0x01:
+            strcat(error_log, "Image execution failed");
+            return 1;
+          case 0x02:
+            strcat(error_log, "Flash erase error");
+            return 1;
+          case 0x03:
+            strcat(error_log, "Flash state information");
+            return 1;
+          case 0x04:
+            strcat(error_log, "Internal error");
+            return 1;
+          case 0x05:
+            strcat(error_log, "BMC did not respond");
+            return 1;
+          case 0x06:
+            strcat(error_log, "Direct Flash update");
+            return 1;
+          case 0x07:
+            strcat(error_log, "Manufacturing error");
+            return 1;
+          case 0x08:
+            strcat(error_log, "Automatic Restore to Factory Presets");
+            return 1;
+          case 0x09:
+            strcat(error_log, "Firmware Exception");
+            return 1;
+          case 0x0A:
+            strcat(error_log, "Flash Wear-Out Protection Warning");
+            return 1;
+          case 0x0D:
+            strcat(error_log, "DMI interface error");
+            return 1;
+          case 0x0E:
+            strcat(error_log, "MCTP interface error");
+            return 1;
+          case 0x0F:
+            strcat(error_log, "Auto-configuration finished");
+            return 1;
+          case 0x10:
+            strcat(error_log, "Unsupported Segment Defined Feature");
+            return 1;
+          case 0x12:
+            strcat(error_log, "CPU Debug Capability Disabled");
+            return 1;
+          case 0x13:
+            strcat(error_log, "UMA operation error");
+            return 1;
+          default:
+            strcat(error_log, "Unknown");
+            break;
+        }
+      } else if ((ed[0] & 0x0F) == 0x01) {
+        strcat(error_log, "SMBus link failure");
         return 1;
-      } else if (ed[1] == 0x01) {
-        strcat(error_log, "Image execution failed");
-        return 1;
-      } else if (ed[1] == 0x02) {
-        strcat(error_log, "Flash erase error");
-        return 1;
-      } else if (ed[1] == 0x03) {
-        strcat(error_log, "Flash state information");
-        return 1;
-      } else if (ed[1] == 0x04) {
-        strcat(error_log, "Internal error");
-        return 1;
-      } else if (ed[1] == 0x05) {
-        strcat(error_log, "BMC did not respond");
-        return 1;
-      } else if (ed[1] == 0x07) {
-        strcat(error_log, "Manufacturing error");
-        return 1;
-      } else if (ed[1] == 0x08) {
-        strcat(error_log, "Automatic Restore to Factory Presets");
-        return 1;
-      } else if (ed[1] == 0x09) {
-        strcat(error_log, "Firmware Exception");
-        return 1;
-      } else if (ed[1] == 0x0A) {
-        strcat(error_log, "Flash Wear-Out Protection Warning");
-        return 1;
-      } else if (ed[1] == 0x0D) {
-        strcat(error_log, "DMI interface error");
-        return 1;
-      } else if (ed[1] == 0x0E) {
-        strcat(error_log, "MCTP interface error");
-        return 1;
-      } else if (ed[1] == 0x0F) {
-        strcat(error_log, "Auto-configuration finished");
-        return 1;
-      } else if (ed[1] == 0x10) {
-        strcat(error_log, "Unsupported Segment Defined Feature");
-        return 1;
-      } else if (ed[1] == 0x12) {
-        strcat(error_log, "CPU Debug Capability Disabled");
-        return 1;
-      } else if (ed[1] == 0x13) {
-        strcat(error_log, "UMA operation error");
-        return 1;
-      } else
-         strcat(error_log, "Unknown");
+      } else {
+        strcat(error_log, "Unknown");
+      }
       break;
 
     /*NM4.0 #550710, Revision 1.95, and turn to p.155*/
@@ -1309,7 +1327,7 @@ pal_is_crashdump_ongoing(uint8_t fru)
 
   //check the crashdump file in /tmp/cache_store/fru$1_crashdump
   sprintf(fname, "fru%d_crashdump", fru);
-  ret = edb_cache_get(fname, value);
+  ret = kv_get(fname, value, NULL, 0);
   if (ret < 0)
   {
      return 0;
@@ -1456,7 +1474,7 @@ pal_set_fw_update_ongoing(uint8_t fruid, uint16_t tmout) {
   ts.tv_sec += tmout;
   sprintf(value, "%d", ts.tv_sec);
 
-  if (edb_cache_set(key, value) < 0) {
+  if (kv_set(key, value, 0, 0) < 0) {
      return -1;
   }
 
@@ -1471,7 +1489,7 @@ pal_is_fw_update_ongoing(uint8_t fruid) {
   struct timespec ts;
 
   sprintf(key, "fru%d_fwupd", fruid);
-  ret = edb_cache_get(key, value);
+  ret = kv_get(key, value, NULL, 0);
   if (ret < 0) {
      return false;
   }
@@ -1522,7 +1540,7 @@ pal_get_restart_cause(uint8_t slot, uint8_t *restart_cause) {
 
   sprintf(key, "fru%d_restart_cause", slot);
 
-  if (kv_get(key, value)) {
+  if (kv_get(key, value, NULL, KV_FPERSIST)) {
     return -1;
   }
   if(sscanf(value, "%u", &cause) != 1) {
@@ -1540,7 +1558,7 @@ pal_set_restart_cause(uint8_t slot, uint8_t restart_cause) {
   sprintf(key, "fru%d_restart_cause", slot);
   sprintf(value, "%d", restart_cause);
 
-  if (kv_set(key, value)) {
+  if (kv_set(key, value, 0, KV_FPERSIST)) {
     return -1;
   }
   return 0;
@@ -1561,6 +1579,12 @@ pal_handle_oem_1s_intr(uint8_t slot, uint8_t *data)
 
 int __attribute__((weak))
 pal_handle_oem_1s_asd_msg_in(uint8_t slot, uint8_t *data, uint8_t data_len)
+{
+  return PAL_ENOTSUP;
+}
+
+int __attribute__((weak))
+pal_handle_oem_1s_ras_dump_in(uint8_t slot, uint8_t *data, uint8_t data_len)
 {
   return PAL_ENOTSUP;
 }
@@ -2136,3 +2160,7 @@ pal_get_me_name(uint8_t fru, char *target_name) {
   return;
 }
 
+int __attribute__((weak))
+pal_ignore_thresh(uint8_t fru, uint8_t snr_num, uint8_t thresh){
+  return 0;
+}

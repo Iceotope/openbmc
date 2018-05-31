@@ -499,6 +499,7 @@ static int mux_lock (struct mux *mux, int chan, int lease_time)
   if (ret == 0 && shm->ipmb_chan != chan) {
     clock_gettime(CLOCK_REALTIME, &to);
     to.tv_sec += mux->wait_time;
+    shm->expiration += mux->wait_time;
     while (1) {
       if (shm->using_num == 0) {
         break;
@@ -3071,8 +3072,8 @@ pal_set_key_value(char *key, char *value) {
 static int
 key_func_por_policy (int event, void *arg)
 {
-  char cmd[MAX_VALUE_LEN];
-  char value[MAX_VALUE_LEN];
+  char cmd[MAX_VALUE_LEN] = {0};
+  char value[MAX_VALUE_LEN] = {0};
 
   switch (event) {
     case KEY_BEFORE_SET:
@@ -3100,8 +3101,8 @@ key_func_por_policy (int event, void *arg)
 static int
 key_func_lps (int event, void *arg)
 {
-  char cmd[MAX_VALUE_LEN];
-  char value[MAX_VALUE_LEN];
+  char cmd[MAX_VALUE_LEN] = {0};
+  char value[MAX_VALUE_LEN] = {0};
 
   switch (event) {
     case KEY_BEFORE_SET:
@@ -3123,9 +3124,9 @@ key_func_lps (int event, void *arg)
 static int
 key_func_ntp (int event, void *arg)
 {
-  char cmd[MAX_VALUE_LEN];
-  char ntp_server_new[MAX_VALUE_LEN];
-  char ntp_server_old[MAX_VALUE_LEN];
+  char cmd[MAX_VALUE_LEN] = {0};
+  char ntp_server_new[MAX_VALUE_LEN] = {0};
+  char ntp_server_old[MAX_VALUE_LEN] = {0};
 
   switch (event) {
     case KEY_BEFORE_SET:
@@ -5161,12 +5162,14 @@ pal_set_def_key_value() {
   if (pal_is_bmc_por()) {
     /* Clear all the SEL errors */
     memset(key, 0, MAX_KEY_LEN);
+    strcpy(key, "server_sel_error");
 
     /* Write the value "1" which means FRU_STATUS_GOOD */
     ret = pal_set_key_value(key, "1");
 
     /* Clear all the sensor health files*/
     memset(key, 0, MAX_KEY_LEN);
+    strcpy(key, "server_sensor_health");
 
     /* Write the value "1" which means FRU_STATUS_GOOD */
     ret = pal_set_key_value(key, "1");
@@ -6531,7 +6534,6 @@ pal_parse_oem_sel(uint8_t fru, uint8_t *sel, char *error_log)
   else
     return 0;
 
-  pal_add_cri_sel(error_log);
   return 0;
 }
 

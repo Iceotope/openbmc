@@ -23,9 +23,14 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 
 prog="$0"
+board_rev=$(wedge_board_rev)
 
+PDBCPLD_L_SYSFS_DIR="/sys/class/i2c-adapter/i2c-55/55-0060"
+PDBCPLD_R_SYSFS_DIR="/sys/class/i2c-adapter/i2c-63/63-0060"
 PWR_USRV_RST_SYSFS="${SCMCPLD_SYSFS_DIR}/iso_com_rst_n"
 PWR_TH_RST_SYSFS="${SMBCPLD_SYSFS_DIR}/cpld_mac_reset_n"
+PWR_L_CYCLE_SYSFS="${PDBCPLD_L_SYSFS_DIR}/power_cycle_go"
+PWR_R_CYCLE_SYSFS="${PDBCPLD_R_SYSFS_DIR}/power_cycle_go"
 
 usage() {
     echo "Usage: $prog <command> [command options]"
@@ -43,6 +48,11 @@ usage() {
     echo "  reset: Power reset microserver ungracefully"
     echo "    options:"
     echo "      -s: Power reset whole minipack system ungracefully"
+    echo
+    echo "  pimreset: Power-cycle one or all PIM(s)"
+    echo "    options:"
+    echo "      -a  : Reset all PIMs or "
+    echo "      -2 , -3 , ... , -9 : Reset a single PIM (2, 3 ... 9) "
     echo
 }
 
@@ -145,11 +155,17 @@ do_reset() {
         esac
     done
     if [ $system -eq 1 ]; then
-
-        logger "Power reset the whole system ..."
-        echo -n "Power reset the whole system ..."
-        # TODO
-        echo -n "Hardware is not ready, skip ..."
+        if [ $board_rev -eq 4 ]; then
+            logger "EVTA hardware is not support, skip ..."
+            echo "EVTA hardware is not support, skip ..."
+            return -1
+        else
+            logger "Power reset the whole system ..."
+            echo  "Power reset the whole system ..."
+            echo 1 > $PWR_L_CYCLE_SYSFS
+            sleep 1
+            echo 1 > $PWR_R_CYCLE_SYSFS
+        fi
     else
         if ! wedge_is_us_on; then
             echo "Power resetting microserver that is powered off has no effect."
@@ -188,6 +204,9 @@ case "$command" in
         ;;
     reset)
         do_reset $@
+        ;;
+    pimreset)
+        do_pimreset $@
         ;;
     *)
         usage
