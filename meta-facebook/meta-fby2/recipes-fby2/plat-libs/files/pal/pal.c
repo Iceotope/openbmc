@@ -90,6 +90,7 @@
 #define PLATFORM_FILE "/tmp/system.bin"
 #define SLOT_FILE "/tmp/slot.bin"
 #define SLOT_RECORD_FILE "/tmp/slot%d.rc"
+#define SV_TYPE_RECORD_FILE "/tmp/server_type%d.rc"
 
 #define HOTSERVICE_SCRPIT "/usr/local/bin/hotservice-reinit.sh"
 #define HOTSERVICE_FILE "/tmp/slot%d_reinit"
@@ -224,6 +225,7 @@ char * key_list[] = {
 "fru2_restart_cause",
 "fru3_restart_cause",
 "fru4_restart_cause",
+"ntp_server",
 /* Add more Keys here */
 LAST_KEY /* This is the last key of the list */
 };
@@ -269,6 +271,7 @@ char * def_val_list[] = {
   "3", /* fru2_restart_cause */
   "3", /* fru3_restart_cause */
   "3", /* fru4_restart_cause */
+  "", /* ntp_server */
   /* Add more def values for the correspoding keys*/
   LAST_KEY /* Same as last entry of the key_list */
 };
@@ -514,6 +517,36 @@ pal_key_check(char *key) {
   return -1;
 }
 
+static int
+key_func_ntp(char *value)
+{
+  char cmd[MAX_VALUE_LEN] = {0};
+  char ntp_server_new[MAX_VALUE_LEN] = {0};
+  char ntp_server_old[MAX_VALUE_LEN] = {0};
+
+  // Remove old NTP server
+  kv_get("ntp_server", ntp_server_old);
+  if (strlen(ntp_server_old) > 2) {
+    snprintf(cmd, MAX_VALUE_LEN, "sed -i '/^restrict %s$/d' /etc/ntp.conf", ntp_server_old);
+    system(cmd);
+    snprintf(cmd, MAX_VALUE_LEN, "sed -i '/^server %s$/d' /etc/ntp.conf", ntp_server_old);
+    system(cmd);
+  }
+  // Add new NTP server
+  snprintf(ntp_server_new, MAX_VALUE_LEN, "%s", value);
+  if (strlen(ntp_server_new) > 2) {
+    snprintf(cmd, MAX_VALUE_LEN, "echo \"restrict %s\" >> /etc/ntp.conf", ntp_server_new);
+    system(cmd);
+    snprintf(cmd, MAX_VALUE_LEN, "echo \"server %s\" >> /etc/ntp.conf", ntp_server_new);
+    system(cmd);
+  }
+  // Restart NTP server
+  snprintf(cmd, MAX_VALUE_LEN, "/etc/init.d/ntpd restart > /dev/null &");
+  system(cmd);
+
+  return 0;
+}
+
 int
 pal_get_key_value(char *key, char *value) {
 
@@ -523,6 +556,7 @@ pal_get_key_value(char *key, char *value) {
 
   return kv_get(key, value);
 }
+
 int
 pal_set_key_value(char *key, char *value) {
 
@@ -530,6 +564,9 @@ pal_set_key_value(char *key, char *value) {
   if (pal_key_check(key))
     return -1;
 
+  if (!strcmp(key, "ntp_server")) {
+    key_func_ntp(value);
+  }
   return kv_set(key, value);
 }
 
@@ -1238,6 +1275,7 @@ pal_slot_pair_12V_on(uint8_t slot_id) {
        }
 #endif
 
+       sleep(2);  // wait BIC ready to reply Get GPIO Status command
        if (pal_get_server_power(pwr_slot, &status) < 0) {
          syslog(LOG_ERR, "%s: pal_get_server_power failed", __func__);
          return -1;
@@ -1402,7 +1440,6 @@ server_12v_off(uint8_t slot_id) {
 int
 pal_system_config_check(uint8_t slot_id) {
   char vpath[80] = {0};
-  char cmd[80] = {0};
   int ret=-1;
   uint8_t value;
   int slot_type = -1;
@@ -1410,12 +1447,13 @@ pal_system_config_check(uint8_t slot_id) {
   char slot_str[80] = {0};
   char last_slot_str[80] = {0};
   uint8_t server_type = 0xFF;
+  int last_server_type = -1;
 
   // 0(Server), 1(Crane Flat), 2(Glacier Point), 3(Empty Slot)
   slot_type = fby2_get_slot_type(slot_id);
   switch (slot_type) {
      case SLOT_TYPE_SERVER:
-#ifdef CONFIG_FBY2_RC
+#if defined(CONFIG_FBY2_RC) || defined(CONFIG_FBY2_EP)
        ret = fby2_get_server_type(slot_id, &server_type);
        if (ret) {
          syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
@@ -1425,8 +1463,11 @@ pal_system_config_check(uint8_t slot_id) {
          case SERVER_TYPE_RC:
            sprintf(slot_str,"RC");
            break;
+         case SERVER_TYPE_EP:
+           sprintf(slot_str,"EP");
+           break;
          case SERVER_TYPE_TL:
-           sprintf(slot_str,"Twin Lake");
+           sprintf(slot_str,"Twin Lakes");
            break;
          default:
            sprintf(slot_str,"Undefined server type");
@@ -1456,25 +1497,31 @@ pal_system_config_check(uint8_t slot_id) {
     printf("Get last slot type failed\n");
     return -1;
   }
+  unlink(vpath);
 
   // 0(Server), 1(Crane Flat), 2(Glacier Point), 3(Empty Slot)
   switch (last_slot_type) {
      case SLOT_TYPE_SERVER:
-#ifdef CONFIG_FBY2_RC
-       ret = fby2_get_server_type(slot_id, &server_type);
-       if (ret) {
-         syslog(LOG_ERR, "%s, Get server type failed\n", __func__);
-         return ret;
+#if defined(CONFIG_FBY2_RC) || defined(CONFIG_FBY2_EP)
+       sprintf(vpath, SV_TYPE_RECORD_FILE, slot_id);
+       if (read_device(vpath, &last_server_type)) {
+         syslog(LOG_ERR, "%s, Get last server type failed\n", __func__);
+         return -1;
        }
-       switch (server_type) {
+       unlink(vpath);
+
+       switch (last_server_type) {
          case SERVER_TYPE_RC:
-           sprintf(slot_str,"RC");
+           sprintf(last_slot_str,"RC");
+           break;
+         case SERVER_TYPE_EP:
+           sprintf(last_slot_str,"EP");
            break;
          case SERVER_TYPE_TL:
-           sprintf(slot_str,"Twin Lake");
+           sprintf(last_slot_str,"Twin Lakes");
            break;
          default:
-           sprintf(slot_str,"Undefined server type");
+           sprintf(last_slot_str,"Undefined server type");
            break;
        }
 #else
@@ -1495,11 +1542,8 @@ pal_system_config_check(uint8_t slot_id) {
        break;
   }
 
-  sprintf(cmd, "rm -f %s",vpath);
-  system(cmd);
-
-  if ( slot_type != last_slot_type) {
-    syslog(LOG_CRIT, "Unexpected swap on SLOT%u from %s to %s, FRU: %u",slot_id, last_slot_str, slot_str, slot_id);
+  if (slot_type != last_slot_type) {
+    syslog(LOG_CRIT, "Unexpected swap on SLOT%u from %s to %s, FRU: %u", slot_id, last_slot_str, slot_str, slot_id);
   }
 
   return 0;
@@ -2208,24 +2252,8 @@ pal_set_server_power(uint8_t slot_id, uint8_t cmd) {
         if (ret < 0)
           return ret;
 
-#ifdef CONFIG_FBY2_RC
-        ret = fby2_get_server_type(slot_id, &server_type);
-        if (ret < 0)
-          return ret;
-        switch (server_type) {
-          case SERVER_TYPE_RC:
-            sleep(3);
-            break;
-          case SERVER_TYPE_TL:
-            msleep(100); //some server miss to detect a quick pulse, so delay 100ms between low high
-            break;
-          default:
-            sleep(3);
-            break;
-        }
-#else
         msleep(100); //some server miss to detect a quick pulse, so delay 100ms between low high
-#endif
+
         ret = pal_set_rst_btn(slot_id, 1);
         if (ret < 0)
           return ret;

@@ -27,8 +27,10 @@ SRC_URI += "file://board-utils.sh \
             file://pdbcpld_update.sh \
             file://pimcpld_update.sh \
             file://power-on.sh \
+            file://presence_util.sh \
             file://reset_brcm.sh \
             file://scmcpld_update.sh \
+            file://set_pim_sensor.sh \
             file://setup_board.sh \
             file://setup_i2c.sh \
             file://seutil \
@@ -45,11 +47,13 @@ OPENBMC_UTILS_FILES += " \
     disable_watchdog.sh \
     fcmcpld_update.sh \
     fpga_ver.sh \
+    presence_util.sh \
     peutil \
     pdbcpld_update.sh \
     pimcpld_update.sh \
     reset_brcm.sh \
     scmcpld_update.sh \
+    set_pim_sensor.sh \
     seutil \
     smbcpld_update.sh \
     sol.sh \
