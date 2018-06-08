@@ -69,41 +69,36 @@ done
 
 ln -s /sys/devices/soc0/amba/f8007100.adc/iio:device0 /tmp/mezzanine/bmc/xadc
 
-# I2C
-gpio_export_out ${SITE_I2C_RST}
-gpio_export_out ${DB_I2C_RST}
+# I2C resets, export them as inputs
+
+# Active low reset, so put them in normal mode when we turn them to outputs.
+gpio_set ${SITE_I2C_RST} 1
+gpio_set ${DB_I2C_RST} 1
 
 ln -s /sys/class/gpio/gpio${SITE_I2C_RST} /tmp/mezzanine/gpio/SITE_I2C_RST
 ln -s /sys/class/gpio/gpio${DB_I2C_RST} /tmp/mezzanine/gpio/DB_I2C_RST
 
-# Active low reset, so put them in normal mode
-gpio_set ${SITE_I2C_RST} 1
-gpio_set ${DB_I2C_RST} 1
 
 # EEProm WP
-gpio_export_out ${EEPROM_WP}
-ln -s /sys/class/gpio/gpio${EEPROM_WP} /tmp/mezzanine/gpio/EEPROM_WP
 gpio_set ${EEPROM_WP} 0
-
-# Power on (48V)
-gpio_export_out ${PS_ON}
-ln -s /sys/class/gpio/gpio${PS_ON} /tmp/mezzanine/gpio/PS_ON
-gpio_set ${PS_ON} 0
-
-# Retimer resets
-gpio_export_out ${RETIMER_RESET}
-ln -s /sys/class/gpio/gpio${RETIMER_RESET} /tmp/mezzanine/gpio/RETIMER_RESET
-gpio_set ${RETIMER_RESET} 1
+ln -s /sys/class/gpio/gpio${EEPROM_WP} /tmp/mezzanine/gpio/EEPROM_WP
 
 # 2v5 enable, turns on the retimers
-gpio_export_out ${REG_2V5_ENABLE}
+gpio_set ${REG_2V5_ENABLE} 0
 ln -s /sys/class/gpio/gpio${REG_2V5_ENABLE} /tmp/mezzanine/gpio/REG_2V5_ENABLE
+
+# Power on (48V)
+gpio_set ${PS_ON} 0
+ln -s /sys/class/gpio/gpio${PS_ON} /tmp/mezzanine/gpio/PS_ON
+
+# Release reset on retimers, and turn power on
+gpio_set ${RETIMER_RESET} 1
 gpio_set ${REG_2V5_ENABLE} 1
+ln -s /sys/class/gpio/gpio${RETIMER_RESET} /tmp/mezzanine/gpio/RETIMER_RESET
 
 # Internal Serial loopback
-gpio_export_out ${SERIAL_LOOPBACK}
-ln -s /sys/class/gpio/gpio${SERIAL_LOOPBACK} /tmp/mezzanine/gpio/SERIAL_LOOPBACK
 gpio_set ${SERIAL_LOOPBACK} 0
+ln -s /sys/class/gpio/gpio${SERIAL_LOOPBACK} /tmp/mezzanine/gpio/SERIAL_LOOPBACK
 
 # Slot ID
 index=0
@@ -164,6 +159,8 @@ SITE_EEPROM_OFFSET=31
 for i in `seq 1 ${MAX_SITE}`
 do
   site_type=$(get_eeprom /tmp/mezzanine/eeprom $((${SITE_EEPROM_OFFSET}+$i)) )
+  # Remove leading zeros
+  site_type=$((10#$site_type))
   if [ "$site_type" -gt 3 ]; then
   ## None
     if [ "$site_type" -eq 255 ]; then
@@ -228,10 +225,9 @@ do
       rm -f /tmp/mezzanine/db_${1}/type
 
       # Assign site's IO expander defaults, based on TPDB
+      # we use low/high on outputs to spec default values
       SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_TPDB[@]}")
       SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_TPDB[@]}")
-      SITE_LOWIO_VAL_DEFAULT=("${SITE_LOWIO_VAL_DEFAULT_TPDB[@]}")
-      SITE_HIGHIO_VAL_DEFAULT=("${SITE_HIGHIO_VAL_DEFAULT_TPDB[@]}")
     ;;
     1)
     ## QFDB,
@@ -240,6 +236,9 @@ do
     2)
     ## KDB,
       echo "KDB board in site ${i}"
+      # Assign site's IO expander defaults
+      SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_KDB[@]}")
+      SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_KDB[@]}")
     ;;
     3)
     ## TPDB,
@@ -248,8 +247,7 @@ do
       # Assign site's IO expander defaults
       SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_TPDB[@]}")
       SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_TPDB[@]}")
-      SITE_LOWIO_VAL_DEFAULT=("${SITE_LOWIO_VAL_DEFAULT_TPDB[@]}")
-      SITE_HIGHIO_VAL_DEFAULT=("${SITE_HIGHIO_VAL_DEFAULT_TPDB[@]}")
+
     ;;
     *)
     ## OTHERS
@@ -257,8 +255,7 @@ do
       # Assign site's IO expander defaults, based on TPDB
       SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_TPDB[@]}")
       SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_TPDB[@]}")
-      SITE_LOWIO_VAL_DEFAULT=("${SITE_LOWIO_VAL_DEFAULT_TPDB[@]}")
-      SITE_HIGHIO_VAL_DEFAULT=("${SITE_HIGHIO_VAL_DEFAULT_TPDB[@]}")
+
     ;;
   esac
 
@@ -298,17 +295,19 @@ do
     done
   fi
 
-## Set default values.. if not empty
-  for j in `seq 0 15`
-  do
-    if [ "${SITE_LOWIO_DIR_DEFAULT[j]}" == "out" ]; then
-      echo "${SITE_LOWIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/${j}/value
-    fi
-    if [ "${SITE_HIGHIO_DIR_DEFAULT[j]}" == "out" ]; then
-      echo "${SITE_HIGHIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))/value
-    fi
+## Values are encoded in the direction as low/high
+### Set default values.. if not empty
+#  for j in `seq 0 15`
+#  do
+#    if [ "${SITE_LOWIO_DIR_DEFAULT[j]}" == "out" ]; then
+#      echo "${SITE_LOWIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/${j}/value
+#    fi
+#    if [ "${SITE_HIGHIO_DIR_DEFAULT[j]}" == "out" ]; then
+#      echo "${SITE_HIGHIO_VAL_DEFAULT[j]}" > /tmp/mezzanine/site_${i}/gpio/IO/$((j+16))/value
+#    fi
+#
+#  done
 
-  done
 done
 
 

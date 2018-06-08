@@ -80,9 +80,9 @@ declare -a SITE_LOWIO_DIR_DEFAULT_TPDB=( "in" \
   "in" \
   "in" \
   "in" \
-  "out" \
-  "out" \
-  "out" \
+  "low" \
+  "low" \
+  "low" \
   "in" \
   "in" \
   "in" \
@@ -97,53 +97,88 @@ declare -a SITE_HIGHIO_DIR_DEFAULT_TPDB=( "in" \
   "in" \
   "in" \
   "in" \
-  "out" \
-  "out" \
-  "out" \
-  "out" \
+  "high" \
+  "high" \
+  "high" \
+  "low" \
   "in" \
   "in" \
   "in" \
   "in" \
   "in" \
-  "out" \
-  "out" \
-  "out" )
+  "high" \
+  "low" \
+  "high" )
 
-declare -a SITE_LOWIO_VAL_DEFAULT_TPDB=( "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" )
+# This is for KDB operation
+declare -a SITE_LOWIO_DIR_DEFAULT_KDB=( "in" \
+  "in" \
+  "in" \
+  "in" \
+  "low" \
+  "low" \
+  "high" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" )
 
-declare -a SITE_HIGHIO_VAL_DEFAULT_TPDB=( "0" \
-  "0" \
-  "0" \
-  "0" \
-  "1" \
-  "1" \
-  "1" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "0" \
-  "1" \
-  "0" \
-  "1" )
+declare -a SITE_HIGHIO_DIR_DEFAULT_KDB=( "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "high" \
+  "high" \
+  "high" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "low" \
+  "high" \
+  "low" \
+  "high" )
 
+# This is for QFDB operation
+declare -a SITE_LOWIO_DIR_DEFAULT_QFDB=( "in" \
+  "in" \
+  "in" \
+  "in" \
+  "low" \
+  "low" \
+  "low" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" )
+
+declare -a SITE_HIGHIO_DIR_DEFAULT_QAFDB=( "in" \
+  "in" \
+  "in" \
+  "in" \
+  "low" \
+  "low" \
+  "high" \
+  "low" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
+  "high" \
+  "low" \
+  "high" )
 
 declare -a SITE_TYPE_NAMES=( "NONE" \
   "QFDB" \
@@ -160,19 +195,10 @@ SITE_TYPE_TPDB=3
 
 
 declare -a DB_TPDB_IO_DIR_DEFAULT=( "out" \
-  "out" \
-  "out" \
-  "out" \
-  "out" \
-  "out" \
-  "out" \
-  "out" )
-
-declare -a DB_TPDB_IO_VAL_DEFAULT=( "1" \
-  "0" \
-  "0" \
-  "1" \
-  "1" \
-  "1" \
-  "1" \
-  "0" )
+  "low" \
+  "low" \
+  "high" \
+  "high" \
+  "high" \
+  "high" \
+  "low" )

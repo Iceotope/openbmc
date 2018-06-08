@@ -262,12 +262,6 @@ init_tpdb() {
       echo "${DB_TPDB_IO_DIR_DEFAULT[j]}" > /tmp/mezzanine/db_${i}/gpio/IO/${j}/direction
 
     done
-  for j in `seq 0 7`
-  do
-    if [ "${DB_TPDB_IO_DIR_DEFAULT[j]}" == "out" ]; then
-      echo "${DB_TPDB_IO_VAL_DEFAULT[j]}" > /tmp/mezzanine/db_${i}/gpio/IO/${j}/value
-    fi
-  done
   fi
   ## Load PWM driver
 
