@@ -29,11 +29,15 @@
 #include <syslog.h>
 #include <pthread.h>
 #include <string.h>
+#include <openbmc/kv.h>
 #include "fby2_common.h"
 
 #define CRASHDUMP_BIN       "/usr/local/bin/autodump.sh"
 #define CRASHDUMP_FILE      "/mnt/data/crashdump_"
 #define CRASHDUMP_PID       "/var/run/autodump%d.pid"
+
+#define CPLDDUMP_BIN       "/usr/local/bin/cpld-dump.sh"
+#define CPLDDUMP_PID       "/var/run/cplddump%d.pid"
 
 struct threadinfo {
   uint8_t is_running;
@@ -42,6 +46,8 @@ struct threadinfo {
 };
 
 static struct threadinfo t_dump[MAX_NUM_FRUS] = {0, };
+
+static struct threadinfo t_cpld_dump[MAX_NUM_FRUS] = {0, };
 
 int
 fby2_common_fru_name(uint8_t fru, char *str) {
@@ -166,7 +172,7 @@ second_dwr_dump(void *arg) {
     sprintf(cmd,"rm %s",fname);
     system(cmd);
   }
-  
+
   // Execute automatic crashdump
   memset(cmd, 0, 128);
   syslog(LOG_WARNING, "Start Second/DWR Autodump");
@@ -190,8 +196,13 @@ fby2_common_crashdump(uint8_t fru,bool platform_reset) {
     return 0;
   }
 
-  // Check if a crashdump for that fru is already running.
-  // If yes, kill that thread and start a new one.
+  // Check if a crashdump for that fru is already running
+  if (t_dump[fru-1].is_running == 2) {
+    syslog(LOG_WARNING, "fby2_common_crashdump: second_dwr_dump for FRU %d is running\n", fru);
+    return 0;
+  }
+
+  // If yes, kill that thread and start a new one
   if (t_dump[fru-1].is_running) {
     ret = pthread_cancel(t_dump[fru-1].pt);
     if (ret == ESRCH) {
@@ -216,19 +227,17 @@ fby2_common_crashdump(uint8_t fru,bool platform_reset) {
   t_dump[fru-1].fru = fru;
   if (platform_reset) {
     if (pthread_create(&(t_dump[fru-1].pt), NULL, second_dwr_dump, (void*) &t_dump[fru-1].fru) < 0) {
-    syslog(LOG_WARNING, "fby2_common_crashdump: pthread_create for"
-        " FRU %d failed\n", fru);
-    return -1;
+      syslog(LOG_WARNING, "fby2_common_crashdump: pthread_create for FRU %d failed\n", fru);
+      return -1;
     }
+    t_dump[fru-1].is_running = 2;
   } else {
     if (pthread_create(&(t_dump[fru-1].pt), NULL, generate_dump, (void*) &t_dump[fru-1].fru) < 0) {
-    syslog(LOG_WARNING, "fby2_common_crashdump: pthread_create for"
-        " FRU %d failed\n", fru);
-    return -1;
+      syslog(LOG_WARNING, "fby2_common_crashdump: pthread_create for FRU %d failed\n", fru);
+      return -1;
     }
+    t_dump[fru-1].is_running = 1;
   }
-
-  t_dump[fru-1].is_running = 1;
 
   syslog(LOG_INFO, "fby2_common_crashdump: Crashdump for FRU: %d is being generated.", fru);
 
@@ -255,7 +264,7 @@ fby2_common_set_ierr(uint8_t fru, bool value) {
 
   sprintf(cvalue, (value == true) ? "1": "0");
 
-  return edb_cache_set(key,cvalue);
+  return kv_set(key, cvalue, 0, 0);
 }
 
 int
@@ -277,7 +286,7 @@ fby2_common_get_ierr(uint8_t fru, bool *value) {
       return -1;
   }
 
-  ret = edb_cache_get(key, cvalue);
+  ret = kv_get(key, cvalue, NULL, 0);
   if (ret) {
     return ret;
   }
@@ -286,5 +295,83 @@ fby2_common_get_ierr(uint8_t fru, bool *value) {
   } else {
     *value = false;
   }
+  return 0;
+}
+
+void *
+generate_cpld_dump(void *arg) {
+
+  uint8_t fru = *(uint8_t *) arg;
+  char cmd[128];
+  char fname[128];
+  char fruname[16];
+  int rc;
+
+  // Usually the pthread cancel state are enable by default but
+  // here we explicitly would like to enable them
+  rc = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+  rc = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+
+  fby2_common_fru_name(fru, fruname);
+
+  memset(fname, 0, sizeof(fname));
+  sprintf(fname, CPLDDUMP_PID, fru);
+  if (access(fname, F_OK) == 0) {
+    memset(cmd, 0, sizeof(cmd));
+    sprintf(cmd,"rm %s",fname);
+    system(cmd);
+  }
+
+  // Execute automatic CPLD dump
+  memset(cmd, 0, 128);
+  sprintf(cmd, "%s %s", CPLDDUMP_BIN, fruname);
+  system(cmd);
+
+  t_cpld_dump[fru-1].is_running = 0;
+
+}
+
+int
+fby2_common_cpld_dump(uint8_t fru) {
+
+  int ret;
+  char cmd[100];
+
+  // Check if the CPLD dump script exist
+  if (access(CPLDDUMP_BIN, F_OK) == -1) {
+    syslog(LOG_CRIT, "fby2_common_cpld_dump:CPLD dump for FRU: %d failed : "
+        "cpld dump binary is not preset", fru);
+    return 0;
+  }
+
+  // Check if CPLD dump for that fru is already running.
+  // If yes, kill that thread and start a new one.
+  if (t_cpld_dump[fru-1].is_running) {
+    ret = pthread_cancel(t_cpld_dump[fru-1].pt);
+    if (ret == ESRCH) {
+      syslog(LOG_INFO, "fby2_common_cpld_dump: No CPLD dump pthread exists");
+    } else {
+      pthread_join(t_cpld_dump[fru-1].pt, NULL);
+      sprintf(cmd, "ps | grep '{cpld-dump.sh}' | grep 'slot%d' | awk '{print $1}'| xargs kill", fru);
+      system(cmd);
+#ifdef DEBUG
+      syslog(LOG_INFO, "fby2_common_cpld_dump: Previous CPLD dump thread is cancelled");
+#endif
+    }
+  }
+
+  // Start a thread to generate the CPLD dump
+  t_cpld_dump[fru-1].fru = fru;
+
+  if (pthread_create(&(t_cpld_dump[fru-1].pt), NULL, generate_cpld_dump, (void*) &t_cpld_dump[fru-1].fru) < 0) {
+    syslog(LOG_WARNING, "fby2_common_cpld_dump: pthread_create for"
+      " FRU %d failed\n", fru);
+    return -1;
+  }
+
+  t_cpld_dump[fru-1].is_running = 1;
+
+  syslog(LOG_INFO, "fby2_common_cpld_dump: CPLD dump for FRU: %d is being generated.", fru);
+
   return 0;
 }

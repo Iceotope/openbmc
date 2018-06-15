@@ -546,6 +546,13 @@ app_cold_reset(unsigned char *request, unsigned char req_len,
       return;
     }
   }
+  for (i = 1; i < MAX_NUM_FRUS; i++) {
+    if (pal_is_cplddump_ongoing(i)) {
+      res->cc = CC_NODE_BUSY;
+      return;
+    }
+  }
+
   syslog(LOG_CRIT, "BMC Cold Reset.");
   reboot(RB_AUTOBOOT);
 }
@@ -2012,8 +2019,10 @@ oem_q_set_proc_info (unsigned char *request, unsigned char req_len, unsigned cha
   char payload[100] = {0};
   int numOfParam = sizeof(cpu_info_key)/sizeof(char *);
 
-  if ((req->data[4] >= numOfParam) ||
-      (strlen(cpu_info_key[ (int) req->data[4]]) <= 0) )
+  if (req_len < 8 || req_len >= sizeof(payload) ||
+      (req->data[4] >= numOfParam) ||
+      (strlen(cpu_info_key[ (int) req->data[4]]) == 0))
+      
   {
     res->cc = CC_PARAM_OUT_OF_RANGE;
     *res_len = 0;
@@ -2073,8 +2082,9 @@ oem_q_set_dimm_info (unsigned char *request, unsigned char req_len, unsigned cha
   char payload[100] = {0};
   int numOfParam = sizeof(dimm_info_key)/sizeof(char *);
 
-  if ((req->data[4] >= numOfParam) ||
-      (strlen(dimm_info_key[ (int) req->data[4]]) <= 0) )
+  if (req_len < 8 || req_len >= sizeof(payload) ||
+      (req->data[4] >= numOfParam) ||
+      (strlen(dimm_info_key[ (int) req->data[4]]) == 0))
   {
     res->cc = CC_PARAM_OUT_OF_RANGE;
     *res_len = 0;
@@ -2134,8 +2144,9 @@ oem_q_set_drive_info(unsigned char *request, unsigned char req_len, unsigned cha
   char payload[100] = {0};
   int numOfParam = sizeof(drive_info_key)/sizeof(char *);
 
-  if ((req->data[5] >= numOfParam) ||
-      (strlen(drive_info_key[ (int) req->data[5]]) <= 0) )
+  if (req_len < 9 || req_len >= sizeof(payload) ||
+      (req->data[5] >= numOfParam) ||
+      (strlen(drive_info_key[ (int) req->data[5]]) == 0))
   {
     res->cc = CC_PARAM_OUT_OF_RANGE;
     *res_len = 0;

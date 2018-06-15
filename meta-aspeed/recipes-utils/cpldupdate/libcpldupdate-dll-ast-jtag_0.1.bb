@@ -1,4 +1,4 @@
-# Copyright 2016-present Facebook. All Rights Reserved.
+# Copyright 2018-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -15,30 +15,23 @@
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-SUMMARY = "Embedded Database Library"
-DESCRIPTION = "library for storing key-value pairs"
-SECTION = "base"
-PR = "r1"
-LICENSE = "GPLv2"
-LIC_FILES_CHKSUM = "file://edb.c;beginline=4;endline=16;md5=8d76ccaa6a7a0995dadc51f3d016e179"
+SUMMARY = "CPLD update DLL using Aspeed JTAG"
+DESCRIPTION = "CPLD update DLL using Aspeed JTAG"
+SECTION = "dev"
 
-SRC_URI = "file://edb.c \
-           file://edb.h \
-           file://Makefile \
-          "
+LICENSE = "GPLv2"
+LIC_FILES_CHKSUM = "file://cpldupdate_dll_ast_jtag.c;beginline=4;endline=16;md5=da35978751a9d71b73679307c4d296ec"
+
+SRC_URI += "file://cpldupdate_dll_ast_jtag.c \
+            file://CMakeLists.txt \
+           "
 
 S = "${WORKDIR}"
 
-DEPENDS += "libkv"
-RDEPENDS_${PN} += "libkv"
+inherit cmake
 
-do_install() {
-	  install -d ${D}${libdir}
-    install -m 0644 libedb.so ${D}${libdir}/libedb.so
+DEPENDS += "libcpldupdate-dll-helper"
 
-    install -d ${D}${includedir}/openbmc
-    install -m 0644 edb.h ${D}${includedir}/openbmc/edb.h
-}
-
-FILES_${PN} = "${libdir}/libedb.so"
-FILES_${PN}-dev = "${includedir}/openbmc/edb.h"
+# The shared library is used as package instead of -dev
+FILES_SOLIBSDEV = ""
+FILES_${PN} += "usr/lib"

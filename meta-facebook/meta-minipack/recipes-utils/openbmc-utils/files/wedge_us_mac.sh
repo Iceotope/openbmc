@@ -1,4 +1,6 @@
-# Copyright 2014-present Facebook. All Rights Reserved.
+#!/bin/bash
+#
+# Copyright 2015-present Facebook. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -14,23 +16,19 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
+#
 
-board_routes = [
-    '/api',
-    '/api/peb',
-    '/api/pdpb',
-    '/api/fcb',
-    '/api/peb/fruid',
-    '/api/peb/sensors',
-    '/api/peb/bmc',
-    '/api/peb/health',
-    '/api/peb/logs',
-    '/api/pdpb/sensors',
-    '/api/pdpb/flash',
-    '/api/pdpb/fruid',
-    '/api/pdpb/logs',
-    '/api/fcb/fans',
-    '/api/fcb/fruid',
-    '/api/fcb/sensors',
-    '/api/fcb/logs',
-]
+# Get output from bic-util
+bic_output=`bic-util scm --read_mac`
+
+# Check if the read was successful and output matches with our format
+match=`echo $bic_output| grep -e 'MAC address: [0-9a-f][0-9a-f]:'|wc -l`
+if [ "$match" == "1" ]; then
+    # Mac address: xx:xx:xx:xx:xx:xx
+    echo $bic_output| cut -d ' ' -f 3
+    exit 0
+else
+    echo "Cannot find out the microserver MAC" 1>&2
+    exit -1
+fi
+

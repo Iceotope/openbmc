@@ -35,7 +35,7 @@
 #include <unistd.h>
 #include "pal.h"
 #include <facebook/bic.h>
-#include <openbmc/edb.h>
+#include <openbmc/kv.h>
 #include <openbmc/obmc-i2c.h>
 #include <openbmc/obmc-sensor.h>
 
@@ -146,6 +146,8 @@ static void *m_gpio_hand_sw = NULL;
 static void *m_hbled_output = NULL;
 
 static int ignore_thresh = 0;
+static uint8_t fscd_watchdog_counter = 0;
+static long post_end_counter = -1;
 
 typedef struct {
   uint16_t flag;
@@ -525,7 +527,7 @@ key_func_ntp(char *value)
   char ntp_server_old[MAX_VALUE_LEN] = {0};
 
   // Remove old NTP server
-  kv_get("ntp_server", ntp_server_old);
+  kv_get("ntp_server", ntp_server_old, NULL, KV_FPERSIST);
   if (strlen(ntp_server_old) > 2) {
     snprintf(cmd, MAX_VALUE_LEN, "sed -i '/^restrict %s$/d' /etc/ntp.conf", ntp_server_old);
     system(cmd);
@@ -554,7 +556,7 @@ pal_get_key_value(char *key, char *value) {
   if (pal_key_check(key))
     return -1;
 
-  return kv_get(key, value);
+  return kv_get(key, value, NULL, KV_FPERSIST);
 }
 
 int
@@ -567,7 +569,7 @@ pal_set_key_value(char *key, char *value) {
   if (!strcmp(key, "ntp_server")) {
     key_func_ntp(value);
   }
-  return kv_set(key, value);
+  return kv_set(key, value, 0, KV_FPERSIST);
 }
 
 // Common IPMB Wrapper function
@@ -1099,7 +1101,7 @@ _set_slot_12v_en_time(uint8_t slot_id) {
 
   sprintf(key, "slot%u_12v_en", slot_id);
   sprintf(value, "%d", ts.tv_sec);
-  if (edb_cache_set(key, value) < 0) {
+  if (kv_set(key, value, 0, 0) < 0) {
     return -1;
   }
 
@@ -1113,7 +1115,7 @@ _check_slot_12v_en_time(uint8_t slot_id) {
   struct timespec ts;
 
   sprintf(key, "slot%u_12v_en", slot_id);
-  if (edb_cache_get(key, value)) {
+  if (kv_get(key, value, NULL, 0)) {
      return true;
   }
 
@@ -1307,7 +1309,7 @@ pal_is_hsvc_ongoing(uint8_t slot_id) {
   char value[MAX_VALUE_LEN] = {0};
 
   sprintf(key, "fru%u_hsvc", slot_id);
-  if (edb_cache_get(key, value)) {
+  if (kv_get(key, value, NULL, 0)) {
      return false;
   }
 
@@ -1322,7 +1324,7 @@ pal_set_hsvc_ongoing(uint8_t slot_id, uint8_t status, uint8_t ident) {
   char key[MAX_KEY_LEN];
 
   sprintf(key, "fru%u_hsvc", slot_id);
-  if (edb_cache_set(key, (status) ? "1" : "0")) {
+  if (kv_set(key, (status) ? "1" : "0", 0, 0)) {
      return -1;
   }
 
@@ -2411,7 +2413,7 @@ pal_get_hand_sw(uint8_t *pos) {
   uint8_t loc;
   int ret;
 
-  ret = edb_cache_get("spb_hand_sw", value);
+  ret = kv_get("spb_hand_sw", value, NULL, 0);
   if (!ret) {
     loc = atoi(value);
     if ((loc > HAND_SW_BMC) || (loc < HAND_SW_SERVER1)) {
@@ -3192,6 +3194,12 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
   uint8_t val;
   uint8_t retry = MAX_READ_RETRY;
   sensor_check_t *snr_chk;
+  static long last_counter = 0;
+  long current_counter = 0;
+  static uint8_t last_post = 0;
+  uint8_t current_post = 0;
+  static uint8_t is_last_post_time_out = 0;
+  uint8_t is_post_time_out = 0;
 
   switch(fru) {
     case FRU_SLOT1:
@@ -3264,56 +3272,82 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
         }
         if (!val) {
           sprintf(str, "%.2f",*((float*)value));
-          edb_cache_set(key, str);
+          kv_set(key, str, 0, 0);
           return -1;
         }
       }
       if ((sensor_num == SP_SENSOR_FAN0_TACH) || (sensor_num == SP_SENSOR_FAN1_TACH)) {
-        /* Check whether POST is ongoning or not */
-        uint8_t last_post = 0;
-        uint8_t current_post = pal_is_post_ongoing();
-        long current_time_stamp;
-        struct timespec ts;
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-        current_time_stamp = ts.tv_sec;
-        ignore_thresh=0;
+        uint8_t is_sled_out = 1;
 
-        ret = pal_get_last_post(&last_post);
-        if (ret < 0) {
-          pal_set_last_post(0);
+        if (pal_get_fan_latch(&is_sled_out) != 0) {
+          syslog(LOG_WARNING, "Fans' UNC masks removed: SLED status (in/out) is unreadable");
+          is_sled_out = 1; // default sled out
         }
 
-        if (last_post != current_post) {
-          if (current_post == 0) {
-            // set POST end timestamp
-            pal_set_post_end_timestamp(current_time_stamp+FAN_WAIT_TIME_AFTER_POST);
+        is_post_time_out = pal_is_post_time_out();
+        if (is_post_time_out || is_sled_out) {
+          if (is_post_time_out && !is_last_post_time_out) {
+            syslog(LOG_WARNING, "Fans' UNC masks removed: slot%d host POST hangs up",is_post_time_out);
           }
-          // update POST status;
-          pal_set_last_post(current_post);
-          sprintf(str, "%.2f",*((float*)value));
-          edb_cache_set(key, str);
-          ignore_thresh=1;
-        }
-
-        if (current_post == 1) {
-          // POST is ongoing
-          sprintf(str, "%.2f",*((float*)value));
-          edb_cache_set(key, str);
-          ignore_thresh=1;
+          ignore_thresh = 0;
         } else {
-          long post_end_timestamp = 0;
-          int ret = pal_get_post_end_timestamp(&post_end_timestamp);
-          if (ret < 0) {
-            // no timestamp yet
-            pal_set_post_end_timestamp(0);
+          /* Check whether POST is ongoning or not */
+          ignore_thresh = 0;
+
+          current_post = pal_is_post_ongoing();
+          if (last_post != current_post) {
+            if (current_post == 0) {
+              // POST END
+              syslog(LOG_WARNING, "all fru POST END");
+              post_end_counter = pal_get_fscd_counter();
+              if (post_end_counter == 0) {
+                // fscd not start yet or fscd hangs up at the first run
+                syslog(LOG_WARNING, "fscd not start yet or fscd hangs up at the first run");
+                current_counter = 0;
+                post_end_counter = -1;
+                // fscd watchdog counter update
+                fscd_watchdog_counter = 1;
+              } else {
+                fscd_watchdog_counter = 0;
+              }
+            } else {
+              ignore_thresh = 1;
+            }
+            // update POST status;
+            last_post = current_post;
           }
-          if (current_time_stamp <  post_end_timestamp ) {
-            // wait for fan speed deassert after POST
-            sprintf(str, "%.2f",*((float*)value));
-            edb_cache_set(key, str);
-            ignore_thresh=1;
+
+          if (current_post == 1) {
+            // POST is ongoing
+            ignore_thresh = 1;
+          } else {
+            // POST is not ongoing
+            if (post_end_counter > 0) {
+              // check counter change
+              current_counter = pal_get_fscd_counter();
+              if (last_counter != current_counter) {
+                // fscd counter update
+                fscd_watchdog_counter = 0;
+                last_counter = current_counter;
+                if (current_counter-post_end_counter >= 4) { //after 4 fscd cycle
+                  syslog(LOG_WARNING, "Fans' UNC masks removed: after 4 fscd cycle");
+                  post_end_counter = 0;
+                  ignore_thresh = 0;
+                } else { //before 4 fscd cycle
+                  ignore_thresh = 1;
+                }
+              } else {
+                // fscd watchdog counter update
+                pal_check_fscd_watchdog();
+              }
+            } else if (post_end_counter < 0) {
+              // fscd not start yet or fscd hangs up at the first run
+              pal_check_fscd_watchdog();
+            }
           }
         }
+        is_last_post_time_out = is_post_time_out;
+        pal_set_ignore_thresh(ignore_thresh);
       }
     }
     if ((GETBIT(snr_chk->flag, UCR_THRESH) && (*((float*)value) >= snr_chk->ucr)) ||
@@ -3336,12 +3370,32 @@ pal_sensor_read_raw(uint8_t fru, uint8_t sensor_num, void *value) {
   return ret;
 }
 
+void
+pal_check_fscd_watchdog() {
+  fscd_watchdog_counter++;
+  if (fscd_watchdog_counter > 50) {
+    //fscd is killed or fscd hangs up
+    syslog(LOG_WARNING, "Fans' UNC masks removed: after POST, fscd works abnormally");
+    post_end_counter = 0;
+    ignore_thresh = 0;
+  } else {
+    ignore_thresh = 1;
+  }
+
+  long counter = pal_get_fscd_counter();
+  if ((post_end_counter < 0) && counter) {
+    //fscd start working after post end
+    syslog(LOG_WARNING, "fscd start working after POST end");
+    post_end_counter = counter;
+  }
+}
+
 int
 pal_ignore_thresh(uint8_t fru, uint8_t snr_num, uint8_t thresh) {
-  if(fru== FRU_SPB) {
+  if (fru== FRU_SPB) {
     if ((snr_num == SP_SENSOR_FAN0_TACH) || (snr_num == SP_SENSOR_FAN1_TACH)) {
       if (thresh == UNC_THRESH) {
-        if(ignore_thresh){
+        if (ignore_thresh) {
           return 1;
         }
       }
@@ -3422,27 +3476,9 @@ pal_alter_sensor_thresh_flag(uint8_t fru, uint8_t snr_num, uint16_t *flag) {
       }
     } else if (( snr_num == SP_SENSOR_FAN0_TACH ) || ( snr_num == SP_SENSOR_FAN1_TACH )) {
       // Check POST status
-      if (pal_is_post_ongoing()) {
-        // POST is ongoing
+      int ret = pal_get_ignore_thresh(&ignore_thresh);
+      if ((ret == 0) && ignore_thresh) {
         *flag = CLEARBIT(*flag,UNC_THRESH);
-      } else {
-        long current_time_stamp = 0;
-        long post_end_timestamp = 0;
-        struct timespec ts;
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-        current_time_stamp = ts.tv_sec;
-
-        int ret = pal_get_post_end_timestamp(&post_end_timestamp);
-        if (ret < 0) {
-          // no timestamp yet
-          pal_set_post_end_timestamp(0);
-        }
-
-        if ( current_time_stamp < post_end_timestamp ) {
-          // wait for fan speed deassert after POST
-          *flag = CLEARBIT(*flag,UNC_THRESH);
-        }
-
       }
     }
   }
@@ -3488,26 +3524,14 @@ pal_set_def_key_value() {
   int i;
   int fru;
   char key[MAX_KEY_LEN] = {0};
-  char kpath[MAX_KEY_PATH_LEN] = {0};
 
   i = 0;
-  while(strcmp(key_list[i], LAST_KEY)) {
-
-    memset(key, 0, MAX_KEY_LEN);
-    memset(kpath, 0, MAX_KEY_PATH_LEN);
-
-    sprintf(kpath, KV_STORE, key_list[i]);
-
-    if (access(kpath, F_OK) == -1) {
-
-      if ((ret = kv_set(key_list[i], def_val_list[i])) < 0) {
+  for(i = 0; strcmp(key_list[i], LAST_KEY) != 0; i++) {
+    if ((ret = kv_set(key_list[i], def_val_list[i], 0, KV_FPERSIST | KV_FCREATE)) < 0) {
 #ifdef DEBUG
-          syslog(LOG_WARNING, "pal_set_def_key_value: kv_set failed. %d", ret);
+      syslog(LOG_WARNING, "pal_set_def_key_value: kv_set failed. %d", ret);
 #endif
-      }
     }
-
-    i++;
   }
 
   /* Actions to be taken on Power On Reset */
@@ -3602,7 +3626,7 @@ pal_dump_key_value(void) {
 
   while (strcmp(key_list[i], LAST_KEY)) {
     printf("%s:", key_list[i]);
-    if (ret = kv_get(key_list[i], value) < 0) {
+    if (ret = kv_get(key_list[i], value, NULL, KV_FPERSIST) < 0) {
       printf("\n");
     } else {
       printf("%s\n",  value);
@@ -4221,12 +4245,19 @@ pal_store_crashdump(uint8_t fru) {
   return fby2_common_crashdump(fru,false);
 }
 
+static int
+pal_store_cpld_dump(uint8_t fru) {
+  return fby2_common_cpld_dump(fru);
+}
+
 int
 pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
 
   char key[MAX_KEY_LEN] = {0};
   char cvalue[MAX_VALUE_LEN] = {0};
   static int assert_cnt[FBY2_MAX_NUM_SLOTS] = {0};
+  int ret;
+  uint8_t server_type = 0xFF;
 
   /* For every SEL event received from the BIC, set the critical LED on */
   switch(fru) {
@@ -4234,6 +4265,40 @@ pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
     case FRU_SLOT2:
     case FRU_SLOT3:
     case FRU_SLOT4:
+#if defined(CONFIG_FBY2_RC)
+      ret = fby2_get_server_type(fru, &server_type);
+      if (ret) {
+        syslog(LOG_ERR, "%s, Get server type failed for slot%u", __func__, fru);
+      }
+
+      switch (server_type) {
+        case SERVER_TYPE_RC:
+          switch(snr_num) {
+            case BIC_RC_SENSOR_PWR_FAIL:
+              pal_store_cpld_dump(fru);
+              break;
+
+            case 0x00:  // don't care sensor number 00h
+              return 0;
+          }
+          break;
+        case SERVER_TYPE_TL:
+          switch(snr_num) {
+            case CATERR_B:
+              if (event_data[3] == 0x00) // 00h:IERR 0Bh:MCERR
+                fby2_common_set_ierr(fru,true);
+              pal_store_crashdump(fru);
+              break;
+
+            case 0x00:  // don't care sensor number 00h
+              return 0;
+          }
+          break;
+        default:
+          syslog(LOG_ERR, "%s, Undefined server type for slot%u", __func__, fru);
+          return -1;
+      }
+#else
       switch(snr_num) {
         case CATERR_B:
           if (event_data[3] == 0x00) // 00h:IERR 0Bh:MCERR
@@ -4244,6 +4309,7 @@ pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
         case 0x00:  // don't care sensor number 00h
           return 0;
       }
+#endif
       sprintf(key, "slot%d_sel_error", fru);
 
       fru -= 1;
@@ -4713,29 +4779,83 @@ pal_set_sensor_health(uint8_t fru, uint8_t value) {
 
 int
 pal_set_fru_post(uint8_t fru, uint8_t value) {
+  if(value == 0) {
+    syslog(LOG_WARNING, "FRU: %d, POST END", fru);
+    return pal_set_post_start_timestamp(fru,POST_RESET);
+  } else {
+    syslog(LOG_WARNING, "FRU: %d, POST Start", fru);
+    return pal_set_post_start_timestamp(fru,POST_SET);
+  }
+}
+
+int
+pal_get_fru_post(uint8_t fru, uint8_t *value) {
+
+  long post_start_timestamp,post_end_timestamp;
+  int ret;
+
+  ret = pal_get_post_start_timestamp(fru, &post_start_timestamp);
+  if (ret != 0) {
+    //default value
+    post_start_timestamp = -1;
+  }
+
+  if (post_start_timestamp == -1) {
+    *value = 0;
+    return 0;
+  }
+
+  ret = pal_get_post_end_timestamp(fru, &post_end_timestamp);
+  if (ret != 0) {
+    //default value
+    post_end_timestamp = -1;
+  }
+
+  if (post_start_timestamp > post_end_timestamp) {
+    //post is onging
+    *value = 1;
+  } else {
+    *value = 0;
+  }
+  return 0;
+}
+
+int
+pal_set_post_start_timestamp(uint8_t fru, uint8_t method) {
 
   char key[MAX_KEY_LEN] = {0};
   char cvalue[MAX_VALUE_LEN] = {0};
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC,&ts);
+  long value = -1;
+
+  if (method == POST_SET) {
+    value = ts.tv_sec;
+  } else if (method == POST_RESET) {
+    value = -1;
+  } else {
+    return -1;
+  }
 
   switch(fru) {
     case FRU_SLOT1:
     case FRU_SLOT2:
     case FRU_SLOT3:
     case FRU_SLOT4:
-      sprintf(key, "slot%d_post_flag", fru);
+      sprintf(key, "slot%d_post_start_timestamp", fru);
       break;
 
     default:
       return -1;
   }
 
-  sprintf(cvalue, (value > 0) ? "1": "0");
+  sprintf(cvalue,"%ld",value);
 
-  return edb_cache_set(key,cvalue);
+  return kv_set(key,cvalue,0,0);
 }
 
 int
-pal_get_fru_post(uint8_t fru, uint8_t *value) {
+pal_get_post_start_timestamp(uint8_t fru, long *value) {
 
   char key[MAX_KEY_LEN] = {0};
   char cvalue[MAX_VALUE_LEN] = {0};
@@ -4746,56 +4866,134 @@ pal_get_fru_post(uint8_t fru, uint8_t *value) {
     case FRU_SLOT2:
     case FRU_SLOT3:
     case FRU_SLOT4:
-      sprintf(key, "slot%d_post_flag", fru);
+      sprintf(key, "slot%d_post_start_timestamp", fru);
       break;
 
     default:
       return -1;
   }
 
-  ret = edb_cache_get(key, cvalue);
+  ret = kv_get(key, cvalue, NULL, 0);
   if (ret) {
     return ret;
   }
-  *value = atoi(cvalue);
+  *value = strtol(cvalue,NULL,10);
+  return 0;
+}
+
+int
+pal_set_post_end_timestamp(uint8_t fru) {
+
+  char key[MAX_KEY_LEN] = {0};
+  char cvalue[MAX_VALUE_LEN] = {0};
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC,&ts);
+  long value = ts.tv_sec;
+
+  switch(fru) {
+    case FRU_SLOT1:
+    case FRU_SLOT2:
+    case FRU_SLOT3:
+    case FRU_SLOT4:
+      sprintf(key, "slot%d_post_end_timestamp", fru);
+      break;
+
+    default:
+      return -1;
+  }
+
+  sprintf(cvalue,"%ld",value);
+
+  return kv_set(key,cvalue,0,0);
+}
+
+int
+pal_get_post_end_timestamp(uint8_t fru, long *value) {
+
+  char key[MAX_KEY_LEN] = {0};
+  char cvalue[MAX_VALUE_LEN] = {0};
+  int ret;
+
+  switch(fru) {
+    case FRU_SLOT1:
+    case FRU_SLOT2:
+    case FRU_SLOT3:
+    case FRU_SLOT4:
+      sprintf(key, "slot%d_post_end_timestamp", fru);
+      break;
+
+    default:
+      return -1;
+  }
+
+  ret = kv_get(key, cvalue,NULL,0);
+  if (ret) {
+    return ret;
+  }
+  *value = strtol(cvalue,NULL,10);
   return 0;
 }
 
 uint8_t
-pal_is_post_ongoing(){
+pal_is_post_time_out() {
+  long post_start_timestamp,post_end_timestamp,current_timestamp;
+  struct timespec ts;
+  int ret;
+  clock_gettime(CLOCK_MONOTONIC,&ts);
+  current_timestamp = ts.tv_sec;
+  uint8_t is_post_time_out = 0;
+
+  for (int fru=1;fru <= 4;fru++) {
+    ret = pal_get_post_start_timestamp(fru, &post_start_timestamp);
+    if (ret != 0) {
+      //default value
+      post_start_timestamp = -1;
+    }
+    ret = pal_get_post_end_timestamp(fru, &post_end_timestamp);
+    if (ret != 0) {
+      //default value
+      post_end_timestamp = -1;
+    }
+    if (post_start_timestamp != -1) {
+      if (post_start_timestamp > post_end_timestamp) {
+        if (current_timestamp-post_start_timestamp > 180) {
+          return fru;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+uint8_t
+pal_is_post_ongoing() {
   uint8_t is_post_ongoing = 0;
   uint8_t value = 0;
   for (int fru=1;fru <= 4;fru++) {
     //get bios post status from kv_store
-    int ret = pal_get_fru_post(fru, &value);
-    if (ret < 0) {
-      //default value
-      value = 0;
-    }
+    pal_get_fru_post(fru, &value);
     is_post_ongoing |= value;
   }
   return is_post_ongoing;
 }
 
 int
-pal_set_last_post(uint8_t value) {
-
-  char* key = "last_post_status";
+pal_set_ignore_thresh(int value) {
+  char* key = "ignore_thresh";
   char cvalue[MAX_VALUE_LEN] = {0};
 
   sprintf(cvalue, (value > 0) ? "1" : "0");
 
-  return edb_cache_set(key,cvalue);
+  return kv_set(key,cvalue, 0, 0);
 }
 
 int
-pal_get_last_post(uint8_t *value) {
-
-  char* key = "last_post_status";
+pal_get_ignore_thresh(int *value) {
+  char* key = "ignore_thresh";
   char cvalue[MAX_VALUE_LEN] = {0};
   int ret;
 
-  ret = edb_cache_get(key, cvalue);
+  ret = kv_get(key, cvalue, NULL, 0);
   if (ret) {
     return ret;
   }
@@ -4803,31 +5001,30 @@ pal_get_last_post(uint8_t *value) {
   return 0;
 }
 
-int
-pal_set_post_end_timestamp(long value) {
-
-  char* key = "post_end_timestamp";
-  char cvalue[MAX_VALUE_LEN] = {0};
-
-  sprintf(cvalue, "%ld", value);
-
-  return edb_cache_set(key,cvalue);
-}
-
-int
-pal_get_post_end_timestamp(long *value) {
-
-  char* key = "post_end_timestamp";
+long
+pal_get_fscd_counter() {
+  char* key = "fscd_counter";
   char cvalue[MAX_VALUE_LEN] = {0};
   int ret;
 
-  ret = edb_cache_get(key, cvalue);
+  ret = kv_get(key, cvalue,NULL,0);
   if (ret) {
-    return ret;
+    // fscd_counter not set yet
+    // start at 0
+    return 0;
   }
 
-  *value = (long) strtoul(cvalue, NULL, 10);
-  return 0;
+  return strtol(cvalue, NULL, 10);
+}
+
+int
+pal_set_fscd_counter(long value) {
+  char* key = "fscd_counter";
+  char cvalue[MAX_VALUE_LEN] = {0};
+
+  sprintf(cvalue,"%ld",value);
+
+  return kv_set(key,cvalue,0,0);
 }
 
 int
@@ -5612,7 +5809,7 @@ int pal_set_imc_version(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_
     strcat(str, tstr);
   }
 
-  if(kv_set(key, str))
+  if(kv_set(key, str,0,KV_FPERSIST))
     completion_code = CC_INVALID_PARAM;
 
   return completion_code;
@@ -6293,6 +6490,50 @@ pal_handle_oem_1s_ras_dump_in(uint8_t slot, uint8_t *data, uint8_t data_len)
   return 0;
 }
 
+int
+pal_is_cplddump_ongoing(uint8_t fru) {
+  char fname[128];
+  char value[MAX_VALUE_LEN] = {0};
+  struct timespec ts;
+  int ret;
+
+  //if pid file not exist, return false
+  sprintf(fname, "/var/run/cplddump%d.pid", fru);
+  if ( access(fname, F_OK) != 0 )
+  {
+    return 0;
+  }
+
+  //check the cplddump file in /tmp/cache_store/fru$1_cplddump
+  sprintf(fname, "fru%d_cplddump", fru);
+  ret = kv_get(fname, value, NULL, 0);
+  if (ret < 0)
+  {
+     return 0;
+  }
+
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  if (strtoul(value, NULL, 10) > ts.tv_sec)
+  {
+     return 1;
+  }
+
+ //over the threshold time, return false
+  return 0;                     /* false */
+}
+
+bool
+pal_is_cplddump_ongoing_system(void) {
+  uint8_t i;
+
+  for (i = FRU_SLOT1; i <= FRU_SLOT4; i++) {
+    if (pal_is_cplddump_ongoing(i) == 1)
+      return true;
+  }
+
+  return false;
+}
+
 bool
 pal_is_fw_update_ongoing_system(void) {
   uint8_t i;
@@ -6320,7 +6561,7 @@ pal_ipmb_processing(int bus, void *buf, uint16_t size) {
 
       sprintf(key, "ocpdbg_lcd");
       sprintf(value, "%d", ts.tv_sec);
-      if (edb_cache_set(key, value) < 0) {
+      if (kv_set(key, value, 0, 0) < 0) {
         return -1;
       }
     }
@@ -6336,7 +6577,7 @@ pal_is_mcu_working(void) {
   struct timespec ts;
 
   sprintf(key, "ocpdbg_lcd");
-  if (edb_cache_get(key, value)) {
+  if (kv_get(key, value, NULL, 0)) {
      return false;
   }
 

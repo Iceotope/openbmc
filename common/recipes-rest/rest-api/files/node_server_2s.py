@@ -36,7 +36,7 @@ class server2SNode(node):
         else:
             self.actions = actions
 
-    def getInformation(self):
+    def getInformation(self, param={}):
         ret = pal_get_server_2s_power()
         if ret == 0:
             status = 'power-off'
@@ -53,7 +53,7 @@ class server2SNode(node):
         if is_read_only:
             result = { "result": 'failure' }
         else:
-            if pal_server_action(data["action"]) == -1:
+            if pal_server_2s_action(data["action"]) == -1:
                 res = 'failure'
             else:
                 res = 'success'
