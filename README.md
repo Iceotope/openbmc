@@ -4,10 +4,11 @@ OpenBMC is an open software framework to build a complete Linux image for a Boar
 
 OpenBMC uses the [Yocto Project](https://www.yoctoproject.org) as the underlying building and distro generation framework.
 
-## Exanest Fork
+## Exanest/EuroExa Fork
 
 Iceotope have forked the orignal [OpenBMC](https://github.com/facebook/openbmc) and begun porting the code base
 to run on the Zynq and UltraZynq based controllers for the Track1 and Track2 mezzanine cards.
+
 ## Contents
 
 This repository includes 3 set of layers:
