@@ -31,6 +31,10 @@ PWR_USRV_RST_SYSFS="${SCMCPLD_SYSFS_DIR}/iso_com_rst_n"
 PWR_TH_RST_SYSFS="${SMBCPLD_SYSFS_DIR}/cpld_mac_reset_n"
 PWR_L_CYCLE_SYSFS="${PDBCPLD_L_SYSFS_DIR}/power_cycle_go"
 PWR_R_CYCLE_SYSFS="${PDBCPLD_R_SYSFS_DIR}/power_cycle_go"
+SCM_CPLD_BUS=16
+PIM_CPLD_BUS=(84 92 100 108 116 124 132 140)
+CPLD_ADDR=0x10
+CPLD_RESET_CMD=0xd9
 
 usage() {
     echo "Usage: $prog <command> [command options]"
@@ -156,15 +160,22 @@ do_reset() {
     done
     if [ $system -eq 1 ]; then
         if [ $board_rev -eq 4 ]; then
-            logger "EVTA hardware is not support, skip ..."
-            echo "EVTA hardware is not support, skip ..."
-            return -1
+            logger "EVTA is not supported, running a workaround instead"
+            echo "EVTA is not supported, running a workaround instead"
+            i2cset -f -y 1 0x3a 0x12 0
         else
-            logger "Power reset the whole system ..."
+            logger "Power reset the whole system ..."y2y
             echo  "Power reset the whole system ..."
             echo 1 > $PWR_L_CYCLE_SYSFS
             sleep 1
             echo 1 > $PWR_R_CYCLE_SYSFS
+            sleep 3
+            # Control should not reach here, but if it failed to reset
+            # the system through PSU, then run a workaround to reset
+            # most of the system instead (if not all)
+            logger "Failed to reset the system. Running a workaround"
+            echo "Failed to reset the system. Running a workaround"
+            i2cset -f -y 1 0x3a 0x12 0
         fi
     else
         if ! wedge_is_us_on; then
@@ -183,6 +194,69 @@ do_reset() {
     echo " Done"
     return 0
 }
+
+toggle_pim_reset() {
+    pim=$1
+    for slot in 2 3 4 5 6 7 8 9; do
+      if [ $pim -eq 0 ] || [ $slot -eq $pim ]; then
+        index=$(expr $slot - 2)
+         # We don't have PIM CPLD driver for now,
+         # so we will use raw i2c access for the time being
+         echo Power-cycling PIM in slot $slot
+         i2cset -f -y ${PIM_CPLD_BUS[$index]} $CPLD_ADDR $CPLD_RESET_CMD
+      fi
+    done
+}
+
+do_pimreset() {
+    local pim opt retval rc
+    retval=0
+    pim=-1
+    while getopts "23456789a" opt; do
+        case $opt in
+            a)
+                pim=0
+                ;;
+            2)
+                pim=2
+                ;;
+            3)
+                pim=3
+                ;;
+            4)
+                pim=4
+                ;;
+            5)
+                pim=5
+                ;;
+            6)
+                pim=6
+                ;;
+            7)
+                pim=7
+                ;;
+            8)
+                pim=8
+                ;;
+            9)
+                pim=9
+                ;;
+            *)
+                usage
+                exit -1
+                ;;
+        esac
+    done
+    if [ $pim -eq -1 ]; then
+      usage
+      exit -1
+    fi
+
+    toggle_pim_reset $pim
+
+    return $retval
+}
+
 
 if [ $# -lt 1 ]; then
     usage

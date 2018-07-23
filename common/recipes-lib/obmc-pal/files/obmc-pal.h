@@ -163,6 +163,7 @@ enum {
 void msleep(int msec);
 
 // Function Declarations
+int pal_is_bmc_por(void);
 int pal_is_crashdump_ongoing(uint8_t fru);
 int pal_is_cplddump_ongoing(uint8_t fru);
 int pal_init_sensor_check(uint8_t fru, uint8_t snr_num, void *snr);
@@ -215,6 +216,7 @@ int pal_get_fru_name(uint8_t fru, char *name);
 int pal_get_fruid_path(uint8_t fru, char *path);
 int pal_get_fruid_eeprom_path(uint8_t fru, char *path);
 int pal_get_fruid_name(uint8_t fru, char *name);
+int pal_slotid_to_fruid(int slotid);
 int pal_get_fru_sensor_list(uint8_t fru, uint8_t **sensor_list, int *cnt);
 int pal_get_sensor_poll_interval(uint8_t fru, uint8_t sensor_num, uint8_t *value);
 int pal_get_fru_discrete_list(uint8_t fru, uint8_t **sensor_list, int *cnt);
@@ -262,6 +264,7 @@ int pal_self_tray_location(uint8_t *value);
 void pal_log_clear(char *fru);
 int pal_get_dev_guid(uint8_t fru, char *guid);
 int pal_get_plat_sku_id(void);
+int pal_is_test_board(void);
 void pal_sensor_assert_handle(uint8_t fru, uint8_t snr_num, float val, uint8_t thresh);
 void pal_sensor_deassert_handle(uint8_t fru, uint8_t snr_num, float val, uint8_t thresh);
 int pal_get_fw_info(uint8_t fru, unsigned char target, unsigned char* res, unsigned char* res_len);
@@ -279,6 +282,7 @@ bool pal_is_fw_update_ongoing(uint8_t fruid);
 bool pal_is_fw_update_ongoing_system(void);
 bool pal_is_crashdump_ongoing_system(void);
 bool pal_is_cplddump_ongoing_system(void);
+int pal_set_fw_update_state(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *res_data, uint8_t *res_len);
 int run_command(const char* cmd);
 int pal_get_restart_cause(uint8_t slot, uint8_t *restart_cause);
 int pal_set_restart_cause(uint8_t slot, uint8_t restart_cause);
@@ -303,6 +307,7 @@ void pal_get_me_name(uint8_t fru, char *target_name);
 uint8_t pal_parse_ras_sel(uint8_t slot, uint8_t *sel, char *error_log);
 int pal_ignore_thresh(uint8_t fru, uint8_t snr_num, uint8_t thresh);
 int pal_set_fru_post(uint8_t fru, uint8_t value);
+uint8_t pal_add_imc_log(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *res_data, uint8_t *res_len);
 #ifdef __cplusplus
 }
 #endif

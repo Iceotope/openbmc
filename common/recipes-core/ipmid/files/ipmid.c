@@ -409,11 +409,11 @@ sensor_plat_event_msg(unsigned char *request, unsigned char req_len,
 
   if (req_len == 11) { // For messaging from system interface
     entry.msg[7] = req->data[0];  //Store Generator ID
-    memcpy(&entry.msg[9], req->data + 1, 7); 
+    memcpy(&entry.msg[9], req->data + 1, 7);
   } else {
-    memcpy(&entry.msg[9], req->data, 7);  // Platform event provides only last 7 bytes of SEL's 16-byte entry 
+    memcpy(&entry.msg[9], req->data, 7);  // Platform event provides only last 7 bytes of SEL's 16-byte entry
   }
-  
+
   // Use platform APIs to add the new SEL entry
   ret = sel_add_entry (req->payload_id, &entry, &record_id);
   if (ret)
@@ -1886,13 +1886,27 @@ oem_add_ras_sel (unsigned char *request, unsigned char req_len, unsigned char *r
   ipmi_mn_req_t *req = (ipmi_mn_req_t *) request;
   ipmi_res_t *res = (ipmi_res_t *) response;
 
-  *res_len = 0;  
+  *res_len = 0;
 
   ras_sel_msg_t entry;
   memcpy(entry.msg, req->data, SIZE_RAS_SEL);
 
   res->cc = ras_sel_add_entry (req->payload_id, &entry);
-  
+
+  return;
+}
+
+static void
+oem_add_imc_log (unsigned char *request, unsigned char req_len, unsigned char *response,
+                 unsigned char *res_len)
+{
+  ipmi_mn_req_t *req = (ipmi_mn_req_t *) request;
+  ipmi_res_t *res = (ipmi_res_t *) response;
+
+  *res_len = 0;
+
+  res->cc = pal_add_imc_log (req->payload_id, req->data, req_len, res->data, res_len);
+
   return;
 }
 
@@ -2640,6 +2654,11 @@ oem_get_plat_info(unsigned char *request, unsigned char req_len, unsigned char *
     pinfo = 0x80;
   }
 
+  // Bit[6]: Test Board:1, Non Test Board:0
+  if (pal_is_test_board()) {
+    pinfo |= 0x40;
+  }
+
   // Get the SKU ID bit[5-3]
   ret = pal_get_plat_sku_id();
   if (ret == -1){
@@ -2691,6 +2710,18 @@ oem_set_imc_version(unsigned char *request, unsigned char req_len,
   ipmi_res_t *res = (ipmi_res_t *) response;
 
   res->cc = pal_set_imc_version(req->payload_id, req->data, req_len, res->data, res_len);
+
+  return;
+}
+
+static void
+oem_set_fw_update_state(unsigned char *request, unsigned char req_len,
+                        unsigned char *response, unsigned char *res_len)
+{
+  ipmi_mn_req_t *req = (ipmi_mn_req_t *) request;
+  ipmi_res_t *res = (ipmi_res_t *) response;
+
+  res->cc = pal_set_fw_update_state(req->payload_id, req->data, (req_len - 3), res->data, res_len);
 
   return;
 }
@@ -2954,6 +2985,9 @@ ipmi_handle_oem (unsigned char *request, unsigned char req_len,
     case CMD_OEM_ADD_RAS_SEL:
       oem_add_ras_sel (request, req_len, response, res_len);
       break;
+    case CMD_OEM_ADD_IMC_LOG:
+      oem_add_imc_log (request, req_len, response, res_len);
+      break;
     case CMD_OEM_SET_PROC_INFO:
       oem_set_proc_info (request, req_len, response, res_len);
       break;
@@ -3003,6 +3037,9 @@ ipmi_handle_oem (unsigned char *request, unsigned char req_len,
       break;
     case CMD_OEM_SET_IMC_VERSION:
       oem_set_imc_version (request, req_len, response, res_len);
+      break;
+    case CMD_OEM_SET_FW_UPDATE_STATE:
+      oem_set_fw_update_state (request, req_len, response, res_len);
       break;
     case CMD_OEM_BYPASS_CMD:
       oem_bypass_cmd (request, req_len, response, res_len);
@@ -3688,6 +3725,14 @@ wdt_timer (void *arg) {
 
     // Execute actin out of mutex
     if (action) {
+      if (pal_is_crashdump_ongoing(wdt->slot)) {
+        syslog(LOG_WARNING, "ipmid: fru%u crashdump is ongoing, ignore wdt action %s",
+          wdt->slot,
+          wdt_action_name[action & 0x7]);
+        action = 0;
+        continue;
+      }
+
       pal_set_restart_cause(wdt->slot, RESTART_CAUSE_WATCHDOG_EXPIRATION);
       switch (action) {
       case 1: // Hard Reset
@@ -3823,4 +3868,3 @@ main (void)
 
   return 0;
 }
-

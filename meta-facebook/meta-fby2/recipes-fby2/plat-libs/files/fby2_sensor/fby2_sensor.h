@@ -129,8 +129,8 @@ enum {
 enum {
   BIC_RC_SENSOR_MB_OUTLET_TEMP = 0x01,
   BIC_RC_SENSOR_MB_INLET_TEMP = 0x02,
-  BIC_RC_SENSOR_SYS_SOC_TEMP_L = 0x03,
-  BIC_RC_SENSOR_SYS_SOC_TEMP_R = 0x04,
+  BIC_RC_SENSOR_SENSOR_TEMP = 0x03,
+  BIC_RC_SENSOR_SOC_TEMP_DIODE = 0x04,
   BIC_RC_SENSOR_NVME1_CTEMP = 0x05,
   BIC_RC_SENSOR_P12V_MB = 0x0A,
   BIC_RC_SENSOR_P3V3_STBY_MB = 0x0B,
@@ -138,7 +138,7 @@ enum {
   BIC_RC_SENSOR_PV_BAT = 0x0D,
   BIC_RC_SENSOR_PVDDQ_423 = 0x0E,
   BIC_RC_SENSOR_PVDDQ_510 = 0x0F,
-  BIC_RC_SENSOR_SOC_TEMP = 0x14,
+  BIC_RC_SENSOR_SOC_TEMP_IMC = 0x14,
   BIC_RC_SENSOR_PMF2432_TEMP = 0x15,
   BIC_RC_SENSOR_PMF2344_TEMP = 0x16,
   BIC_RC_SENSOR_CVR_APC_TEMP = 0x17,
@@ -167,13 +167,13 @@ enum {
   BIC_RC_SENSOR_SYSTEM_STATUS = 0x10, // Discrete
   BIC_RC_SENSOR_VR_HOT = 0xB2,  // Discrete
   BIC_RC_SENSOR_SYS_BOOTING_STS = 0x7E,  // Discrete
-  BIC_RC_SENSOR_RAS_UNCORR = 0xCB,    //Event-only
-  BIC_RC_SENSOR_RAS_CORR_INFO = 0xCC, //Event-only
-  BIC_RC_SENSOR_RAS_FATAL = 0xCD,     //Event-only
-  BIC_RC_SENSOR_PWR_FAIL = 0xCE,      //Event-only
+  BIC_RC_SENSOR_PROC_FAIL = 0x65, //Discrete
+  BIC_RC_SENSOR_RAS_CRIT = 0xCB,    //Event-only
+  BIC_RC_SENSOR_RAS_INFO = 0xCC,    //Event-only
+  BIC_RC_SENSOR_RAS_FATAL = 0xCD,   //Event-only
+  BIC_RC_SENSOR_POWER_ERR = 0x56,   //Event-only
 };
 
-#ifdef CONFIG_FBY2_EP
 // Sensors under Bridge IC (EP)
 enum {
   BIC_EP_SENSOR_MB_INLET_TEMP = 0x01,
@@ -202,6 +202,7 @@ enum {
   BIC_EP_SENSOR_VDD_SOC_VR_POUT = 0x42,
   BIC_EP_SENSOR_VDD_SOC_VR_VOL = 0x54,
   BIC_EP_SENSOR_VDD_SRAM_VR_VOL = 0x55,
+  BIC_EP_SENSOR_POWER_ERR = 0x56, //Event-only
   BIC_EP_SENSOR_PROC_FAIL = 0x65, //Discrete
   BIC_EP_SENSOR_VR_HOT = 0xB2, //Discrete
   BIC_EP_SENSOR_CPU_DIMM_HOT = 0xB3, //Discrete
@@ -223,7 +224,6 @@ enum {
 enum {
   NBU_ERROR = 0x9E,
 };
-#endif
 
 // Sensors Under Side Plane
 enum {
@@ -290,10 +290,8 @@ enum {
 extern const uint8_t bic_sensor_list[];
 extern const uint8_t bic_discrete_list[];
 
-#ifdef CONFIG_FBY2_RC
-  extern const uint8_t bic_rc_sensor_list[];
-  extern const uint8_t bic_rc_discrete_list[];
-#endif
+extern const uint8_t bic_rc_sensor_list[];
+extern const uint8_t bic_rc_discrete_list[];
 
 #ifdef CONFIG_FBY2_EP
   extern const uint8_t bic_ep_sensor_list[];
@@ -316,10 +314,8 @@ extern size_t bic_sensor_cnt;
 
 extern size_t dc_sensor_cnt;
 
-#ifdef CONFIG_FBY2_RC
-  extern size_t bic_rc_sensor_cnt;
-  extern size_t bic_rc_discrete_cnt;
-#endif
+extern size_t bic_rc_sensor_cnt;
+extern size_t bic_rc_discrete_cnt;
 
 #ifdef CONFIG_FBY2_EP
   extern size_t bic_ep_sensor_cnt;

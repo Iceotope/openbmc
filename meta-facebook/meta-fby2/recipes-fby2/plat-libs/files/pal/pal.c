@@ -109,10 +109,15 @@
 
 #define RAS_CRASHDUMP_FILE "/mnt/data/crashdump_slot"
 
+#define IMC_START_FILE "/tmp/start_check_slot%d"
+#define IMC_LOG_FILE "/var/log/imc_log_slot"
+#define IMC_LOG_FILE_BAK "/var/log/imc_log_slot%d_bak"
+#define IMC_LOG_FILE_SIZE (24*1024)   //24KB
+
 #define REINIT_TYPE_FULL            0
 #define REINIT_TYPE_HOST_RESOURCE   1
 
-#define FAN_WAIT_TIME_AFTER_POST  30
+#define POST_TIMEOUT  300
 
 static int nic_powerup_prep(uint8_t slot_id, uint8_t reinit_type);
 
@@ -186,96 +191,70 @@ static sensor_desc_t m_snr_desc[MAX_NUM_FRUS][MAX_SENSOR_NUM] = {0};
 
 static uint8_t otp_server_12v_off_flag[MAX_NODES+1] = {0};
 
-char * key_list[] = {
-"pwr_server1_last_state",
-"pwr_server2_last_state",
-"pwr_server3_last_state",
-"pwr_server4_last_state",
-"sysfw_ver_slot1",
-"sysfw_ver_slot2",
-"sysfw_ver_slot3",
-"sysfw_ver_slot4",
-"identify_sled",
-"identify_slot1",
-"identify_slot2",
-"identify_slot3",
-"identify_slot4",
-"timestamp_sled",
-"slot1_por_cfg",
-"slot2_por_cfg",
-"slot3_por_cfg",
-"slot4_por_cfg",
-"slot1_sensor_health",
-"slot2_sensor_health",
-"slot3_sensor_health",
-"slot4_sensor_health",
-"spb_sensor_health",
-"nic_sensor_health",
-"slot1_sel_error",
-"slot2_sel_error",
-"slot3_sel_error",
-"slot4_sel_error",
-"slot1_boot_order",
-"slot2_boot_order",
-"slot3_boot_order",
-"slot4_boot_order",
-"slot1_cpu_ppin",
-"slot2_cpu_ppin",
-"slot3_cpu_ppin",
-"slot4_cpu_ppin",
-"fru1_restart_cause",
-"fru2_restart_cause",
-"fru3_restart_cause",
-"fru4_restart_cause",
-"ntp_server",
-/* Add more Keys here */
-LAST_KEY /* This is the last key of the list */
+static int key_func_por_cfg(int event, void *arg);
+static int key_func_ntp(int event, void *arg);
+static int key_func_pwr_last_state(int event, void *arg);
+static int key_func_iden_slot(int event, void *arg);
+static int key_func_iden_sled(int event, void *arg);
+
+enum key_event {
+  KEY_BEFORE_SET,
+  KEY_AFTER_INI,
 };
 
-char * def_val_list[] = {
-  "on", /* pwr_server1_last_state */
-  "on", /* pwr_server2_last_state */
-  "on", /* pwr_server3_last_state */
-  "on", /* pwr_server4_last_state */
-  "0", /* sysfw_ver_slot1 */
-  "0", /* sysfw_ver_slot2 */
-  "0", /* sysfw_ver_slot3 */
-  "0", /* sysfw_ver_slot4 */
-  "off", /* identify_sled */
-  "off", /* identify_slot1 */
-  "off", /* identify_slot2 */
-  "off", /* identify_slot3 */
-  "off", /* identify_slot4 */
-  "0", /* timestamp_sled */
-  "lps", /* slot1_por_cfg */
-  "lps", /* slot2_por_cfg */
-  "lps", /* slot3_por_cfg */
-  "lps", /* slot4_por_cfg */
-  "1", /* slot1_sensor_health */
-  "1", /* slot2_sensor_health */
-  "1", /* slot3_sensor_health */
-  "1", /* slot4_sensor_health */
-  "1", /* spb_sensor_health */
-  "1", /* nic_sensor_health */
-  "1", /* slot1_sel_error */
-  "1", /* slot2_sel_error */
-  "1", /* slot3_sel_error */
-  "1", /* slot4_sel_error */
-  "0000000", /* slot1_boot_order */
-  "0000000", /* slot2_boot_order */
-  "0000000", /* slot3_boot_order */
-  "0000000", /* slot4_boot_order */
-  "0", /* slot1_cpu_ppin */
-  "0", /* slot2_cpu_ppin */
-  "0", /* slot3_cpu_ppin */
-  "0", /* slot4_cpu_ppin */
-  "3", /* fru1_restart_cause */
-  "3", /* fru2_restart_cause */
-  "3", /* fru3_restart_cause */
-  "3", /* fru4_restart_cause */
-  "", /* ntp_server */
-  /* Add more def values for the correspoding keys*/
-  LAST_KEY /* Same as last entry of the key_list */
+struct pal_key_cfg {
+  char *name;
+  char *def_val;
+  int (*function)(int, void*);
+} key_cfg[] = {
+  /* name, default value, function */
+  {"pwr_server1_last_state", "on", key_func_pwr_last_state},
+  {"pwr_server2_last_state", "on", key_func_pwr_last_state},
+  {"pwr_server3_last_state", "on", key_func_pwr_last_state},
+  {"pwr_server4_last_state", "on", key_func_pwr_last_state},
+  {"sysfw_ver_slot1", "0", NULL},
+  {"sysfw_ver_slot2", "0", NULL},
+  {"sysfw_ver_slot3", "0", NULL},
+  {"sysfw_ver_slot4", "0", NULL},
+  {"identify_sled", "off", key_func_iden_sled},
+  {"identify_slot1", "off", key_func_iden_slot},
+  {"identify_slot2", "off", key_func_iden_slot},
+  {"identify_slot3", "off", key_func_iden_slot},
+  {"identify_slot4", "off", key_func_iden_slot},
+  {"timestamp_sled", "0", NULL},
+  {"slot1_por_cfg", "lps", key_func_por_cfg},
+  {"slot2_por_cfg", "lps", key_func_por_cfg},
+  {"slot3_por_cfg", "lps", key_func_por_cfg},
+  {"slot4_por_cfg", "lps", key_func_por_cfg},
+  {"slot1_sensor_health", "1", NULL},
+  {"slot2_sensor_health", "1", NULL},
+  {"slot3_sensor_health", "1", NULL},
+  {"slot4_sensor_health", "1", NULL},
+  {"spb_sensor_health", "1", NULL},
+  {"nic_sensor_health", "1", NULL},
+  {"slot1_sel_error", "1", NULL},
+  {"slot2_sel_error", "1", NULL},
+  {"slot3_sel_error", "1", NULL},
+  {"slot4_sel_error", "1", NULL},
+  {"slot1_boot_order", "0000000", NULL},
+  {"slot2_boot_order", "0000000", NULL},
+  {"slot3_boot_order", "0000000", NULL},
+  {"slot4_boot_order", "0000000", NULL},
+  {"slot1_cpu_ppin", "0", NULL},
+  {"slot2_cpu_ppin", "0", NULL},
+  {"slot3_cpu_ppin", "0", NULL},
+  {"slot4_cpu_ppin", "0", NULL},
+  {"fru1_restart_cause", "3", NULL},
+  {"fru2_restart_cause", "3", NULL},
+  {"fru3_restart_cause", "3", NULL},
+  {"fru4_restart_cause", "3", NULL},
+  {"slot1_trigger_hpr", "on", NULL},
+  {"slot2_trigger_hpr", "on", NULL},
+  {"slot3_trigger_hpr", "on", NULL},
+  {"slot4_trigger_hpr", "on", NULL},
+  {"ntp_server", "", key_func_ntp},
+  /* Add more Keys here */
+  {LAST_KEY, LAST_KEY, NULL} /* This is the last key of the list */
 };
 
 struct power_coeff {
@@ -337,37 +316,13 @@ static const char *ras_dump_path[MAX_NODES+1] = {
   RAS_CRASHDUMP_FILE "4"
 };
 
-//check power policy and power state to power on/off server after AC power restore
-static void
-pal_power_policy_control(uint8_t slot_id, char *last_ps) {
-  uint8_t chassis_status[5] = {0};
-  uint8_t chassis_status_length;
-  uint8_t power_policy = POWER_CFG_UKNOWN;
-  char pwr_state[MAX_VALUE_LEN] = {0};
-
-  //get power restore policy
-  //defined by IPMI Spec/Section 28.2.
-  pal_get_chassis_status(slot_id, NULL, chassis_status, &chassis_status_length);
-
-  //byte[1], bit[6:5]: power restore policy
-  power_policy = (*chassis_status >> 5);
-
-  //Check power policy and last power state
-  if(power_policy == POWER_CFG_LPS) {
-    if (!last_ps) {
-      pal_get_last_pwr_state(slot_id, pwr_state);
-      last_ps = pwr_state;
-    }
-    if (!(strcmp(last_ps, "on"))) {
-      sleep(3);
-      pal_set_server_power(slot_id, SERVER_POWER_ON);
-    }
-  }
-  else if(power_policy == POWER_CFG_ON) {
-    sleep(3);
-    pal_set_server_power(slot_id, SERVER_POWER_ON);
-  }
-}
+static const char *imc_log_path[MAX_NODES+1] = {
+  "",
+  IMC_LOG_FILE "1",
+  IMC_LOG_FILE "2",
+  IMC_LOG_FILE "3",
+  IMC_LOG_FILE "4"
+};
 
 /* curr/power calibration */
 static void
@@ -504,11 +459,11 @@ pal_key_check(char *key) {
   int i;
 
   i = 0;
-  while(strcmp(key_list[i], LAST_KEY)) {
+  while (strcmp(key_cfg[i].name, LAST_KEY)) {
 
     // If Key is valid, return success
-    if (!strcmp(key, key_list[i]))
-      return 0;
+    if (!strcmp(key, key_cfg[i].name))
+      return i;
 
     i++;
   }
@@ -520,31 +475,72 @@ pal_key_check(char *key) {
 }
 
 static int
-key_func_ntp(char *value)
-{
+key_func_pwr_last_state(int event, void *arg) {
+  if (event == KEY_BEFORE_SET) {
+    if (strcmp((char *)arg, "on") && strcmp((char *)arg, "off"))
+      return -1;
+  }
+
+  return 0;
+}
+
+static int
+key_func_iden_sled(int event, void *arg) {
+  if (event == KEY_BEFORE_SET) {
+    if (strcmp((char *)arg, "on") && strcmp((char *)arg, "off"))
+      return -1;
+  }
+
+  return 0;
+}
+
+static int
+key_func_iden_slot(int event, void *arg) {
+  if (event == KEY_BEFORE_SET) {
+    if (strcmp((char *)arg, "on") && strcmp((char *)arg, "off"))
+      return -1;
+  }
+
+  return 0;
+}
+
+static int
+key_func_por_cfg(int event, void *arg) {
+  if (event == KEY_BEFORE_SET) {
+    if (strcmp((char *)arg, "lps") && strcmp((char *)arg, "on") && strcmp((char *)arg, "off"))
+      return -1;
+  }
+
+  return 0;
+}
+
+static int
+key_func_ntp(int event, void *arg) {
   char cmd[MAX_VALUE_LEN] = {0};
   char ntp_server_new[MAX_VALUE_LEN] = {0};
   char ntp_server_old[MAX_VALUE_LEN] = {0};
 
-  // Remove old NTP server
-  kv_get("ntp_server", ntp_server_old, NULL, KV_FPERSIST);
-  if (strlen(ntp_server_old) > 2) {
-    snprintf(cmd, MAX_VALUE_LEN, "sed -i '/^restrict %s$/d' /etc/ntp.conf", ntp_server_old);
-    system(cmd);
-    snprintf(cmd, MAX_VALUE_LEN, "sed -i '/^server %s$/d' /etc/ntp.conf", ntp_server_old);
+  if (event == KEY_BEFORE_SET) {
+    // Remove old NTP server
+    kv_get("ntp_server", ntp_server_old, NULL, KV_FPERSIST);
+    if (strlen(ntp_server_old) > 2) {
+      snprintf(cmd, MAX_VALUE_LEN, "sed -i '/^restrict %s$/d' /etc/ntp.conf", ntp_server_old);
+      system(cmd);
+      snprintf(cmd, MAX_VALUE_LEN, "sed -i '/^server %s$/d' /etc/ntp.conf", ntp_server_old);
+      system(cmd);
+    }
+    // Add new NTP server
+    snprintf(ntp_server_new, MAX_VALUE_LEN, "%s", (char *)arg);
+    if (strlen(ntp_server_new) > 2) {
+      snprintf(cmd, MAX_VALUE_LEN, "echo \"restrict %s\" >> /etc/ntp.conf", ntp_server_new);
+      system(cmd);
+      snprintf(cmd, MAX_VALUE_LEN, "echo \"server %s\" >> /etc/ntp.conf", ntp_server_new);
+      system(cmd);
+    }
+    // Restart NTP server
+    snprintf(cmd, MAX_VALUE_LEN, "/etc/init.d/ntpd restart > /dev/null &");
     system(cmd);
   }
-  // Add new NTP server
-  snprintf(ntp_server_new, MAX_VALUE_LEN, "%s", value);
-  if (strlen(ntp_server_new) > 2) {
-    snprintf(cmd, MAX_VALUE_LEN, "echo \"restrict %s\" >> /etc/ntp.conf", ntp_server_new);
-    system(cmd);
-    snprintf(cmd, MAX_VALUE_LEN, "echo \"server %s\" >> /etc/ntp.conf", ntp_server_new);
-    system(cmd);
-  }
-  // Restart NTP server
-  snprintf(cmd, MAX_VALUE_LEN, "/etc/init.d/ntpd restart > /dev/null &");
-  system(cmd);
 
   return 0;
 }
@@ -553,7 +549,7 @@ int
 pal_get_key_value(char *key, char *value) {
 
   // Check is key is defined and valid
-  if (pal_key_check(key))
+  if (pal_key_check(key) < 0)
     return -1;
 
   return kv_get(key, value, NULL, KV_FPERSIST);
@@ -561,14 +557,18 @@ pal_get_key_value(char *key, char *value) {
 
 int
 pal_set_key_value(char *key, char *value) {
+  int index, ret;
 
   // Check is key is defined and valid
-  if (pal_key_check(key))
+  if ((index = pal_key_check(key)) < 0)
     return -1;
 
-  if (!strcmp(key, "ntp_server")) {
-    key_func_ntp(value);
+  if (key_cfg[index].function) {
+    ret = key_cfg[index].function(KEY_BEFORE_SET, value);
+    if (ret < 0)
+      return ret;
   }
+
   return kv_set(key, value, 0, KV_FPERSIST);
 }
 
@@ -1562,6 +1562,7 @@ server_12v_on(uint8_t slot_id) {
   bic_gpio_t gpio;
   uint8_t pair_slot_id;
   int pair_set_type=-1;
+  uint8_t is_sled_out = 1;
 #if defined(CONFIG_FBY2_EP)
   uint8_t server_type, config;
 #endif
@@ -1613,6 +1614,12 @@ server_12v_on(uint8_t slot_id) {
 
   sleep(2); // Wait for latch pin stable
 
+  // FAN Latch Detect
+  if (pal_get_fan_latch(&is_sled_out) != 0) {
+    syslog(LOG_WARNING, "Get SLED status in/out is failed.");
+    is_sled_out = 1; // default sled out
+  }
+
   ret = pal_is_slot_latch_closed(slot_id, &slot_latch);
   if (ret < 0) {
     syslog(LOG_WARNING,"%s: pal_is_slot_latch_closed failed for slot: %d", __func__, slot_id);
@@ -1620,8 +1627,10 @@ server_12v_on(uint8_t slot_id) {
   }
 
   if (1 != slot_latch) {
-    server_12v_off(slot_id);
-    return -1;
+    if (is_sled_out) { // Only activate 12V off action when sled is out
+      server_12v_off(slot_id);
+      return -1;
+    }
   }
 
   if (pal_is_device_pair(slot_id)) {
@@ -1637,8 +1646,10 @@ server_12v_on(uint8_t slot_id) {
     }
 
     if (1 != slot_latch) {
-      server_12v_off(pair_slot_id);
-      return -1;
+      if (is_sled_out) { // Only activate 12V off action when sled is out
+        server_12v_off(pair_slot_id);
+        return -1;
+      }
     }
   }
 
@@ -2127,6 +2138,7 @@ pal_get_server_power(uint8_t slot_id, uint8_t *status) {
     // Check for if the BIC is irresponsive due to 12V_OFF or 12V_CYCLE
     syslog(LOG_INFO, "pal_get_server_power: bic_get_gpio returned error hence"
         " reading the kv_store for last power state  for fru %d", slot_id);
+    memset(value, 0, MAX_VALUE_LEN);
     pal_get_last_pwr_state(slot_id, value);
     if (!(strcmp(value, "off"))) {
       *status = SERVER_POWER_OFF;
@@ -2145,6 +2157,38 @@ pal_get_server_power(uint8_t slot_id, uint8_t *status) {
   }
 
   return 0;
+}
+
+//check power policy and power state to power on/off server after AC power restore
+void
+pal_power_policy_control(uint8_t slot_id, char *last_ps) {
+  uint8_t chassis_status[5] = {0};
+  uint8_t chassis_status_length;
+  uint8_t power_policy = POWER_CFG_UKNOWN;
+  char pwr_state[MAX_VALUE_LEN] = {0};
+
+  //get power restore policy
+  //defined by IPMI Spec/Section 28.2.
+  pal_get_chassis_status(slot_id, NULL, chassis_status, &chassis_status_length);
+
+  //byte[1], bit[6:5]: power restore policy
+  power_policy = (*chassis_status >> 5);
+
+  //Check power policy and last power state
+  if (power_policy == POWER_CFG_LPS) {
+    if (!last_ps) {
+      pal_get_last_pwr_state(slot_id, pwr_state);
+      last_ps = pwr_state;
+    }
+    if (!(strcmp(last_ps, "on"))) {
+      sleep(3);
+      pal_set_server_power(slot_id, SERVER_POWER_ON);
+    }
+  }
+  else if(power_policy == POWER_CFG_ON) {
+    sleep(3);
+    pal_set_server_power(slot_id, SERVER_POWER_ON);
+  }
 }
 
 static int
@@ -3526,11 +3570,14 @@ pal_set_def_key_value() {
   char key[MAX_KEY_LEN] = {0};
 
   i = 0;
-  for(i = 0; strcmp(key_list[i], LAST_KEY) != 0; i++) {
-    if ((ret = kv_set(key_list[i], def_val_list[i], 0, KV_FPERSIST | KV_FCREATE)) < 0) {
+  for (i = 0; strcmp(key_cfg[i].name, LAST_KEY) != 0; i++) {
+    if ((ret = kv_set(key_cfg[i].name, key_cfg[i].def_val, 0, KV_FPERSIST | KV_FCREATE)) < 0) {
 #ifdef DEBUG
       syslog(LOG_WARNING, "pal_set_def_key_value: kv_set failed. %d", ret);
 #endif
+    }
+    if (key_cfg[i].function) {
+      key_cfg[i].function(KEY_AFTER_INI, key_cfg[i].name);
     }
   }
 
@@ -3624,9 +3671,9 @@ pal_dump_key_value(void) {
 
   char value[MAX_VALUE_LEN] = {0x0};
 
-  while (strcmp(key_list[i], LAST_KEY)) {
-    printf("%s:", key_list[i]);
-    if (ret = kv_get(key_list[i], value, NULL, KV_FPERSIST) < 0) {
+  while (strcmp(key_cfg[i].name, LAST_KEY)) {
+    printf("%s:", key_cfg[i].name);
+    if (ret = kv_get(key_cfg[i].name, value, NULL, KV_FPERSIST) < 0) {
       printf("\n");
     } else {
       printf("%s\n",  value);
@@ -4016,7 +4063,7 @@ _print_sensor_discrete_log(uint8_t fru, uint8_t snr_num, char *snr_name,
 }
 
 #if defined(CONFIG_FBY2_RC)
-void 
+void
 pal_sensor_discrete_check_rc(uint8_t fru, uint8_t snr_num, char *snr_name,
     uint8_t o_val, uint8_t n_val) {
 
@@ -4058,6 +4105,10 @@ pal_sensor_discrete_check_rc(uint8_t fru, uint8_t snr_num, char *snr_name,
     switch(snr_num) {
       case BIC_RC_SENSOR_SYSTEM_STATUS:
         sprintf(name, "CPU0_FIVR_Fault");
+        valid = true;
+        break;
+      case BIC_RC_SENSOR_PROC_FAIL:
+        sprintf(name, "FRB3");
         valid = true;
         break;
     }
@@ -4177,21 +4228,18 @@ pal_sensor_discrete_check(uint8_t fru, uint8_t snr_num, char *snr_name,
 }
 
 #if defined(CONFIG_FBY2_RC)
-int 
+int
 fby2_rc_event_sensor_name(uint8_t fru, uint8_t sensor_num, char *name) {
 
   switch(sensor_num) {
-    case BIC_RC_SENSOR_RAS_UNCORR:
-      sprintf(name, "RAS_UNCORR");
+    case BIC_RC_SENSOR_RAS_CRIT:
+      sprintf(name, "RAS_CRITICAL");
       break;
-    case BIC_RC_SENSOR_RAS_CORR_INFO:
-      sprintf(name, "RAS_CORR_INFO");
+    case BIC_RC_SENSOR_RAS_INFO:
+      sprintf(name, "RAS_INFO");
       break;
     case BIC_RC_SENSOR_RAS_FATAL:
       sprintf(name, "RAS_FATAL");
-      break;
-    case BIC_RC_SENSOR_PWR_FAIL:
-      sprintf(name, "POWER_FAILURE");
       break;
     default:
       return -1;
@@ -4241,8 +4289,8 @@ pal_get_event_sensor_name(uint8_t fru, uint8_t *sel, char *name) {
 }
 
 static int
-pal_store_crashdump(uint8_t fru) {
-  return fby2_common_crashdump(fru,false);
+pal_store_crashdump(uint8_t fru, bool ierr) {
+  return fby2_common_crashdump(fru, ierr, false);
 }
 
 static int
@@ -4265,7 +4313,7 @@ pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
     case FRU_SLOT2:
     case FRU_SLOT3:
     case FRU_SLOT4:
-#if defined(CONFIG_FBY2_RC)
+#if defined(CONFIG_FBY2_RC) || defined(CONFIG_FBY2_EP)
       ret = fby2_get_server_type(fru, &server_type);
       if (ret) {
         syslog(LOG_ERR, "%s, Get server type failed for slot%u", __func__, fru);
@@ -4274,7 +4322,7 @@ pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
       switch (server_type) {
         case SERVER_TYPE_RC:
           switch(snr_num) {
-            case BIC_RC_SENSOR_PWR_FAIL:
+            case BIC_RC_SENSOR_POWER_ERR:
               pal_store_cpld_dump(fru);
               break;
 
@@ -4282,12 +4330,22 @@ pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
               return 0;
           }
           break;
+#if defined(CONFIG_FBY2_EP)
+        case SERVER_TYPE_EP:
+          switch(snr_num) {
+            case BIC_EP_SENSOR_POWER_ERR:
+              pal_store_cpld_dump(fru);
+              break;
+
+            case 0x00:  // don't care sensor number 00h
+              return 0;
+          }
+          break;
+#endif
         case SERVER_TYPE_TL:
           switch(snr_num) {
             case CATERR_B:
-              if (event_data[3] == 0x00) // 00h:IERR 0Bh:MCERR
-                fby2_common_set_ierr(fru,true);
-              pal_store_crashdump(fru);
+              pal_store_crashdump(fru, (event_data[3] == 0x00));  // 00h:IERR, 0Bh:MCERR
               break;
 
             case 0x00:  // don't care sensor number 00h
@@ -4301,9 +4359,7 @@ pal_sel_handler(uint8_t fru, uint8_t snr_num, uint8_t *event_data) {
 #else
       switch(snr_num) {
         case CATERR_B:
-          if (event_data[3] == 0x00) // 00h:IERR 0Bh:MCERR
-            fby2_common_set_ierr(fru,true);
-          pal_store_crashdump(fru);
+          pal_store_crashdump(fru, (event_data[3] == 0x00));  // 00h:IERR, 0Bh:MCERR
           break;
 
         case 0x00:  // don't care sensor number 00h
@@ -4352,25 +4408,13 @@ pal_parse_sel_rc(uint8_t fru, uint8_t *sel, char *error_log)
       strcpy(error_log, "");  //Just show event raw data for now
       parsed = true;
       break;
-    case BIC_RC_SENSOR_RAS_UNCORR:
-    case BIC_RC_SENSOR_RAS_CORR_INFO:
+    case BIC_RC_SENSOR_RAS_CRIT:
+    case BIC_RC_SENSOR_RAS_INFO:
     case BIC_RC_SENSOR_RAS_FATAL:
       strcpy(error_log, "");
       switch (ed[0] & 0x0F) {
         case 0x01:
           strcat(error_log, "State Asserted");
-          break;
-        default:
-          strcat(error_log, "Unknown");
-          break;
-      }
-      parsed = true;
-      break;
-    case BIC_RC_SENSOR_PWR_FAIL:
-      strcpy(error_log, "");
-      switch (ed[0] & 0x0F) {
-        case 0x06:
-          strcat(error_log, "Power Unit Failure Detected");
           break;
         default:
           strcat(error_log, "Unknown");
@@ -4956,7 +5000,7 @@ pal_is_post_time_out() {
     }
     if (post_start_timestamp != -1) {
       if (post_start_timestamp > post_end_timestamp) {
-        if (current_timestamp-post_start_timestamp > 180) {
+        if (current_timestamp-post_start_timestamp > POST_TIMEOUT) {
           return fru;
         }
       }
@@ -5361,7 +5405,7 @@ int
 pal_fan_recovered_handle(int fan_num) {
 
   fan_dead_actived_flag = CLEARBIT(fan_dead_actived_flag, fan_num);
-  both_fan_dead_control = 0;  
+  both_fan_dead_control = 0;
 
   return 0;
 }
@@ -5530,7 +5574,7 @@ pal_get_chassis_status(uint8_t slot, uint8_t *req_data, uint8_t *res_data, uint8
 
   char key[MAX_KEY_LEN] = {0};
   sprintf(key, "slot%d_por_cfg", slot);
-  char buff[MAX_VALUE_LEN];
+  char buff[MAX_VALUE_LEN] = {0};
   int policy = 3;
   uint8_t status, ret;
   unsigned char *data = res_data;
@@ -5937,6 +5981,7 @@ pal_nic_otp_disable (float val) {
       if ((SERVER_12V_ON != status) && (1 == otp_server_12v_off_flag[slot])) {
         // power on server 12V HSC
         syslog(LOG_CRIT, "FRU: %u, Power On Server 12V due to NIC temp UNC deassert. (val = %.2f)", slot, val);
+        memset(pwr_state, 0, MAX_VALUE_LEN);
         pal_get_last_pwr_state(slot, pwr_state);
         ret = server_12v_on(slot);
         if (ret) {
@@ -6265,7 +6310,7 @@ pal_init_sensor_check(uint8_t fru, uint8_t snr_num, void *snr) {
 uint8_t
 pal_get_status(void) {
   char str_server_por_cfg[64];
-  char buff[MAX_VALUE_LEN];
+  char buff[MAX_VALUE_LEN] = {0};
   int policy = 3;
   uint8_t status, data, ret;
 
@@ -6379,7 +6424,7 @@ pal_handle_oem_1s_intr(uint8_t slot, uint8_t *data)
     bool ierr = false;
     int ret = fby2_common_get_ierr(slot, &ierr);
     if ((ret == 0) && ierr) {
-      fby2_common_crashdump(slot,true);
+      fby2_common_crashdump(slot, false, true);
     }
     fby2_common_set_ierr(slot,false);
   }
@@ -6904,4 +6949,95 @@ pal_parse_ras_sel(uint8_t slot, uint8_t *sel, char *error_log) {
   pal_err_ras_sel_handle(section_type, error_log, &sel[3]);
 
   return 0;
+}
+
+uint8_t
+pal_add_imc_log(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *res_data, uint8_t *res_len) {
+
+  uint8_t completion_code = CC_UNSPECIFIED_ERROR;
+  int index;
+  FILE *pFile = NULL;
+  int ret;
+  uint8_t status;
+  uint8_t data_len;
+  struct stat st;
+  char path[80] = {0};
+  char cmd[128] = {0};
+
+
+  *res_len = 0;
+  status = req_data[0];
+  data_len = req_data[1];
+
+  pFile = fopen(imc_log_path[slot], "a+");
+  if (pFile == NULL) {
+    syslog(LOG_WARNING, "%s: failed to open path: %s", __func__, imc_log_path[slot]);
+    return completion_code;
+  }
+
+  if (status == IMC_DUMP_START) {
+    sprintf(path, IMC_START_FILE, slot);
+    sprintf(cmd, "touch %s", path);
+    system(cmd);
+    syslog(LOG_INFO, "IMC Log Start on slot%u", slot);
+  }
+
+  if (status == IMC_DUMP_END) {
+    sprintf(path, IMC_START_FILE, slot);
+    if(access(path, F_OK) != 0) {
+      syslog(LOG_INFO, "IMC Log Start on slot%u", slot);
+    } else {
+      sprintf(cmd, "rm %s", path);
+      system(cmd);
+    }
+  }
+
+  for (index = 2; index <= data_len + 1; index++) {
+    if(req_data[index] == 0x00 || req_data[index] == 0x0D)    //ignore unnecessary ASCII character
+      continue;
+    fprintf(pFile, "%c", req_data[index]);
+  }
+
+  if (status == IMC_DUMP_END) {
+    fprintf(pFile, "\n\n");
+    syslog(LOG_INFO, "IMC Log Finish on slot%u", slot);
+
+    stat(imc_log_path[slot], &st);
+    if(st.st_size > IMC_LOG_FILE_SIZE) {   //Do IMC log backup action
+      sprintf(path, IMC_LOG_FILE_BAK, slot);
+      sprintf(cmd, "mv %s %s", imc_log_path[slot], path);
+      system(cmd);
+
+      memset(cmd, 0, sizeof(cmd));
+      sprintf(cmd, "touch %s", imc_log_path[slot]);
+      system(cmd);
+    }
+  }
+
+  fclose(pFile);
+  completion_code = CC_SUCCESS;
+  return completion_code;
+}
+
+int
+pal_set_fw_update_state(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *res_data, uint8_t *res_len) {
+  *res_len = 0;
+  if (req_len != 2) {
+    return CC_INVALID_LENGTH;
+  }
+
+  if (pal_set_fw_update_ongoing(slot, (req_data[1]<<8 | req_data[0]))) {
+    return CC_UNSPECIFIED_ERROR;
+  }
+
+  return CC_SUCCESS;
+}
+
+uint8_t
+pal_get_server_type(uint8_t fru) {
+
+  uint8_t server_type = 0xFF;
+  bic_get_server_type(fru, &server_type);
+
+  return server_type;
 }

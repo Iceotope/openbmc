@@ -1061,7 +1061,7 @@ update_done:
   system(cmd);
 
 error_exit:
-  syslog(LOG_CRIT, "bic_update_fw: updating bic firmware is exiting\n");
+  syslog(LOG_CRIT, "bic_update_fw: updating bic firmware is exiting on slot %d\n", slot_id);
   if (fd > 0) {
     close(fd);
   }
@@ -1930,11 +1930,13 @@ bic_read_accuracy_sensor(uint8_t slot_id, uint8_t sensor_num, ipmi_accuracy_sens
   int ret;
 
   tbuf[3] = sensor_num;
-
   ret = bic_ipmb_wrapper(slot_id, NETFN_OEM_1S_REQ, CMD_OEM_1S_ACCURACY_SENSOR_READING, tbuf, 0x04, rbuf, &rlen);
 
-  //Ignore IANA ID
-  memcpy(sensor, &rbuf[3], rlen-3);
+  if (rlen == 6) {
+    memcpy(sensor, &rbuf[3], rlen-3);  // Ignore IANA ID
+  } else {
+    sensor->flags = 0x20;  // unavailable
+  }
 
   return ret;
 }

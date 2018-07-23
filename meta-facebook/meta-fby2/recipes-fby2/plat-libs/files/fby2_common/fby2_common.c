@@ -116,7 +116,27 @@ fby2_common_fru_id(char *str, uint8_t *fru) {
   return 0;
 }
 
-void *
+static int
+trigger_hpr(uint8_t fru) {
+  char key[MAX_KEY_LEN];
+  char value[MAX_VALUE_LEN] = {0};
+
+  switch (fru) {
+    case FRU_SLOT1:
+    case FRU_SLOT2:
+    case FRU_SLOT3:
+    case FRU_SLOT4:
+      sprintf(key, "slot%u_trigger_hpr", fru);
+      if (!kv_get(key, value, NULL, KV_FPERSIST) && !strcmp(value, "off")) {
+        return 0;
+      }
+      return 1;
+  }
+
+  return 0;
+}
+
+static void *
 generate_dump(void *arg) {
 
   uint8_t fru = *(uint8_t *) arg;
@@ -124,6 +144,7 @@ generate_dump(void *arg) {
   char fname[128];
   char fruname[16];
   int rc;
+  bool ierr;
 
   // Usually the pthread cancel state are enable by default but
   // here we explicitly would like to enable them
@@ -147,9 +168,13 @@ generate_dump(void *arg) {
 
   t_dump[fru-1].is_running = 0;
 
+  if (!fby2_common_get_ierr(fru, &ierr) && ierr && trigger_hpr(fru)) {
+    sprintf(cmd, "/usr/local/bin/power-util %s reset", fruname);
+    system(cmd);
+  }
 }
 
-void *
+static void *
 second_dwr_dump(void *arg) {
 
   uint8_t fru = *(uint8_t *) arg;
@@ -184,7 +209,7 @@ second_dwr_dump(void *arg) {
 }
 
 int
-fby2_common_crashdump(uint8_t fru,bool platform_reset) {
+fby2_common_crashdump(uint8_t fru, bool ierr, bool platform_reset) {
 
   int ret;
   char cmd[100];
@@ -202,6 +227,10 @@ fby2_common_crashdump(uint8_t fru,bool platform_reset) {
     return 0;
   }
 
+  if (ierr) {
+    fby2_common_set_ierr(fru, true);
+  }
+
   // If yes, kill that thread and start a new one
   if (t_dump[fru-1].is_running) {
     ret = pthread_cancel(t_dump[fru-1].pt);
@@ -212,6 +241,8 @@ fby2_common_crashdump(uint8_t fru,bool platform_reset) {
       sprintf(cmd, "ps | grep '{dump.sh}' | grep 'slot%d' | awk '{print $1}'| xargs kill", fru);
       system(cmd);
       sprintf(cmd, "ps | grep 'me-util' | grep 'slot%d' | awk '{print $1}'| xargs kill", fru);
+      system(cmd);
+      sprintf(cmd, "ps | grep 'bic-util' | grep 'slot%d' | awk '{print $1}'| xargs kill", fru);
       system(cmd);
 #ifdef DEBUG
       syslog(LOG_INFO, "fby2_common_crashdump: Previous crashdump thread is cancelled");

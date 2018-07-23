@@ -241,6 +241,7 @@ sensor_cache_read(uint8_t fru, uint8_t sensor_num, float *value)
   if (sensor_key_get(fru, sensor_num, key))
     return ERR_UNKNOWN_FRU;
   for (retry = 0; retry < CACHE_READ_RETRY; retry++) {
+    memset(str, 0, MAX_VALUE_LEN);
     if (!(ret = kv_get(key, str, NULL, 0))) {
       break;
     }
@@ -374,7 +375,7 @@ sensor_read_short_history(uint8_t fru, uint8_t sensor_num, float *min,
     ret = sensor_cache_read(fru, sensor_num, &read_value);
     if (ret)
       return ret;
-    total = *min = *max = read_val;
+    total = *min = *max = read_value;
     count = 1;
   }
 
@@ -402,7 +403,6 @@ sensor_read_long_history(uint8_t fru, uint8_t sensor_num, float *min,
   sensor_coarse_data_t *s;
   int16_t read_index;
   uint16_t count = 0;
-  float read_val;
   double total = 0;
   int ret = ERR_FAILURE;
 
@@ -457,7 +457,7 @@ sensor_read_long_history(uint8_t fru, uint8_t sensor_num, float *min,
     ret = sensor_cache_read(fru, sensor_num, &read_value);
     if (ret)
       return ret;
-    total = *min = *max = read_val;
+    total = *min = *max = read_value;
     count = 1;
   }
 
@@ -490,7 +490,6 @@ sensor_read_history(uint8_t fru, uint8_t sensor_num, float *min, float *average,
 static int sensor_clear_history_helper(char *shm_name, int share_size)
 {
   int fd;
-  char key[MAX_KEY_LEN] = {0};
   long *shm;
   int ret = ERR_FAILURE;
 
@@ -529,8 +528,6 @@ close_bail:
 
 int sensor_clear_history(uint8_t fru, uint8_t sensor_num)
 {
-  int share_size = sizeof(sensor_shm_t);
-  int fd;
   char key[MAX_KEY_LEN] = {0};
   int ret1, ret2;
 

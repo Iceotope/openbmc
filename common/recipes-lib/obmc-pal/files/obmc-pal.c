@@ -28,6 +28,7 @@
 #include <sys/wait.h>
 #include <openbmc/kv.h>
 #include <openbmc/ipmi.h>
+#include "obmc-pal.h"
 
 #define GPIO_VAL "/sys/class/gpio/gpio%d/value"
 #define SETMASK(y)          (1 << y)
@@ -35,6 +36,12 @@
 // PAL functions
 int __attribute__((weak))
 pal_init_sensor_check(uint8_t fru, uint8_t snr_num, void *snr)
+{
+  return PAL_EOK;
+}
+
+int __attribute__((weak))
+pal_is_bmc_por(void)
 {
   return PAL_EOK;
 }
@@ -207,6 +214,12 @@ pal_set_pcie_port_config(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8
 
 int __attribute__((weak))
 pal_set_imc_version(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *res_data, uint8_t *res_len)
+{
+  return PAL_EOK;
+}
+
+uint8_t __attribute__((weak))
+pal_add_imc_log(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *res_data, uint8_t *res_len)
 {
   return PAL_EOK;
 }
@@ -797,7 +810,7 @@ pal_parse_sel_helper(uint8_t fru, uint8_t *sel, char *error_log)
             ed[1]);
         strcat(error_log, temp_log);
 
-        temp = ed[2] & 0x7;
+        temp = ed[2] & 0xF;
         if (temp == 0x0)
           strcat(error_log, " - IRP0");
         else if (temp == 0x1)
@@ -810,6 +823,14 @@ pal_parse_sel_helper(uint8_t fru, uint8_t *sel, char *error_log)
           strcat(error_log, " - Intel Quick Data");
         else if (temp == 0x5)
           strcat(error_log, " - Misc");
+        else if (temp == 0x6)
+          strcat(error_log, " - DMA");
+        else if (temp == 0x7)
+          strcat(error_log, " - ITC");
+        else if (temp == 0x8)
+          strcat(error_log, " - OTC");
+        else if (temp == 0x9)
+          strcat(error_log, " - CI");
         else
           strcat(error_log, " - Reserved");
       } else
@@ -1173,9 +1194,7 @@ pal_parse_sel(uint8_t fru, uint8_t *sel, char *error_log)
 void __attribute__((weak))
 pal_add_cri_sel(char *str)
 {
-  char cmd[128];
-  snprintf(cmd, 128, "logger -p local0.err \"%s\"",str);
-  system(cmd);
+  syslog(LOG_LOCAL0 | LOG_ERR, "%s", str);
 }
 
 int __attribute__((weak))
@@ -1278,6 +1297,13 @@ int __attribute__((weak))
 pal_get_plat_sku_id(void)
 {
   return PAL_EOK;
+}
+
+int __attribute__((weak))
+pal_is_test_board(void)
+{
+  //Non Test Board:0
+  return 0;
 }
 
 void __attribute__((weak))
@@ -1484,7 +1510,7 @@ pal_set_fw_update_ongoing(uint8_t fruid, uint16_t tmout) {
 
   clock_gettime(CLOCK_MONOTONIC, &ts);
   ts.tv_sec += tmout;
-  sprintf(value, "%d", ts.tv_sec);
+  sprintf(value, "%ld", ts.tv_sec);
 
   if (kv_set(key, value, 0, 0) < 0) {
      return -1;
@@ -1527,6 +1553,12 @@ pal_is_fw_update_ongoing_system(void) {
   }
 
   return false;
+}
+
+int __attribute__((weak))
+pal_set_fw_update_state(uint8_t slot, uint8_t *req_data, uint8_t req_len, uint8_t *res_data, uint8_t *res_len)
+{
+  return PAL_EOK;
 }
 
 int __attribute__((weak))
@@ -1671,14 +1703,16 @@ pal_get_gpio_value(int gpio_num, uint8_t *value) {
     msleep(100);
   }
   for (i = 0; i < retry_cnt; i++) {
+    int ival;
     ret = 0;
-    rc = fscanf(fp, "%d", value);
+    rc = fscanf(fp, "%d", &ival);
     if (rc != 1) {
       syslog(LOG_ERR, "failed to read device %s (%s)", vpath, strerror(errno));
       if (i == (retry_cnt - 1)) {
         ret = errno;
       }
     } else {
+      *value = (uint8_t)ival;
       break;
     }
     msleep(100);
@@ -1817,12 +1851,12 @@ error_exit:
 
   if ( NULL != fru_in_fd )
   {
-     close(fru_in_fd);
+     fclose(fru_in_fd);
   }
 
   if ( NULL != fru_out_fd )
   {
-     close(fru_out_fd);
+     fclose(fru_out_fd);
   }
 
   if ( NULL != fru_in_arr )
@@ -1876,7 +1910,7 @@ pal_copy_all_thresh_to_file(uint8_t fru, thresh_sensor_t *sinfo) {
   char fpath[64] = {0};
   int i;
 
-  ret = pal_get_fru_name(fru, &fru_name);
+  ret = pal_get_fru_name(fru, fru_name);
   if (ret < 0) {
     printf("%s: Fail to get fru%d name\n",__func__,fru);
     return ret;
@@ -1926,12 +1960,10 @@ pal_get_all_thresh_from_file(uint8_t fru, thresh_sensor_t *sinfo, int mode) {
   int sensor_cnt;
   uint8_t *sensor_list;
   char fpath[64] = {0};
-  char initpath[64] = {0};
   char cmd[128] = {0};
-  thresh_sensor_t *snr;
   int curr_state = 0;
 
-  ret = pal_get_fru_name(fru, &fru_name);
+  ret = pal_get_fru_name(fru, fru_name);
   if (ret < 0)
     printf("%s: Fail to get fru%d name\n",__func__,fru);
 
@@ -2005,7 +2037,7 @@ pal_get_thresh_from_file(uint8_t fru, uint8_t snr_num, thresh_sensor_t *sinfo) {
   uint8_t *sensor_list;
   char fpath[64] = {0};
 
-  ret = pal_get_fru_name(fru, &fru_name);
+  ret = pal_get_fru_name(fru, fru_name);
   if (ret < 0)
     printf("%s: Fail to get fru%d name\n",__func__,fru);
 
@@ -2052,7 +2084,7 @@ pal_copy_thresh_to_file(uint8_t fru, uint8_t snr_num, thresh_sensor_t *sinfo) {
   uint8_t *sensor_list;
   char fpath[64] = {0};
 
-  ret = pal_get_fru_name(fru, &fru_name);
+  ret = pal_get_fru_name(fru, fru_name);
   if (ret < 0) {
     printf("%s: Fail to get fru%d name\n",__func__,fru);
     return ret;
@@ -2090,16 +2122,14 @@ pal_copy_thresh_to_file(uint8_t fru, uint8_t snr_num, thresh_sensor_t *sinfo) {
 
 int __attribute__((weak))
 pal_sensor_thresh_modify(uint8_t fru,  uint8_t sensor_num, uint8_t thresh_type, float value) {
-  int i;
   int ret = -1;
   thresh_sensor_t snr;
-  FILE *pfile;
   char fru_name[8];
   char fpath[64] = {0};
   char initpath[64] = {0};
   char cmd[128] = {0};
 
-  ret = pal_get_fru_name(fru, &fru_name);
+  ret = pal_get_fru_name(fru, fru_name);
   if (ret < 0) {
     printf("%s: Fail to get fru%d name\n",__func__,fru);
     return ret;

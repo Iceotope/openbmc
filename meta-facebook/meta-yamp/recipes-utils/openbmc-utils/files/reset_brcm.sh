@@ -20,4 +20,11 @@
 
 . /usr/local/bin/openbmc-utils.sh
 
-logger "Reset YAMP Forwarding ASIC"
+logger "Power off TH3"
+echo "Power off TH3"
+wedge_power_off_asic
+sleep 1
+logger "Power on TH3"
+echo "Power on TH3"
+wedge_power_on_asic
+sleep 1

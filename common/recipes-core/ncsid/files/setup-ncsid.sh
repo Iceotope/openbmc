@@ -31,17 +31,4 @@ echo -n "Setup ncsid for BMC "
 
 runsv /etc/sv/ncsid > /dev/null 2>&1 &
 
-# enables OEM AENs if Broadcom NIC
-q=$(fw-util nic --version | grep -i broadcom)
-if [ -z "$q" ]
-then
-      # non Broadcom
-      echo "enable standard AENs" >> /dev/kmsg
-      /usr/local/bin/ncsi-util 8 0 0 0 0 0 0 0 1
-else
-      # Broadcom
-      echo "Enable Broadcom OEM AENs" >> /dev/kmsg
-      /usr/local/bin/ncsi-util 8 0 0 0 0 0 3 0 1
-fi
-
 echo "done."

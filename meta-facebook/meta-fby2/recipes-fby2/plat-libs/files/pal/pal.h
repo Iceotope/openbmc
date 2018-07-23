@@ -99,6 +99,12 @@ enum {
   POST_SET
 };
 
+enum {
+  IMC_DUMP_END = 0,
+  IMC_DUMP_START,
+  IMC_DUMP_PROCESS,
+};
+
 int pal_get_platform_name(char *name);
 int pal_get_num_slots(uint8_t *num);
 int pal_is_slot_latch_closed(uint8_t slot_id, uint8_t *status);
@@ -106,6 +112,7 @@ int pal_is_fru_prsnt(uint8_t fru, uint8_t *status);
 int pal_is_fru_ready(uint8_t fru, uint8_t *status);
 int pal_is_slot_server(uint8_t fru);
 int pal_get_server_power(uint8_t slot_id, uint8_t *status);
+void pal_power_policy_control(uint8_t slot_id, char *last_ps);
 int pal_set_server_power(uint8_t slot_id, uint8_t cmd);
 int pal_is_server_12v_on(uint8_t slot_id, uint8_t *status);
 int pal_slot_pair_12V_off(uint8_t slot_id);
@@ -207,6 +214,7 @@ int pal_set_post_end_timestamp(uint8_t fru);
 int pal_get_post_end_timestamp(uint8_t fru, long *value);
 uint8_t pal_is_post_time_out();
 void pal_check_fscd_watchdog();
+uint8_t pal_get_server_type(uint8_t fru);
 #ifdef __cplusplus
 } // extern "C"
 #endif

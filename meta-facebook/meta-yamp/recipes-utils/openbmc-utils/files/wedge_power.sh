@@ -80,7 +80,6 @@ do_on() {
         fi
     fi
 
-    reset_brcm.sh
     wedge_power_on_board
     ret=$?
     if [ $ret -eq 0 ]; then
@@ -127,12 +126,14 @@ do_reset() {
         echo -n "Power reset the whole system ..."
         sleep 1
         echo 0xde > $PWR_SYSTEM_SYSFS
+        sleep 8
         # The chassis shall be reset now... if not, we are in trouble
         echo " Failed"
         return 254
     else
-        echo "Reset CPU is not supported. Use off/on."
-        return 254
+        do_off
+        sleep 1
+        do_on
     fi
 }
 

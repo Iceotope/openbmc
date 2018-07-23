@@ -39,14 +39,14 @@
 
 static const i2c_dev_attr_st scdcpld_attr_table[] = {
   {
-    "cpld_ver_major",
+    "cpld_ver_minor",
     NULL,
     I2C_DEV_ATTR_SHOW_DEFAULT,
     NULL,
     0x0, 0, 8,
   },
   {
-    "cpld_ver_minor",
+    "cpld_ver_major",
     NULL,
     I2C_DEV_ATTR_SHOW_DEFAULT,
     NULL,
@@ -109,6 +109,14 @@ static const i2c_dev_attr_st scdcpld_attr_table[] = {
     I2C_DEV_ATTR_SHOW_DEFAULT,
     I2C_DEV_ATTR_STORE_DEFAULT,
     0x14, 0, 1,
+  },
+  {
+    "th3_pci_reset",
+    "0x1: Reset\n"
+    "0x0: Out of reset",
+    I2C_DEV_ATTR_SHOW_DEFAULT,
+    I2C_DEV_ATTR_STORE_DEFAULT,
+    0x14, 1, 1,
   },
   {
     "scd_power_en",
@@ -408,6 +416,70 @@ static const i2c_dev_attr_st scdcpld_attr_table[] = {
     I2C_DEV_ATTR_SHOW_DEFAULT,
     I2C_DEV_ATTR_STORE_DEFAULT,
     0x52, 0, 8,
+  },
+  {
+    "lc1_fpga_revision",
+    "Linecard 1 FPGA Revision\n"
+    "0x00 – FPGA unprogrammed or linecard not present",
+    I2C_DEV_ATTR_SHOW_DEFAULT,
+    I2C_DEV_ATTR_STORE_DEFAULT,
+    0x81, 0, 8,
+  },
+  {
+    "lc2_fpga_revision",
+    "Linecard 2 FPGA Revision\n"
+    "0x00 – FPGA unprogrammed or linecard not present",
+    I2C_DEV_ATTR_SHOW_DEFAULT,
+    I2C_DEV_ATTR_STORE_DEFAULT,
+    0x82, 0, 8,
+  },
+  {
+    "lc3_fpga_revision",
+    "Linecard 3 FPGA Revision\n"
+    "0x00 – FPGA unprogrammed or linecard not present",
+    I2C_DEV_ATTR_SHOW_DEFAULT,
+    I2C_DEV_ATTR_STORE_DEFAULT,
+    0x83, 0, 8,
+  },
+  {
+    "lc4_fpga_revision",
+    "Linecard 4 FPGA Revision\n"
+    "0x00 – FPGA unprogrammed or linecard not present",
+    I2C_DEV_ATTR_SHOW_DEFAULT,
+    I2C_DEV_ATTR_STORE_DEFAULT,
+    0x84, 0, 8,
+  },
+  {
+    "lc5_fpga_revision",
+    "Linecard 5 FPGA Revision\n"
+    "0x00 – FPGA unprogrammed or linecard not present",
+    I2C_DEV_ATTR_SHOW_DEFAULT,
+    I2C_DEV_ATTR_STORE_DEFAULT,
+    0x85, 0, 8,
+  },
+  {
+    "lc6_fpga_revision",
+    "Linecard 6 FPGA Revision\n"
+    "0x00 – FPGA unprogrammed or linecard not present",
+    I2C_DEV_ATTR_SHOW_DEFAULT,
+    I2C_DEV_ATTR_STORE_DEFAULT,
+    0x86, 0, 8,
+  },
+  {
+    "lc7_fpga_revision",
+    "Linecard 7 FPGA Revision\n"
+    "0x00 – FPGA unprogrammed or linecard not present",
+    I2C_DEV_ATTR_SHOW_DEFAULT,
+    I2C_DEV_ATTR_STORE_DEFAULT,
+    0x87, 0, 8,
+  },
+  {
+    "lc8_fpga_revision",
+    "Linecard 8 FPGA Revision\n"
+    "0x00 – FPGA unprogrammed or linecard not present",
+    I2C_DEV_ATTR_SHOW_DEFAULT,
+    I2C_DEV_ATTR_STORE_DEFAULT,
+    0x88, 0, 8,
   },
 };
 

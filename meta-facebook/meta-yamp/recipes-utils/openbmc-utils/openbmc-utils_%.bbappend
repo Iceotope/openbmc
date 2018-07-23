@@ -20,18 +20,27 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 SRC_URI += "file://bios_util.sh \
             file://board-utils.sh \
             file://eth0_mac_fixup.sh \
+            file://fpga_util.sh \
+            file://fpga_ver.sh \
             file://power-on.sh \
             file://reset_brcm.sh \
             file://setup_board.sh \
             file://setup_i2c.sh \
             file://wedge_power.sh \
+            file://wedge_us_mac.sh \
+            file://pim_enable.sh \
+            file://yamp_bios.layout \
            "
 
 OPENBMC_UTILS_FILES += " \
     bios_util.sh \
     board-utils.sh \
+    fpga_util.sh \
+    fpga_ver.sh \
     reset_brcm.sh \
     wedge_power.sh \
+    wedge_us_mac.sh \
+    pim_enable.sh \
     "
 
 DEPENDS_append = " update-rc.d-native"
@@ -67,6 +76,8 @@ do_install_board() {
 
     install -m 0755 ${WORKDIR}/rc.local ${D}${sysconfdir}/init.d/rc.local
     update-rc.d -r ${D} rc.local start 99 2 3 4 5 .
+
+    install -m 0755 ${WORKDIR}/yamp_bios.layout ${D}${sysconfdir}/yamp_bios.layout
 }
 
 do_install_append() {

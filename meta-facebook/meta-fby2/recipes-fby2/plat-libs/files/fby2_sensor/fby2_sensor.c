@@ -205,8 +205,8 @@ const uint8_t bic_discrete_list[] = {
 const uint8_t bic_rc_sensor_list[] = {
   BIC_RC_SENSOR_MB_OUTLET_TEMP,
   BIC_RC_SENSOR_MB_INLET_TEMP,
-  BIC_RC_SENSOR_SYS_SOC_TEMP_L,
-  BIC_RC_SENSOR_SYS_SOC_TEMP_R,
+  BIC_RC_SENSOR_SENSOR_TEMP,
+  BIC_RC_SENSOR_SOC_TEMP_DIODE,
   BIC_RC_SENSOR_NVME1_CTEMP,
   BIC_RC_SENSOR_P12V_MB,
   BIC_RC_SENSOR_P3V3_STBY_MB,
@@ -214,7 +214,7 @@ const uint8_t bic_rc_sensor_list[] = {
   BIC_RC_SENSOR_PV_BAT,
   BIC_RC_SENSOR_PVDDQ_423,
   BIC_RC_SENSOR_PVDDQ_510,
-  BIC_RC_SENSOR_SOC_TEMP,
+  BIC_RC_SENSOR_SOC_TEMP_IMC,
   BIC_RC_SENSOR_PMF2432_TEMP,
   BIC_RC_SENSOR_PMF2344_TEMP,
   BIC_RC_SENSOR_CVR_APC_TEMP,
@@ -246,7 +246,7 @@ const uint8_t bic_rc_discrete_list[] = {
   /* RC discrete sensors */
   BIC_RC_SENSOR_SYSTEM_STATUS ,
   BIC_RC_SENSOR_VR_HOT ,
-  BIC_RC_SENSOR_SYS_BOOTING_STS,
+  BIC_RC_SENSOR_PROC_FAIL,
 };
 
 #ifdef CONFIG_FBY2_EP
@@ -437,10 +437,8 @@ sensor_thresh_array_init() {
 size_t bic_sensor_cnt = sizeof(bic_sensor_list)/sizeof(uint8_t);
 size_t bic_discrete_cnt = sizeof(bic_discrete_list)/sizeof(uint8_t);
 
-#ifdef CONFIG_FBY2_RC
 size_t bic_rc_sensor_cnt = sizeof(bic_rc_sensor_list)/sizeof(uint8_t);
 size_t bic_rc_discrete_cnt = sizeof(bic_rc_discrete_list)/sizeof(uint8_t);
-#endif
 
 #ifdef CONFIG_FBY2_EP
 size_t bic_ep_sensor_cnt = sizeof(bic_ep_sensor_list)/sizeof(uint8_t);
