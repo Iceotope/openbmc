@@ -75,14 +75,8 @@ def get_logger():
     logger.setLevel(logging.INFO)
     loggers = [(logging.StreamHandler(), standalone)]  # type: LogDetailsType
     if is_openbmc():
-        try:
-            loggers.append((logging.FileHandler('/mnt/data/pypartition.log'),
-                            standalone))
-        except IOError:
-            print('Error initializing log file in /mnt/data; using /tmp.',
-                  file=sys.stderr)
-            loggers.append((logging.FileHandler('/tmp/pypartition.log'),
-                            standalone))
+        loggers.append((logging.FileHandler('/var/log/pypartition.log'),
+                        standalone))
         try:
             loggers.append((logging.handlers.SysLogHandler('/dev/log'),
                             logging.Formatter('pypartition: %(message)s')))
@@ -118,17 +112,17 @@ def get_checksums_args(description):
 def free_kibibytes():
     # type: () -> int
     proc_meminfo_regex = re.compile(
-        '^MemFree: +(?P<free_kb>[0-9]+) kB$', re.MULTILINE
+        '^MemFree: +([0-9]+) kB$', re.MULTILINE
     )
     with open('/proc/meminfo', 'r') as proc_meminfo:
         return int(proc_meminfo_regex.findall(proc_meminfo.read())[0])
 
 
 def get_mtds():
-    # type () -> Tuple[MTDListType, MTDListType]
+    # type: () -> Tuple[MTDListType, MTDListType]
     proc_mtd_regex = re.compile(
-        '^(?P<dev>mtd[0-9]+): (?P<size>[0-9a-f]+) [0-9a-f]+ '
-        '"(?P<name>[^"]+)"$', re.MULTILINE
+        # Device, size, name
+        '^(mtd[0-9]+): ([0-9a-f]+) [0-9a-f]+ "([^"]+)"$', re.MULTILINE
     )
     mtd_info = []
     with open('/proc/mtd', 'r') as proc_mtd:
@@ -159,6 +153,31 @@ def get_mtds():
         ))
     full_flash_mtds.sort(key=lambda mtd: mtd.device_name, reverse=True)
     return (full_flash_mtds, all_mtds)
+
+
+def get_writeable_mounted_mtds():
+    # type: (MTDListType) -> List[Tuple[str, str]]
+    writeable_mtd_mounts_regex = re.compile(
+        # Device, mountpoint, filesystem, options, dump_freq, fsck_pass
+        '^(/dev/mtd(?:block)?[0-9]+) ([^ ]+) [^ ]+ [^ ]*rw[^ ]* [0-9]+ [0-9]+$',
+        re.MULTILINE
+    )
+    with open('/proc/mounts', 'r') as mounts:
+        mounts = writeable_mtd_mounts_regex.findall(mounts.read())
+    return mounts
+
+
+def fuser_k_mount_ro(writeable_mounted_mtds, logger):
+    # type: (Tuple[str, str], logging.Logger) -> None
+    for (device, mountpoint) in writeable_mounted_mtds:
+        # TODO don't actually fuser and remount on dry run
+        try:
+            run_verbosely(['fuser', '-km', mountpoint], logger)
+        except subprocess.CalledProcessError:
+            pass
+        run_verbosely(['mount', '-o', 'remount,ro', device, mountpoint],
+                      logger)
+        # TODO T31921137 restart rsyslog
 
 
 def get_kernel_parameters():

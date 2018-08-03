@@ -1095,7 +1095,8 @@ pal_peer_tray_insertion(uint8_t *value) {
 
 int
 pal_get_tray_location(char *self_tray_name, uint8_t self_len,
-                      char *peer_tray_name, uint8_t peer_len) {
+                      char *peer_tray_name, uint8_t peer_len,
+                      uint8_t *peer_tray_pwr) {
   uint8_t val = 0;
   char cvalue[MAX_VALUE_LEN];
 
@@ -1114,9 +1115,11 @@ pal_get_tray_location(char *self_tray_name, uint8_t self_len,
   if (val == 1) {
     snprintf(self_tray_name, self_len, "Upper Tray");
     snprintf(peer_tray_name, peer_len, "Lower Tray");
+    *peer_tray_pwr = FCB_SENSOR_P12VL;
   } else if (val == 0) {
     snprintf(self_tray_name, self_len, "Lower Tray");
     snprintf(peer_tray_name, peer_len, "Upper Tray");
+    *peer_tray_pwr = FCB_SENSOR_P12VU;
   } else {
     syslog(LOG_WARNING, "%s(): invalid tray_location_id: %d", __func__, val);
     return -1;
@@ -1662,9 +1665,9 @@ pal_bmc_err_enable(const char *error_item) {
   } else if (strcasestr(error_item, "Memory") != 0ULL) {
     pal_err_code_enable(ERR_CODE_MEM);
   } else if (strcasestr(error_item, "ECC Unrecoverable") != 0ULL) {
-    pal_err_code_enable(ERR_CODE_ECC_UNRECOVERABLE);
+    // Skip reporting ECC error code
   } else if (strcasestr(error_item, "ECC Recoverable") != 0ULL) {
-    pal_err_code_enable(ERR_CODE_ECC_RECOVERABLE);
+    // Skip reporting ECC error code
   } else {
     syslog(LOG_WARNING, "%s: invalid bmc health item: %s", __func__, error_item);
     return -1;
@@ -1679,9 +1682,9 @@ pal_bmc_err_disable(const char *error_item) {
   } else if (strcasestr(error_item, "Memory") != 0ULL) {
     pal_err_code_disable(ERR_CODE_MEM);
   } else if (strcasestr(error_item, "ECC Unrecoverable") != 0ULL) {
-    pal_err_code_disable(ERR_CODE_ECC_UNRECOVERABLE);
+    // Skip reporting ECC error code
   } else if (strcasestr(error_item, "ECC Recoverable") != 0ULL) {
-    pal_err_code_disable(ERR_CODE_ECC_RECOVERABLE);
+    // Skip reporting ECC error code
   } else {
     syslog(LOG_WARNING, "%s: invalid bmc health item: %s", __func__, error_item);
     return -1;

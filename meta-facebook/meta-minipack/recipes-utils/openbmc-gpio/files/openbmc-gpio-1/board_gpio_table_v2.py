@@ -31,6 +31,7 @@ board_gpio_table_v2 = [
     BoardGPIO('GPIOAA4', 'BMC_SCM_CPLD_TDI'),
     BoardGPIO('GPIOAA5', 'BMC_SCM_CPLD_TDO'),
     BoardGPIO('GPIOAA7', 'BMC_SCM_CPLD_EN'),
+    BoardGPIO('GPIOAB0', 'CPLD_INT_BMC'),
     BoardGPIO('GPIOE2', 'TH3_PWR_OK'),
     BoardGPIO('GPIOF0', 'BMC10_9548_1_RST'),
     BoardGPIO('GPIOF4', 'CPU_CATERR_MSMI'),

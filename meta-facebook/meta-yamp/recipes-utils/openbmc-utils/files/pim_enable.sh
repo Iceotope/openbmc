@@ -53,7 +53,7 @@ create_pim_gpio() {
 }
 
 power_on_pim() {
-  local lc old
+  local lc old ver
   lc=$1
   old=$(gpio_get LC${lc}_DPM_POWER_UP keepdirection)
   if [ $old -eq 1 ]; then
@@ -63,8 +63,14 @@ power_on_pim() {
   gpio_set LC${lc}_DPM_POWER_UP 1 # all power on
   sleep 1
   gpio_set LC${lc}_SCD_RESET_L 1     # scd out of reset
+  gpio_set LC${lc}_SCD_CONFIG_L 1    # scd not in config
   gpio_set LC${lc}_BAB_SYS_RESET_L 1 # gearbox out of reset
-  gpio_set LC${lc}_SATELLITE_PROG 0 # required for v4 image on P1
+  # If linecard FPGA version is before v6, need to set SATELLITE_PROG to 0.
+  # Otherwise, need to set it to 1.
+  # However, the reading of the linecard FPGA version is not reliable,
+  # we will set SATELLITE_PROG to 1 at all time, assuming the linecard FPGA
+  # is upgraded to the latest.
+  gpio_set LC${lc}_SATELLITE_PROG 1
   gpio_set LC${lc}_STATUS_RED_L 1 # turn off red
   gpio_set LC${lc}_STATUS_GREEN_L 0 # turn on green
   logger pim_enbale: powered on PIM${lc}

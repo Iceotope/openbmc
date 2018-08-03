@@ -28,13 +28,14 @@
 ### END INIT INFO
 
 . /usr/local/fbpackages/utils/ast-functions
+. /usr/bin/kv
 
 # Get SSD type and vender_device ID from cache
 default_fsc_config_path="/etc/fsc-config.json"
 
 # get from cache
-flash_type=`cat /tmp/ssd_sku_info`
-ssd_vendor=`cat /tmp/ssd_vendor`
+flash_type=$(kv_get "ssd_sku_info")
+ssd_vendor=$(kv_get "ssd_vendor")
 
 case "$flash_type" in
    "U2")
@@ -55,6 +56,8 @@ case "$flash_type" in
            "seagate") cp /etc/FSC_Lightning_PVT_Seagate_M2_2TB_v4_config.json ${default_fsc_config_path}
            ;;
            "samsung") cp /etc/FSC_Lightning_PVT_Samsung_M2_2TB_v4_config.json ${default_fsc_config_path}
+           ;;
+           "toshiba") cp /etc/FSC_Lightning_PVT_Toshiba_M2_2TB_v1_config.json ${default_fsc_config_path}
            ;;
            *) echo "Enter into transitional mode - Unexpected M.2 SSD vendor."
               /usr/local/bin/init_pwm.sh
