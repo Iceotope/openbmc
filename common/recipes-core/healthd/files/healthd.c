@@ -1228,22 +1228,22 @@ crit_proc_monitor() {
   bool is_crashdump_ongoing = false;
   bool is_cplddump_ongoing = false;
 
-  while(1) 
+  while(1)
   {
     //if is_fw_updating == true, means BMC is Updating a Device FW
     is_fw_updating = pal_is_fw_update_ongoing_system();
-    
+
     //if is_autodump_ongoing == true, modify the permission
     is_crashdump_ongoing = pal_is_crashdump_ongoing_system();
 
     //if is_cplddump_ongoing == true, modify the permission
     is_cplddump_ongoing = pal_is_cplddump_ongoing_system();
 
-    if ( (true == is_fw_updating) || (true == is_crashdump_ongoing) || (true == is_cplddump_ongoing) ) 
+    if ( (true == is_fw_updating) || (true == is_crashdump_ongoing) || (true == is_cplddump_ongoing) )
     {
       crit_proc_ongoing_handle(true);
     }
-    
+
     if ( (false == is_fw_updating) && (false == is_crashdump_ongoing) && (false == is_cplddump_ongoing) )
     {
       crit_proc_ongoing_handle(false);
@@ -1380,7 +1380,7 @@ static void check_vboot_main(uint8_t error_type, uint8_t error_code)
       /* We just recovered from a previous error! */
       syslog(LOG_CRIT, "DEASSERT: Verified boot failure %s", last_err);
       /* Do not deassert again on reboot */
-      kv_set("vboot_error", "(0,0)");
+      kv_set("vboot_error", "(0,0)", 0, KV_FPERSIST);
     }
     store_curr_version();
   }
@@ -1500,7 +1500,7 @@ timestamp_handler() {
         sleep(1);
         continue;
       }
-      
+
       // If get the correct time or time sync timeout
       time_init = SLED_TS_TIMEOUT;
 
@@ -1526,7 +1526,7 @@ timestamp_handler() {
 
     sleep(HB_SLEEP_TIME);
   }
-  
+
   return NULL;
 }
 
@@ -1636,7 +1636,7 @@ main(int argc, char **argv) {
       exit(1);
     }
   }
-  
+
 
   pthread_join(tid_watchdog, NULL);
 
