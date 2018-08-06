@@ -10,12 +10,12 @@ LIC_FILES_CHKSUM = "file://track1_sensor.c;beginline=8;endline=20;md5=da35978751
 SRC_URI = "file://track1_sensor \
           "
 DEPENDS =+ " libipmi libipmb libtrack1-common obmc-i2c obmc-pal "
-RDEPENDS_${PN} += " libtrack1-common libkv libedb"
+RDEPENDS_${PN} += " libtrack1-common libkv "
 
 S = "${WORKDIR}/track1_sensor"
 
 do_install() {
-	install -d ${D}${libdir}
+  install -d ${D}${libdir}
     install -m 0644 libtrack1_sensor.so ${D}${libdir}/libtrack1_sensor.so
 
     install -d ${D}${includedir}/facebook

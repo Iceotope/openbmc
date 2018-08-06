@@ -4,7 +4,7 @@ all: track1-sensors
 CFLAGS += -Wall -Werror -g
 
 track1-sensors: track1-sensors.c
-	$(CC) $(CFLAGS) -ltrack1_sensor -lpal -ledb -std=c99 -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -ltrack1_sensor -lpal -std=c99 -o $@ $^ $(LDFLAGS)
 
 .PHONY: clean
 

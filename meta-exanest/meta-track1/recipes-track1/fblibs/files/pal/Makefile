@@ -2,7 +2,7 @@
 lib: libpal.so
 
 CFLAGS += -Wall -Werror
-LOCALLIBS = -ltrack1_common -ltrack1_fruid -ltrack1_sensor -lkv -ledb -lgpio -lsensor-correction
+LOCALLIBS = -ltrack1_common -ltrack1_fruid -ltrack1_sensor -lkv -lgpio -lsensor-correction
 
 C_SRCS := $(wildcard *.c)
 C_OBJS := ${C_SRCS:.c=.o}
