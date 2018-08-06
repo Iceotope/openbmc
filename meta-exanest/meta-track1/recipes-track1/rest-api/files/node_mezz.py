@@ -33,7 +33,7 @@ class mezzNode(node):
       else:
           self.actions = actions
 
-    def getInformation(self):
+    def getInformation(self, param={}):
       name = pal_get_platform_name().decode()
       tpfile = open("/tmp/mezzanine/SLOT_ID")
       slotID = int(tpfile.readline(4))

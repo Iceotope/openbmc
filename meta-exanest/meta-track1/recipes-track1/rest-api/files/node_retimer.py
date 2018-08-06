@@ -37,7 +37,7 @@ class retimerNode(node):
         else:
             self.actions = actions
 
-    def getInformation(self):
+    def getInformation(self, param={}):
 
         ## Pull a lot of stuff out of the retimer for status and such
         ## Might need external code to do the i2c operations?

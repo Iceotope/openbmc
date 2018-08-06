@@ -42,7 +42,7 @@ class tpdbNodeLed(node):
         else:
             self.actions = actions
 
-    def getInformation(self):
+    def getInformation(self, param={}):
         ledStatus="0ff"
         ledPath="/tmp/mezzanine/db_" + repr(self.node) + "/gpio/IO/" + repr(6-self.num) + "/value"
         if os.path.isfile(ledPath):
@@ -58,6 +58,7 @@ class tpdbNodeLed(node):
         return info
 
     def doAction(self, data):
+        print("Doing action on module "+ repr(self.node))
         ledPath="/tmp/mezzanine/db_" + repr(self.node) + "/gpio/IO/" + repr(6-self.num) + "/value"
         res = 'failure'
 
@@ -140,7 +141,7 @@ class tpdbNodePwm(node):
 
       return self.duty
 
-    def getInformation(self):
+    def getInformation(self, param={}):
         freqHz = 0
         duty_cycle_normal = 0
         enabled = 0
@@ -230,7 +231,7 @@ class tpdbNode(node):
         else:
             self.actions = actions
 
-    def getInformation(self):
+    def getInformation(self, param={}):
 
 #
 #       Get master PWM enable, via the IO pin on the GPIO port

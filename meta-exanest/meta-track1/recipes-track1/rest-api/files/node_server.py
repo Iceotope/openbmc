@@ -39,12 +39,20 @@ class serverNode(node):
         else:
             self.actions = actions
 
-    def getInformation(self):
+    def getInformation(self, param={}):
         ret = pal_get_server_power(self.num)
         if ret == 0:
             status = 'power-off'
         elif ret == 1:
             status = 'power-on'
+        elif ret == 2:
+            status = 'power-cycle'
+        elif ret == 3:
+            status = 'reset'
+        elif ret == 4:
+            status = 'awaiting power off'
+        elif ret == 5:
+            status = 'main power off'
         else:
             status = 'error'
 

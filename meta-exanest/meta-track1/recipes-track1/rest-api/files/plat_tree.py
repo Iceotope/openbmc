@@ -40,7 +40,7 @@ from node_retimer import get_node_retimer
 from tree import tree
 from pal import *
 
-slot_names = ["none" ,"slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "sloy8" ]
+slot_names = ["none" ,"slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8" ]
 def get_slot_name(num):
     return slot_names[num]
 
@@ -48,6 +48,7 @@ def populate_server_node(num):
     slot=get_slot_name(num)
     prsnt = pal_is_fru_prsnt(num)
     if prsnt == None or prsnt == 0:
+        print("Not present")
         return None
 
     r_server = tree(get_slot_name(num), data = get_node_server(num))
@@ -67,22 +68,30 @@ def populate_server_node(num):
     nodeType = int(typeFile.readline(4))
     if nodeType == 1:
       # QFDB
-      print("QFDB board")
+      print("slot " + repr(num)  + " QFDB board")
     elif nodeType == 2:
       # KDB
-      print("KDB board")
+      print("slot " + repr(num)  + " KDB board")
     elif nodeType == 3:
       # TPDB
+      print("slot "+ repr(num)  + " TPDB board")
       r_tpdb = tree("tpdb", data = get_node_tpdb(num))
-      # Leds on the board
-      for i in range(0,4):
-        r_tpdb.addChild(tree("led"+repr(i), data = get_node_tpdb_led(num, i)))
+      if r_tpdb:
+        # Leds on the board
+        for i in range(0,4):
+          r_tpdb.addChild(tree("led"+repr(i), data = get_node_tpdb_led(num, i)))
 
-      # PWMs on the board
-      for i in range(0,5):
-        r_tpdb.addChild(tree("pwm"+repr(i), data = get_node_tpdb_pwm(num, i)))
+        # PWMs on the board
+        for i in range(0,5):
+          r_tpdb.addChild(tree("pwm"+repr(i), data = get_node_tpdb_pwm(num, i)))
 
-      r_server.addChild(r_tpdb)
+        r_server.addChild(r_tpdb)
+      else:
+        print("Failed to add TPDB in slot " + repr(num))
+
+    else:
+      #Unknown!
+      print("Unknown board in slot " + repr(num))
 
     return r_server
 
@@ -99,10 +108,13 @@ def init_plat_tree():
     # Add servers /api/server[1-max]
     num = pal_get_num_slots()
     print("Slots : " + repr(num))
-    for i in range(1, num-1):
-        r_server = populate_server_node(i)
-        if r_server:
-            r_mezz.addChild(r_server)
+    for i in range(1, num+1):
+      print("Doing slot "+ repr(i))
+      r_server = populate_server_node(i)
+      if r_server:
+        r_mezz.addChild(r_server)
+      else:
+        print("Failed to add server " + repr(i))
 
 
     # /api/mezz/bmc end point, and sub points
