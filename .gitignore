@@ -10,3 +10,4 @@ arcanist/.phutil_module_cache
 
 # Local shared state cache
 /.sstate/
+/meta-exanest/meta-track1/cache/bb_persist_data.sqlite3
