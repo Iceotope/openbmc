@@ -194,11 +194,11 @@ SITE_TYPE_TPDB=3
 ## TPDB IO defs
 
 
-declare -a DB_TPDB_IO_DIR_DEFAULT=( "out" \
+declare -a DB_TPDB_IO_DIR_DEFAULT=( "high" \
   "low" \
   "low" \
   "high" \
   "high" \
   "high" \
   "high" \
-  "low" )
+  "high" )

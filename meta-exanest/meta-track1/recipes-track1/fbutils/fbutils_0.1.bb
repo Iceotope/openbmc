@@ -31,6 +31,7 @@ SRC_URI = "file://ast-functions \
            file://retimers.sh \
            file://fw_env_config.sh \
            file://set_site_type.sh \
+           file://set_tpdb.sh \
            file://COPYING \
           "
 
@@ -38,7 +39,7 @@ pkgdir = "utils"
 
 S = "${WORKDIR}"
 
-binfiles = "sol-util power_led.sh power_util.py set_site_type.sh"
+binfiles = "sol-util power_led.sh power_util.py set_site_type.sh set_tpdb.sh"
 
 DEPENDS_append = "update-rc.d-native"
 
@@ -49,6 +50,7 @@ do_install() {
   install -m 644 gpio_names.sh ${dst}/gpio_names.sh
   install -m 644 retimers.sh ${dst}/retimers.sh
   install -m 644 set_site_type.sh ${dst}/set_site_type.sh
+  install -m 644 set_tpdb.sh ${dst}/set_tpdb.sh
   localbindir="${D}/usr/local/bin"
   install -d ${localbindir}
   for f in ${binfiles}; do
