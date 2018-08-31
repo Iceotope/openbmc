@@ -93,6 +93,7 @@
   clock-frequency = <100000>;
   status = "okay";
 
+/* MUX for the Site i2c */
    i2c-switch@70 {
     compatible = "nxp,pca9548";
     i2c-mux-idle-disconnect = <1>;
@@ -100,15 +101,27 @@
     #size-cells = <0>;
     reg = <0x70>;
 
+    /* Description of all the IO Expanders for the sites behind this MUX */
+
 /include/ "ioexpander.dtsi"
 
     };
 
-    ioexpander@76 {
+/* Handles Resets */
+    resetio@76 {
      compatible = "ti,tca9539";
      reg = <0x76>;
     };
-    
+
+
+/* Handles the JTAG Controller IO interface */
+    jtagio@77 {
+      compatible = "ti,tca9539";
+      reg = <0x77>;
+    };
+
+
+/* Board EEPROM */
     eeprom@50 {
      compatible = "atmel,24c02";
      reg = <0x50>;
@@ -119,38 +132,38 @@
 
 &axi_uartlite_00 {
   status = "okay";
-	};
+  };
 &axi_uartlite_01 {
   status = "okay";
-	};
+  };
 &axi_uartlite_02 {
   status = "okay";
-	};
+  };
 &axi_uartlite_03 {
   status = "okay";
-	};
+  };
 &axi_uartlite_04 {
   status = "okay";
-	};
+  };
 &axi_uartlite_05 {
   status = "okay";
-	};
+  };
 &axi_uartlite_06 {
   status = "okay";
-	};
+  };
 &axi_uartlite_07 {
   status = "okay";
-	};
+  };
 &axi_uartlite_08 {
   status = "okay";
-	};
+  };
 &axi_uartlite_09 {
   status = "okay";
-	};
+  };
 &axi_uartlite_10 {
   status = "okay";
-	};
+  };
 &axi_uartlite_11 {
   status = "okay";
-	};
-	
+  };
+

@@ -151,6 +151,23 @@ done
 
 ln -s /sys/bus/i2c/drivers/at24/1-0050/eeprom /tmp/mezzanine/eeprom
 
+# IO Expander dealing with the JTAG expander, May or may not be present..
+# Loop for a device first
+
+if [ -d "/sys/bus/i2c/drivers/pca953x/1-0077" ]; then
+  echo "JTAQ I/O Expander detected, configuring"
+  # Get the base of the IOs
+  iobase=`cat /sys/bus/i2c/drivers/pca953x/1-0077/gpio/*/base`
+  mkdir -f /tmp/mezzanine/jtag/gpio
+  for i in `seq 0 15`
+  do
+    ln -s /sys/class/gpio/gpio$((iobase+i)) /tmp/mezzanine/jtag/gpio/${i}
+  done
+else
+  echo "No JTAQ I/O Expander detected"
+fi
+
+
 # Get site config list from eeprom
 # Offset takes into account we start counting slots at 1, so real offset
 # is 32.
