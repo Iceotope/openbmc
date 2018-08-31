@@ -82,6 +82,8 @@ IMAGE_INSTALL += " \
   nano \
   "
 
+IMAGE_INSTALL_append = " bind-utils"
+
 IMAGE_FEATURES += " \
   ssh-server-openssh \
   tools-debug \
