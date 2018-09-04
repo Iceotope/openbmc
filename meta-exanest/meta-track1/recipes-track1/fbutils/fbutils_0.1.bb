@@ -32,6 +32,7 @@ SRC_URI = "file://ast-functions \
            file://fw_env_config.sh \
            file://set_site_type.sh \
            file://set_tpdb.sh \
+           file://jtag_setup.sh \
            file://COPYING \
           "
 
@@ -39,7 +40,7 @@ pkgdir = "utils"
 
 S = "${WORKDIR}"
 
-binfiles = "sol-util power_led.sh power_util.py set_site_type.sh set_tpdb.sh"
+binfiles = "sol-util power_led.sh power_util.py set_site_type.sh set_tpdb.sh jtag_setup.sh"
 
 DEPENDS_append = "update-rc.d-native"
 
@@ -51,6 +52,7 @@ do_install() {
   install -m 644 retimers.sh ${dst}/retimers.sh
   install -m 644 set_site_type.sh ${dst}/set_site_type.sh
   install -m 644 set_tpdb.sh ${dst}/set_tpdb.sh
+  install -m 644 jtag_setup.sh  ${dst}/jtag_setup.sh
   localbindir="${D}/usr/local/bin"
   install -d ${localbindir}
   for f in ${binfiles}; do
