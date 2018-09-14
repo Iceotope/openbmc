@@ -38,24 +38,25 @@ declare -a CTL_REG_INT=( ${CTL_REG_INT_0} \
 REG_2V5_ENABLE=889
 RETIMER_RESET=888
 SERIAL_LOOPBACK=887
+TRST_TO_MEZZ=886
 
 #BASE Board gpio expander
-RST_CTLREG_0=871
-RST_CTLREG_1=872
-RST_CTLREG_2=873
-RST_CTLREG_3=874
-RST_CTLREG_4=875
-RST_CTLREG_5=876
-RST_CTLREG_6=877
-RST_CTLREG_7=878
-RST_CTLREG_8=879
-RST_CTLREG_9=880
-RST_CTLREG_10=881
-RST_CTLREG_11=882
-RST_CTLREG_12=883
-RST_CTLREG_13=884
-RST_CTLREG_14=885
-RST_CTLREG_15=886
+RST_CTLREG_0=870
+RST_CTLREG_1=871
+RST_CTLREG_2=872
+RST_CTLREG_3=873
+RST_CTLREG_4=874
+RST_CTLREG_5=875
+RST_CTLREG_6=876
+RST_CTLREG_7=877
+RST_CTLREG_8=878
+RST_CTLREG_9=879
+RST_CTLREG_10=880
+RST_CTLREG_11=881
+RST_CTLREG_12=882
+RST_CTLREG_13=883
+RST_CTLREG_14=884
+RST_CTLREG_15=885
 
 declare -a RST_CTLREG=( ${RST_CTLREG_0} \
   ${RST_CTLREG_1} \
@@ -151,8 +152,8 @@ declare -a SITE_LOWIO_DIR_DEFAULT_QFDB=( "in" \
   "in" \
   "in" \
   "low" \
-  "low" \
-  "low" \
+  "high" \
+  "high" \
   "in" \
   "in" \
   "in" \
@@ -202,3 +203,20 @@ declare -a DB_TPDB_IO_DIR_DEFAULT=( "high" \
   "high" \
   "high" \
   "high" )
+
+declare -a JTAG_DIR_DEFAULT_QAFDB=( "high" \
+  "low" \
+  "low" \
+  "low" \
+  "low" \
+  "high" \
+  "high" \
+  "low" \
+  "low" \
+  "high" \
+  "high" \
+  "high" \
+  "high" \
+  "low" \
+  "in" \
+  "in" )

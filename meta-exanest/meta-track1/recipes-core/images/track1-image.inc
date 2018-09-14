@@ -1,4 +1,5 @@
 inherit exanest_kernel_fitimage
+inherit extrausers
 #inherit image_types_uboot
 
 # Base this image on core-image-minimal
@@ -96,4 +97,5 @@ DISTRO_FEATURES += " \
   usbhost \
   "
 # Was removed for now
-#  ipv6 \
+#  ipv6
+

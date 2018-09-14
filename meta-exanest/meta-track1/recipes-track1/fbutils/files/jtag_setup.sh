@@ -113,15 +113,18 @@ do_status_dump() {
   ## Get the mask first
   MASK=$(get_chain_mask)
   if [ $((${MASK} & 1)) -eq 1 ]; then
-    echo_stderr "  Site 1 in chain"
+    echo_stderr "  Site 0/Backplane in chain"
   fi
   if [ $((${MASK} & 2)) -eq 2 ]; then
-    echo_stderr "  Site 2 in chain"
+    echo_stderr "  Site 1 in chain"
   fi
   if [ $((${MASK} & 4)) -eq 4 ]; then
-    echo_stderr "  Site 3 in chain"
+    echo_stderr "  Site 2 in chain"
   fi
   if [ $((${MASK} & 8)) -eq 8 ]; then
+    echo_stderr "  Site 3 in chain"
+  fi
+  if [ $((${MASK} & 16)) -eq 16 ]; then
     echo_stderr "  Site 4 in chain"
   fi
   ## Get the staus of the IO pins
@@ -189,7 +192,8 @@ get_chain_mask() {
 set_chain_mask() {
   MASK=${1}
   echo_stderr "New chain Mask ${MASK}"
-  ## Loop over all 5 bits, checking with an
+  ## Loop over all 5 bits, checking with
+  ## site 0 is the backplane or zed connector.
 
     if [ $((${MASK} & 1)) -ne 0 ]; then
       set_io_pin ${IO_PINS[LP_SEL_0]} 1
@@ -197,24 +201,28 @@ set_chain_mask() {
       set_io_pin ${IO_PINS[LP_SEL_0]} 0
     fi
 
+    ## Site 1 = QFDB_B
     if [ $((${MASK} & 2)) -ne 0 ]; then
       set_io_pin ${IO_PINS[LP_SEL_1]} 1
     else
       set_io_pin ${IO_PINS[LP_SEL_1]} 0
     fi
 
+    ## Site 2 = QFDB_B
     if [ $((${MASK} & 4)) -ne 0 ]; then
       set_io_pin ${IO_PINS[LP_SEL_2]} 1
     else
       set_io_pin ${IO_PINS[LP_SEL_2]} 0
     fi
 
+    ## Site 3 = QFDB_B
     if [ $((${MASK} & 8)) -ne 0 ]; then
       set_io_pin ${IO_PINS[LP_SEL_3]} 1
     else
       set_io_pin ${IO_PINS[LP_SEL_3]} 0
     fi
 
+    ## Site 4 = QFDB_B
     if [ $((${MASK} & 16)) -ne 0 ]; then
       set_io_pin ${IO_PINS[LP_SEL_4]} 1
     else
@@ -339,7 +347,7 @@ while true ; do
       *) echo_stderr "Internal error!" ; exit 1 ;;
   esac
 done
-# do something with the variables -- in this case the lamest possible one :-)
+# do something with the variables -- in this case just dump them out
 if [ ${ARG_DEBUG} -eq 1 ]; then
   echo_stderr "ARG_ANY       = $ARG_ANY"
   echo_stderr "ARG_TRANS     = $ARG_TRANS"
@@ -365,7 +373,7 @@ if [ $# -gt 0 ]; then
   echo_stderr "Altering chain mask"
   while [ $# -gt 0 ] ; do
     echo_stderr "Site added $1"
-    JTAG_CHAIN_MASK=$(($JTAG_CHAIN_MASK+(1<<$(($1-1)))))
+    JTAG_CHAIN_MASK=$(($JTAG_CHAIN_MASK+(1<<$(($1)))))
     shift
   done
 

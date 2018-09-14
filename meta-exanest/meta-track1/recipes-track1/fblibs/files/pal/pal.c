@@ -499,11 +499,13 @@ server_48v_on(uint8_t slot_id) {
     // Convert to binary
     sscanf(vpath, "%u", &power_mask);
   }
+  printf("MPK: power_mask = 0x%02x\n", power_mask);
   power_mask |= (1 << (slot_id));
+  printf("MPK: power_mask = 0x%02x\n", power_mask);
 
   // Convert to ascii
   sprintf(vpath, "%d", power_mask);
-
+  printf("MPK: power_mask (txt) = %s\n", vpath);
   pal_set_key_value("server_48v_status",vpath);
 
   // Now do the hardware vlaue
@@ -517,7 +519,7 @@ server_48v_on(uint8_t slot_id) {
   if (val == 0x1) {
     return 1;
   }
-
+  printf("MPK: Turning on main PS_ON\n");
   if (write_device(vpath, GPIO_HIGH)) {
     return -1;
   }
@@ -542,11 +544,12 @@ server_48v_off(uint8_t slot_id) {
     // Convert to binary
     sscanf(vpath, "%u", &power_mask);
   }
+  printf("MPK: power_mask = 0x%02x\n", power_mask);
   power_mask &= ~(1 << (slot_id));
-
+  printf("MPK: power_mask = 0x%02x\n", power_mask);
   // Convert to ascii
   sprintf(vpath, "%d", power_mask);
-
+  printf("MPK: power_mask (txt) = %s\n", vpath);
   pal_set_key_value("server_48v_status",vpath);
 
   // Now do the hardware value, if it's zero,
@@ -564,6 +567,7 @@ server_48v_off(uint8_t slot_id) {
     }
 
     // Set it off
+    printf("MPK: Turning off main PS_ON\n");
     if (write_device(vpath, GPIO_LOW)) {
       return -1;
     }

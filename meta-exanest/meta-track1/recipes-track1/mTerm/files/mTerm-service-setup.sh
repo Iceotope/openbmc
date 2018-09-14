@@ -14,4 +14,7 @@ runsv /etc/sv/mTerm9 > /dev/null 2>&1 &
 runsv /etc/sv/mTerm10 > /dev/null 2>&1 &
 runsv /etc/sv/mTerm11 > /dev/null 2>&1 &
 runsv /etc/sv/mTerm12 > /dev/null 2>&1 &
+# Fix permissions
+chmod g+w /var/run/mTerm*_socket
+chgrp serialoverlan /var/run/mTerm*_socket
 echo "done."

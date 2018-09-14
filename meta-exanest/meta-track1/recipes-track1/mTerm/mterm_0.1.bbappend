@@ -29,7 +29,8 @@ SRC_URI += "file://mTerm1/run \
             file://mTerm10/run \
             file://mTerm11/run \
             file://mTerm12/run \
-           file://mTerm-service-setup.sh \
+            file://mTerm-service-setup.sh \
+            file://serialoverlan.profile \
            "
 
 S = "${WORKDIR}"
@@ -48,3 +49,17 @@ MTERM_SERVICES = "mTerm1 \
                   mTerm11 \
                   mTerm12 \
                  "
+
+#inherit useradd
+# USERADD_PACKAGES = "${PN}"
+# GROUPADD_PARAM_${PN} = "serialoverlan"
+# USERADD_PARAM_${PN} = "-g serialoverlan --system --home-dir /home/serialoverlan qfdb_a; \
+#        -g serialoverlan --system --no-create-home --home-dir /home/serialoverlan qfdb_b; \
+#        -g serialoverlan --system --no-create-home --home-dir /home/serialoverlan qfdb_c; \
+#        -g serialoverlan --system --no-create-home --home-dir /home/serialoverlan qfdb_d \
+#        "
+
+# do_install_append() {
+#  install -d ${D}/home/serialoverlan
+#  install -m 775 serialoverlan.profile ${D}/home/serialoverlan/.profile
+# }

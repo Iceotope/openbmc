@@ -158,10 +158,14 @@ if [ -d "/sys/bus/i2c/drivers/pca953x/1-0077" ]; then
   echo "JTAQ I/O Expander detected, configuring"
   # Get the base of the IOs
   iobase=`cat /sys/bus/i2c/drivers/pca953x/1-0077/gpio/*/base`
-  mkdir -f /tmp/mezzanine/jtag/gpio
+  mkdir -p /tmp/mezzanine/jtag/gpio
   for i in `seq 0 15`
   do
+    # Export the gpio pins
+    gpio_export $((iobase+i))
     ln -s /sys/class/gpio/gpio$((iobase+i)) /tmp/mezzanine/jtag/gpio/${i}
+    # Apply default
+    echo "${JTAG_DIR_DEFAULT_QAFDB[i]}" > /tmp/mezzanine/jtag/gpio/${i}/direction
   done
 else
   echo "No JTAQ I/O Expander detected"
