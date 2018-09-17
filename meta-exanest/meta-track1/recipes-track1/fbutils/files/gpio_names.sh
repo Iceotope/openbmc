@@ -211,7 +211,7 @@ declare -a JTAG_DIR_DEFAULT_QAFDB=( "high" \
   "low" \
   "high" \
   "high" \
-  "low" \
+  "high" \
   "low" \
   "high" \
   "high" \

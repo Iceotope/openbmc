@@ -100,6 +100,11 @@ ln -s /sys/class/gpio/gpio${RETIMER_RESET} /tmp/mezzanine/gpio/RETIMER_RESET
 gpio_set ${SERIAL_LOOPBACK} 0
 ln -s /sys/class/gpio/gpio${SERIAL_LOOPBACK} /tmp/mezzanine/gpio/SERIAL_LOOPBACK
 
+# TRST to the JTAG Expander
+gpio_set ${TRST_TO_MEZZ} 1
+ln -s /sys/class/gpio/gpio${TRST_TO_MEZZ} /tmp/mezzanine/gpio/TRST_TO_MEZZ
+
+
 # Slot ID
 index=0
 SLOT_ID_VALUE=0

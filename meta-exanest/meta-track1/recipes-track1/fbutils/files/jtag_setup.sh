@@ -147,7 +147,7 @@ do_status_dump() {
     echo_stderr "  Stitcher Mode"
   fi
 
-  if [ $(get_io_pin ${IO_PINS[MPSEL]}) -eq 1 ]; then
+  if [ $(get_io_pin ${IO_PINS[MPSEL]}) -eq 0 ]; then
     echo_stderr "  Ethernet is Master"
   else
     echo_stderr "  Connector is Master"
