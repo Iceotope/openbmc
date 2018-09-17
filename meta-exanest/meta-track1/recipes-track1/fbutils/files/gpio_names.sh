@@ -164,7 +164,7 @@ declare -a SITE_LOWIO_DIR_DEFAULT_QFDB=( "in" \
   "in" \
   "in" )
 
-declare -a SITE_HIGHIO_DIR_DEFAULT_QAFDB=( "in" \
+declare -a SITE_HIGHIO_DIR_DEFAULT_QFDB=( "in" \
   "in" \
   "in" \
   "in" \
