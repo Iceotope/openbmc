@@ -44,12 +44,12 @@ declare -A IO_PINS=(  [TRANS]=0 \
     [MPSEL]=5 \
     [RSTn]=6 \
     [OEn]=7 \
-    [LP_SEL_0]=10 \
-    [LP_SEL_1]=11 \
-    [LP_SEL_2]=12 \
-    [LP_SEL_3]=13 \
-    [LP_SEL_4]=14 \
-    [LED]=15 )
+    [LP_SEL_0]=8 \
+    [LP_SEL_1]=9 \
+    [LP_SEL_2]=10 \
+    [LP_SEL_3]=11 \
+    [LP_SEL_4]=12 \
+    [LED]=13 )
 
 ######
 ###### FUNCTIONS
@@ -225,8 +225,10 @@ set_chain_mask() {
     ## Site 4 = QFDB_B
     if [ $((${MASK} & 16)) -ne 0 ]; then
       set_io_pin ${IO_PINS[LP_SEL_4]} 1
+      set_io_pin ${IO_PINS[LED]} 0
     else
       set_io_pin ${IO_PINS[LP_SEL_4]} 0
+      set_io_pin ${IO_PINS[LED]} 1
     fi
 }
 
@@ -427,11 +429,11 @@ if [ ${ARG_ANY} -eq 1 ]; then
   fi
 
   if [ ${ARG_ETHERNET} -eq 1 ]; then
-    set_io_pin ${IO_PINS[MPSEL]} 1
+    set_io_pin ${IO_PINS[MPSEL]} 0
   fi
 
   if [ ${ARG_CONNECTOR} -eq 1 ]; then
-    set_io_pin ${IO_PINS[MPSEL]} 0
+    set_io_pin ${IO_PINS[MPSEL]} 1
   fi
 
   if [ ${ARG_BRIDGE} -eq 1 ]; then

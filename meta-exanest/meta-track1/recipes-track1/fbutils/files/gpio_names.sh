@@ -204,7 +204,7 @@ declare -a DB_TPDB_IO_DIR_DEFAULT=( "high" \
   "high" \
   "high" )
 
-declare -a JTAG_DIR_DEFAULT_QAFDB=( "high" \
+declare -a JTAG_DIR_DEFAULT=( "high" \
   "low" \
   "low" \
   "low" \

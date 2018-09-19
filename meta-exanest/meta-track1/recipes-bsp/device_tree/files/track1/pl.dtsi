@@ -11,7 +11,7 @@
     #size-cells = <1>;
     compatible = "simple-bus";
     ranges ;
-    axi_gpio_0: gpio@41200000 {
+    axi_gpio_0: gpio@41200000 { /* Rst_i2c_ctl */
       #gpio-cells = <2>;
       compatible = "xlnx,xps-gpio-1.00.a";
       gpio-controller ;
@@ -29,7 +29,7 @@
       xlnx,tri-default = <0xFFFFFFFF>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
-    axi_gpio_1: gpio@41210000 {
+    axi_gpio_1: gpio@41210000 { /* Rst_i2c_dbl */
       #gpio-cells = <2>;
       compatible = "xlnx,xps-gpio-1.00.a";
       gpio-controller ;
@@ -47,7 +47,7 @@
       xlnx,tri-default = <0xFFFFFFFF>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
-    axi_gpio_2: gpio@41220000 {
+    axi_gpio_2: gpio@41220000 { /* board_ID */
       #gpio-cells = <2>;
       compatible = "xlnx,xps-gpio-1.00.a";
       gpio-controller ;
@@ -65,7 +65,7 @@
       xlnx,tri-default = <0xFFFFFFFF>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
-    axi_gpio_3: gpio@41230000 {
+    axi_gpio_3: gpio@41230000 { /* Board ID_WP */
       #gpio-cells = <2>;
       compatible = "xlnx,xps-gpio-1.00.a";
       gpio-controller ;
@@ -83,7 +83,7 @@
       xlnx,tri-default = <0xFFFFFFFF>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
-    axi_gpio_4: gpio@41240000 {
+    axi_gpio_4: gpio@41240000 { /* PS_ON */
       #gpio-cells = <2>;
       compatible = "xlnx,xps-gpio-1.00.a";
       gpio-controller ;
@@ -101,7 +101,7 @@
       xlnx,tri-default = <0xFFFFFFFF>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
-    axi_gpio_5: gpio@41250000 {
+    axi_gpio_5: gpio@41250000 { /* CLRREG_INT */
       #gpio-cells = <2>;
       compatible = "xlnx,xps-gpio-1.00.a";
       gpio-controller ;
@@ -119,7 +119,7 @@
       xlnx,tri-default = <0xFFFFFFFF>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
-    axi_gpio_6: gpio@41260000 {
+    axi_gpio_6: gpio@41260000 { /* EN_2V5 */
       #gpio-cells = <2>;
       compatible = "xlnx,xps-gpio-1.00.a";
       gpio-controller ;
@@ -128,7 +128,7 @@
       xlnx,all-inputs-2 = <0x0>;
       xlnx,all-outputs = <0x1>;
       xlnx,all-outputs-2 = <0x0>;
-      xlnx,dout-default = <0x1>;
+      xlnx,dout-default = <0x0>;
       xlnx,dout-default-2 = <0x00000000>;
       xlnx,gpio-width = <0x1>;
       xlnx,gpio2-width = <0x20>;
@@ -137,7 +137,7 @@
       xlnx,tri-default = <0xFFFFFFFF>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
-    axi_gpio_7: gpio@41270000 {
+    axi_gpio_7: gpio@41270000 { /* RESET_RETIMER */
       #gpio-cells = <2>;
       compatible = "xlnx,xps-gpio-1.00.a";
       gpio-controller ;
@@ -155,11 +155,29 @@
       xlnx,tri-default = <0xFFFFFFFF>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
-    axi_gpio_8: gpio@41280000 {
+    axi_gpio_8: gpio@41280000 { /* Serial Loopback EN */
       #gpio-cells = <2>;
       compatible = "xlnx,xps-gpio-1.00.a";
       gpio-controller ;
       reg = <0x41280000 0x10000>;
+      xlnx,all-inputs = <0x0>;
+      xlnx,all-inputs-2 = <0x0>;
+      xlnx,all-outputs = <0x1>;
+      xlnx,all-outputs-2 = <0x0>;
+      xlnx,dout-default = <0xFFFFFFFF>;
+      xlnx,dout-default-2 = <0x00000000>;
+      xlnx,gpio-width = <0x1>;
+      xlnx,gpio2-width = <0x20>;
+      xlnx,interrupt-present = <0x0>;
+      xlnx,is-dual = <0x0>;
+      xlnx,tri-default = <0xFFFFFFFF>;
+      xlnx,tri-default-2 = <0xFFFFFFFF>;
+    };
+    axi_gpio_9: gpio@41290000 { /* TRST_TO_MEZZ */
+      #gpio-cells = <2>;
+      compatible = "xlnx,xps-gpio-1.00.a";
+      gpio-controller ;
+      reg = <0x41290000 0x10000>;
       xlnx,all-inputs = <0x0>;
       xlnx,all-inputs-2 = <0x0>;
       xlnx,all-outputs = <0x1>;
