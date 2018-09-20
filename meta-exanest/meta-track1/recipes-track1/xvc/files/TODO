@@ -1,0 +1,14 @@
+This to change.
+
+Add locking, so only one instance can work at a time/access JTAG
+
+Locking will wait for a timeout, then exit if it does not get exculusive
+access.
+
+Add a config method so we can run 4-5 versions, each one with a
+different destination. One with All destinations.
+
+It will configure the MUX upon connection from ethernet, and succesfully
+getting access to the JTAG via the lock file.
+
+When exiting, it will tristate the jtag port.

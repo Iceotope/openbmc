@@ -81,6 +81,7 @@ IMAGE_INSTALL += " \
   spatula \
   track1-sensors \
   nano \
+  xvc \
   "
 
 IMAGE_INSTALL_append = " bind-utils"
