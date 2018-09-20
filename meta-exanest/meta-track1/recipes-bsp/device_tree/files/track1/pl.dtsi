@@ -195,7 +195,7 @@
       clock-names = "ref_clk";
       clocks = "clkc 0";
       compatible = "xlnx,xps-uartlite-1.00.a";
-      current-speed = <115200>;
+      current-speed = <9600>;
       device_type = "serial";
       interrupt-parent = <&intc>;
       interrupts = <0 29 1>;
@@ -211,7 +211,7 @@
       clock-names = "ref_clk";
       clocks = "clkc 0";
       compatible = "xlnx,xps-uartlite-1.00.a";
-      current-speed = <115200>;
+      current-speed = <9600>;
       device_type = "serial";
       interrupt-parent = <&intc>;
       interrupts = <0 30 1>;
@@ -227,7 +227,7 @@
       clock-names = "ref_clk";
       clocks = "clkc 0";
       compatible = "xlnx,xps-uartlite-1.00.a";
-      current-speed = <115200>;
+      current-speed = <9600>;
       device_type = "serial";
       interrupt-parent = <&intc>;
       interrupts = <0 31 1>;
@@ -243,7 +243,7 @@
       clock-names = "ref_clk";
       clocks = "clkc 0";
       compatible = "xlnx,xps-uartlite-1.00.a";
-      current-speed = <115200>;
+      current-speed = <9600>;
       device_type = "serial";
       interrupt-parent = <&intc>;
       interrupts = <0 32 1>;
@@ -259,7 +259,7 @@
       clock-names = "ref_clk";
       clocks = "clkc 0";
       compatible = "xlnx,xps-uartlite-1.00.a";
-      current-speed = <115200>;
+      current-speed = <9600>;
       device_type = "serial";
       interrupt-parent = <&intc>;
       interrupts = <0 33 1>;
@@ -275,7 +275,7 @@
       clock-names = "ref_clk";
       clocks = "clkc 0";
       compatible = "xlnx,xps-uartlite-1.00.a";
-      current-speed = <115200>;
+      current-speed = <9600>;
       device_type = "serial";
       interrupt-parent = <&intc>;
       interrupts = <0 34 1>;
@@ -291,7 +291,7 @@
       clock-names = "ref_clk";
       clocks = "clkc 0";
       compatible = "xlnx,xps-uartlite-1.00.a";
-      current-speed = <115200>;
+      current-speed = <9600>;
       device_type = "serial";
       interrupt-parent = <&intc>;
       interrupts = <0 35 1>;
@@ -307,7 +307,7 @@
       clock-names = "ref_clk";
       clocks = "clkc 0";
       compatible = "xlnx,xps-uartlite-1.00.a";
-      current-speed = <115200>;
+      current-speed = <9600>;
       device_type = "serial";
       interrupt-parent = <&intc>;
       interrupts = <0 36 1>;
