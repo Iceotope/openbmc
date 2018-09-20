@@ -11,7 +11,7 @@
 /include/ "pcw.dtsi"
 / {
   chosen {
-    bootargs = " ";
+    bootargs = " earlyprintk uio_pdrv_genirq.of_id=generic-uio";
     stdout-path = "serial0:115200n8";
   };
   aliases {
@@ -166,4 +166,5 @@
 &axi_uartlite_11 {
   status = "okay";
   };
+
 

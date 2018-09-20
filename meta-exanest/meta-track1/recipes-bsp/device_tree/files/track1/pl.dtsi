@@ -383,5 +383,11 @@
       xlnx,s-axi-aclk-freq-hz-d = "50.0";
       xlnx,use-parity = <0x0>;
     };
+
+    /* The JTAG port */
+    axi_jtag_0: axi-jtag@43c00000 {
+      compatible = "generic-uio";
+      reg = <0x43C00000 0x10000>;
+    };
   };
 };
