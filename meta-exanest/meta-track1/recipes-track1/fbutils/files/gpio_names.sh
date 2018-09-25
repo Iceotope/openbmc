@@ -133,9 +133,9 @@ declare -a SITE_HIGHIO_DIR_DEFAULT_KDB=( "in" \
   "in" \
   "in" \
   "in" \
-  "high" \
-  "high" \
-  "high" \
+  "low" \
+  "low" \
+  "low" \
   "high" \
   "high" \
   "in" \
@@ -170,7 +170,7 @@ declare -a SITE_HIGHIO_DIR_DEFAULT_QFDB=( "in" \
   "in" \
   "low" \
   "low" \
-  "high" \
+  "low" \
   "high" \
   "high" \
   "in" \

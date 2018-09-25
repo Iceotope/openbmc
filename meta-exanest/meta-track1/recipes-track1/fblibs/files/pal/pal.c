@@ -418,8 +418,26 @@ server_power_on(uint8_t slot_id) {
   if (slot_id < 1 || slot_id > TRACK1_MAX_NUM_SLOTS) {
     return -1;
   }
-  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP);
 
+  // Set the resets, to all on following the tcl we got sent.
+
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_FN_RESET);
+  if (write_device(vpath, "0")) {
+    return -1;
+  }
+
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_FS_RESET);
+  if (write_device(vpath, "0")) {
+    return -1;
+  }
+
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_SRESET);
+  if (write_device(vpath, "0")) {
+    return -1;
+  }
+
+  // Apply the power on line now.
+  sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP);
   if (write_device(vpath, "0")) {
     return -1;
   }
@@ -922,25 +940,61 @@ pal_get_rst_btn(uint8_t *status) {
 }
 
 // Update the Reset button input to the server at given slot
+// status = 0 for reset, active low
 int
 pal_set_rst_btn(uint8_t slot, uint8_t status) {
   char vpath[MAX_VALUE_LEN] = {0};
-  char *val;
 
   if (slot < 1 || slot > TRACK1_MAX_NUM_SLOTS) {
     return -1;
   }
 
   if (status) {
-    val = GPIO_HIGH;
+    // Release reset, this is protection to stop it being called too often.
+    msleep(1000);
+    sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_FN_RESET);
+    if (write_device(vpath, "1")) {
+      return -1;
+    }
+
+    sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_FS_RESET);
+    if (write_device(vpath, "1")) {
+      return -1;
+    }
+
+    sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_SRESET);
+    if (write_device(vpath, "1")) {
+      return -1;
+    }
+
   } else {
-    val = GPIO_LOW;
-  }
+    // Go into reset
+    sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_FN_RESET);
+    if (write_device(vpath, "0")) {
+      return -1;
+    }
 
-  sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_SRESET);
+    sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_FS_RESET);
+    if (write_device(vpath, "0")) {
+      return -1;
+    }
 
-  if (write_device(vpath, val)) {
-    return -1;
+    sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_SRESET);
+    if (write_device(vpath, "0")) {
+      return -1;
+    }
+
+    msleep(100);
+    if (write_device(vpath, "1")) {
+      return -1;
+    }
+    // Hold state state for 1sec
+    msleep(1000);
+    // re-assurt sreset.
+    if (write_device(vpath, "0")) {
+      return -1;
+    }
+
   }
 
   return PAL_EOK;
