@@ -72,7 +72,7 @@
 #define SITE_GPIO_BIT_UNUSED_2 27
 #define SITE_GPIO_BIT_UNUSED_3 26
 #define SITE_GPIO_BIT_UNUSED_4 25
-#define SITE_GPIO_BIT_UNUSED_5 24
+#define SITE_GPIO_BIT_PHY_RESET 24
 #define SITE_GPIO_BIT_PWR_UP 23
 #define SITE_GPIO_BIT_SRESET 22
 #define SITE_GPIO_BIT_FS_RESET 21
@@ -420,7 +420,7 @@ server_power_on(uint8_t slot_id) {
   }
   sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP);
 
-  if (write_device(vpath, "1")) {
+  if (write_device(vpath, "0")) {
     return -1;
   }
 
@@ -466,7 +466,7 @@ server_power_off(uint8_t slot_id, bool gs_flag) {
   }
 
   sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP);
-  if (write_device(vpath, "0")) {
+  if (write_device(vpath, "1")) {
     return -1;
   }
 
@@ -482,10 +482,13 @@ server_power_off(uint8_t slot_id, bool gs_flag) {
 }
 
 // Control 48V to the server in a given slot
+// MPK, we can'yt toggle this, as it will mess up the retimers
+// and lock the i2c up, so we just turn on the 12/48 .
 static int
 server_48v_on(uint8_t slot_id) {
   char vpath[MAX_VALUE_LEN] = {0};
   int val;
+/***
   uint32_t power_mask = 0;
 
   if (slot_id < 1 || slot_id > TRACK1_MAX_NUM_SLOTS) {
@@ -507,7 +510,7 @@ server_48v_on(uint8_t slot_id) {
   sprintf(vpath, "%d", power_mask);
   printf("MPK: power_mask (txt) = %s\n", vpath);
   pal_set_key_value("server_48v_status",vpath);
-
+***/
   // Now do the hardware vlaue
 
   sprintf(vpath, GPIO_PS_ON_VAL);
@@ -516,11 +519,11 @@ server_48v_on(uint8_t slot_id) {
     return -1;
   }
 
-  if (val == 0x1) {
+  if (val == 0x0) {
     return 1;
   }
   printf("MPK: Turning on main PS_ON\n");
-  if (write_device(vpath, GPIO_HIGH)) {
+  if (write_device(vpath, GPIO_LOW)) {
     return -1;
   }
 
@@ -528,8 +531,11 @@ server_48v_on(uint8_t slot_id) {
 }
 
 // Turn off 48V for the server in given slot
+// MPK, we can'yt toggle this, as it will mess up the retimers
+// and lock the i2c up, so we just ignore it.
 static int
 server_48v_off(uint8_t slot_id) {
+/*******
   char vpath[MAX_VALUE_LEN] = {0};
   int val;
   uint32_t power_mask = 0;
@@ -572,6 +578,7 @@ server_48v_off(uint8_t slot_id) {
       return -1;
     }
   }
+  *******/
   return PAL_EOK;
 }
 
@@ -742,14 +749,15 @@ pal_is_server_12v_on(uint8_t slot_id, uint8_t *status) {
     sscanf(vpath, "%u", &power_mask);
   }
 
-   sprintf(vpath, GPIO_PS_ON_VAL);
+  sprintf(vpath, GPIO_PS_ON_VAL);
 
   if (read_device(vpath, &val)) {
     return -1;
   }
 
-  // PS is on and slot is "masked as being on"
-  if ( (val == 0x1) && ((power_mask & (1<<slot_id)) != 0x0 ) ) {
+  // PS is on and slot is "masked as being on", PS_ON is active low
+  // MPK Changed this to just say if the PS_ON is set, we'll ignore the rest
+  if ( (val == 0x0) /* && ((power_mask & (1<<slot_id)) != 0x0 ) */ ) {
     *status = 1;
   } else {
     *status = 0;
@@ -791,7 +799,7 @@ pal_get_server_power(uint8_t slot_id, uint8_t *status) {
 
   }
 
-  if (val == 0x1) {
+  if (val == 0x0) {
     *status = SERVER_POWER_ON;
   } else {
     *status = SERVER_POWER_OFF;
@@ -1847,11 +1855,15 @@ pal_log_clear(char *fru) {
 
 // We could use these to set the boot seq GPIO pins on the site?
 // Would make sense.
+//
+// "JTAG"    {set bootval 0x00 }
+// "QSPI-32" {set bootval 0x60 }
+//
+// *boot points to an array, of at least SIZE_BOOT_ORDER, we only use
+// the first byte.
 int
 pal_get_boot_order(uint8_t slot, uint8_t *req_data, uint8_t *boot, uint8_t *res_len) {
-  int i, j = 0;
   int ret;
-  int msb, lsb;
   char key[MAX_KEY_LEN] = {0};
   char str[MAX_VALUE_LEN] = {0};
   char tstr[4] = {0};
@@ -1863,33 +1875,23 @@ pal_get_boot_order(uint8_t slot, uint8_t *req_data, uint8_t *boot, uint8_t *res_
      return ret;
   }
 
-  memset(boot, 0x00, SIZE_BOOT_ORDER);
-  for (i = 0; i < 2*SIZE_BOOT_ORDER; i += 2) {
-    sprintf(tstr, "%c\n", str[i]);
-    msb = strtol(tstr, NULL, 16);
+  memset(boot, 0x00, 1);
+  sprintf(tstr, "%c\n", str[0]);
+  boot[0] = strtol(tstr, NULL, 16);
 
-    sprintf(tstr, "%c\n", str[i+1]);
-    lsb = strtol(tstr, NULL, 16);
-    boot[j++] = (msb << 4) | lsb;
-  }
-
-  *res_len = SIZE_BOOT_ORDER;
+  *res_len = 1;
   return 0;
 }
 
 int
 pal_set_boot_order(uint8_t slot, uint8_t *boot, uint8_t *res_data, uint8_t *res_len) {
-  int i;
   char key[MAX_KEY_LEN] = {0};
   char str[MAX_VALUE_LEN] = {0};
   char tstr[10] = {0};
 
   sprintf(key, "slot%u_boot_order", slot);
 
-  for (i = 0; i < SIZE_BOOT_ORDER; i++) {
-    snprintf(tstr, 3, "%02x", boot[i]);
-    strncat(str, tstr, 3);
-  }
+  snprintf(tstr, 3, "%02x", boot[0]);
 
   *res_len = 0;
   return pal_set_key_value(key, str);

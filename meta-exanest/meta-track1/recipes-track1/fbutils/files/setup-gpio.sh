@@ -39,9 +39,13 @@
 # Some gpio defs for names
 . /usr/local/fbpackages/utils/gpio_names.sh
 
-# Code for the retimers.
-. /usr/local/fbpackages/utils/retimers.sh
-
+# Code for the retimers, look for the config file
+if [ -e /usr/local/packages/retimers/retimers.sh ]; then
+  . /usr/local/packages/retimers/retimers.sh
+  RETIMER_EXIST=1
+else
+  RETIMER_EXIST=0
+fi
 
 ## Functions
 
@@ -122,13 +126,17 @@ done
 echo "${SLOT_ID_VALUE}" > /tmp/mezzanine/SLOT_ID
 printf 'Setting up Track1 Mezzanine in slot: %X\n' ${SLOT_ID_VALUE}
 
+# Check for retimers existing
 
-# Toggle reset
-retimer_reset
+if [ ${RETIMER_EXIST} -eq 1 ]; then
 
-# flash the retimers
-retimer_program ${SLOT_ID_VALUE}
+  # Toggle reset
+  retimer_reset
 
+  # flash the retimers, slot may specify different configs.
+  retimer_program ${SLOT_ID_VALUE}
+
+fi
 
 # IRQ's from the IO Expanders
 index=0
@@ -258,6 +266,35 @@ do
     1)
     ## QFDB,
       echo "QFDB board in site ${i}"
+      # Assign site's IO expander defaults, based on TPDB
+      # we use low/high on outputs to spec default values
+      SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_QFDB[@]}")
+      SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_QFDB[@]}")
+
+      # Crazy logic to pull the boot mode out of he KV data base
+      BOOT_MODE_TEMP=`/usr/bin/kv get slot${i}_boot_order persistent`
+
+      echo "  Bootmode = ${BOOT_MODE_TEMP}"
+      #set -x
+      # Convert it into 3 bits, and adjust the array above as needed!
+      if [ $((BOOT_MODE_TEMP & 0x1)) -eq 1 ]; then
+        SITE_LOWIO_DIR_DEFAULT[4]="high"
+      else
+        SITE_LOWIO_DIR_DEFAULT[4]="low"
+      fi
+
+      if [ $((BOOT_MODE_TEMP & 0x2)) -eq 2 ]; then
+        SITE_LOWIO_DIR_DEFAULT[5]="high"
+      else
+        SITE_LOWIO_DIR_DEFAULT[5]="low"
+      fi
+
+      if [ $((BOOT_MODE_TEMP & 0x4)) -eq 4 ]; then
+        SITE_LOWIO_DIR_DEFAULT[6]="high"
+      else
+        SITE_LOWIO_DIR_DEFAULT[6]="low"
+      fi
+      #set +x
     ;;
     2)
     ## KDB,
@@ -265,6 +302,27 @@ do
       # Assign site's IO expander defaults
       SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_KDB[@]}")
       SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_KDB[@]}")
+
+      # Crazy logic to pull the boot mode out of he KV data base
+      BOOT_MODE_TEMP=`/usr/bin/kv get slot${i}_boot_order persistent`
+       # Convert it into 3 bits, and adjust the array above as needed!
+      if [ $((BOOT_MODE_TEMP & 0x1)) -eq 1 ]; then
+        SITE_LOWIO_DIR_DEFAULT[4]="high"
+      else
+        SITE_LOWIO_DIR_DEFAULT[4]="low"
+      fi
+
+      if [ $((BOOT_MODE_TEMP & 0x2)) -eq 2 ]; then
+        SITE_LOWIO_DIR_DEFAULT[5]="high"
+      else
+        SITE_LOWIO_DIR_DEFAULT[5]="low"
+      fi
+
+      if [ $((BOOT_MODE_TEMP & 0x4)) -eq 4 ]; then
+        SITE_LOWIO_DIR_DEFAULT[6]="high"
+      else
+        SITE_LOWIO_DIR_DEFAULT[6]="low"
+      fi
     ;;
     3)
     ## TPDB,
