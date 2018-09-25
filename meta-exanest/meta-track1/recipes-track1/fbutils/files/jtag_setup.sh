@@ -51,6 +51,20 @@ declare -A IO_PINS=(  [TRANS]=0 \
     [LP_SEL_4]=12 \
     [LED]=13 )
 
+## Site name to number
+declare -a SITE_NAMES=( "EXT" \
+  "QFDB_B" \
+  "QFDB_A" \
+  "QFDB_C" \
+  "QFDB_D" )
+
+declare -A SITE_NAMES_REVERSE=( [EXT]=0 \
+  [QFDB_B]=1 \
+  [QFDB_A]=2 \
+  [QFDB_C]=3 \
+  [QFDB_D]=4 )
+
+
 ######
 ###### FUNCTIONS
 ######
@@ -113,19 +127,19 @@ do_status_dump() {
   ## Get the mask first
   MASK=$(get_chain_mask)
   if [ $((${MASK} & 1)) -eq 1 ]; then
-    echo_stderr "  Site 0/Backplane in chain"
-  fi
-  if [ $((${MASK} & 2)) -eq 2 ]; then
-    echo_stderr "  Site 1 in chain"
+    echo_stderr "  ${SITE_NAMES[0]} in chain"
   fi
   if [ $((${MASK} & 4)) -eq 4 ]; then
-    echo_stderr "  Site 2 in chain"
+    echo_stderr "  ${SITE_NAMES[2]} in chain"
+  fi
+  if [ $((${MASK} & 2)) -eq 2 ]; then
+    echo_stderr "  ${SITE_NAMES[1]} in chain"
   fi
   if [ $((${MASK} & 8)) -eq 8 ]; then
-    echo_stderr "  Site 3 in chain"
+    echo_stderr "  ${SITE_NAMES[3]} in chain"
   fi
   if [ $((${MASK} & 16)) -eq 16 ]; then
-    echo_stderr "  Site 4 in chain"
+    echo_stderr "  ${SITE_NAMES[4]} in chain"
   fi
   ## Get the staus of the IO pins
 
@@ -322,7 +336,7 @@ while true ; do
       --help)
         echo_stderr "Track1 JTAG Controller Setup Application"
         echo_stderr
-        echo_stderr " jtag_setup.sh <options> site select ..."
+        echo_stderr " jtag_setup.sh <options> [site select] ..."
         echo_stderr "  Options."
         echo_stderr "    --help      : Print this message"
         echo_stderr "    --debug     : Display more verbose messages"
@@ -339,7 +353,9 @@ while true ; do
         echo_stderr "    --bridge    : Bridge Mode"
         echo_stderr "    --stitcher  : Stitcher Mode "
         echo_stderr
-        echo_stderr "  site select is a list of sites to include in the chain. 1-4, multiple sites are allowed."
+        echo_stderr "  [site select] is a list of sites to include in the chain."
+        echo_stderr
+        echo_stderr "  QFDB_A QFDB_B QFDB_C QFDB_D EXT, multiple sites are allowed."
         echo_stderr
 
         exit 1 ;;
@@ -374,8 +390,11 @@ if [ $# -gt 0 ]; then
   JTAG_CHAIN_MASK=0
   echo_stderr "Altering chain mask"
   while [ $# -gt 0 ] ; do
-    echo_stderr "Site added $1"
-    JTAG_CHAIN_MASK=$(($JTAG_CHAIN_MASK+(1<<$(($1)))))
+    if [ ${SITE_NAMES_REVERSE[$1]+_} ]; then
+      echo_stderr "Site added $1"
+      JTAG_CHAIN_MASK=$(($JTAG_CHAIN_MASK+(1<<$((${SITE_NAMES_REVERSE[$1]})))))
+    fi
+
     shift
   done
 
