@@ -82,6 +82,7 @@ IMAGE_INSTALL += " \
   track1-sensors \
   nano \
   xvc \
+  retimers \
   "
 
 IMAGE_INSTALL_append = " bind-utils"
