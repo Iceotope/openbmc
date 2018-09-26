@@ -24,7 +24,7 @@ if [ ${REQ_DUTY} -gt 95 ]; then
   REQ_DUTY=95
 fi
 
-if [ ${REQ_DUTY} -lt 5 ]; then 
+if [ ${REQ_DUTY} -lt 5 ]; then
   REQ_DUTY=5
 fi
 
@@ -38,19 +38,19 @@ do
   enable_val=`cat /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/enable`
   ## stop the site while we change it.
   echo 0 > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/enable
-  
+
   ## Period is in ns
-  PERIOD=`awk "BEGIN {printf \"%d\", 1/${DEFAULT_FREQ} * 1000000000}"`
+  PERIOD=`awk "BEGIN {printf \"%d\", (${pwm_num}*5)+(1/${DEFAULT_FREQ} * 1000000000)}"`
   ## now do Duty cycle of it
   DUTY=`awk "BEGIN {printf \"%d\", ${PERIOD}/100*${REQ_DUTY} }"`
   ## If we where set to 0, then we're turning off!
   if [ ${2} -eq 0 ]; then
-    echo 0 > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/duty_cycle
     echo ${PERIOD} > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/period
+    echo 0 > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/duty_cycle
     echo 0 > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/enable
   else
-    echo ${DUTY} > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/duty_cycle
     echo ${PERIOD} > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/period
+    echo ${DUTY} > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/duty_cycle
 
     # Re-enable if needed
     echo ${enable_val} > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/enable
@@ -76,7 +76,7 @@ do
   else
     ENABLED=stopped
   fi
-  
+
   # Get duty cycle
   duty_val=`cat /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/duty_cycle`
   period_val=`cat /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/period`
@@ -120,7 +120,7 @@ do
    ;;
    3)
    echo -n "TPDB "
-   ## master enable for PWM, is in I/O 0 
+   ## master enable for PWM, is in I/O 0
    ## New value?
    if [ ! -z "$2" ]; then
      ## Set new value
@@ -128,9 +128,18 @@ do
      if [ ! -z "$3" ]; then
        # 3rd Arg is on or off for master
        if [ "$3" == "on" ]; then
+         for pwm_num in `seq ${PWM_START} ${PWM_END}`
+         do
+           echo 1 > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/enable
+         done
          echo low > /tmp/mezzanine/db_${i}/gpio/IO/0/direction
        else
-         echo high > /tmp/mezzanine/db_${i}/gpio/IO/0/direction         
+         for pwm_num in `seq ${PWM_START} ${PWM_END}`
+         do
+           echo 0 > /tmp/mezzanine/db_${SITE}/pwmchip/pwm${pwm_num}/enable
+         done
+
+         echo high > /tmp/mezzanine/db_${i}/gpio/IO/0/direction
        fi
      fi
    fi
