@@ -1,0 +1,44 @@
+--- files/mTerm_server.c
++++ files/mTerm_server.c
+@@ -17,10 +17,12 @@
+  */
+ #include <ctype.h>
+ #include <sys/file.h>
++#include <sys/stat.h>
+ #include <sys/socket.h>
+ #include <arpa/inet.h>
+ #include <sys/un.h>
+ #include <errno.h>
++#include <grp.h>
+ #include <syslog.h>
+ #include <sys/uio.h>
+ #include "tty_helper.h"
+@@ -68,6 +70,28 @@
+     close(serverFd);
+     return -1;
+   }
++
++
++  /* Iceotope-MPK changes:
++   *   Change group to serialoverlan
++   *   Change permission so group can read/write socket
++   */
++  struct stat sb;
++  struct group *gp;
++  if (0 == stat(local.sun_path, &sb)) {
++    chmod(local.sun_path, sb.st_mode|(S_IRGRP|S_IWGRP));
++    gp=getgrnam("serialoverlan");
++    if (gp) {
++      chown(local.sun_path,-1, gp->gr_gid);
++    } else {
++      syslog(LOG_ERR, "mTerm_server: Unable to assign socket to serialoverlan group");
++    }
++  } else {
++      syslog(LOG_ERR, "mTerm_server: socket fstat() failed");
++  }
++
++  /* End Iceotope-MPK changes: */
++
+   return serverFd;
+ }
+ 

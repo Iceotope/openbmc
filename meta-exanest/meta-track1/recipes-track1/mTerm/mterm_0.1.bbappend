@@ -17,7 +17,8 @@
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 
-SRC_URI += "file://mTerm1/run \
+SRC_URI += "file://0001-group_change_server.patch \
+            file://mTerm1/run \
             file://mTerm2/run \
             file://mTerm3/run \
             file://mTerm4/run \
@@ -50,16 +51,18 @@ MTERM_SERVICES = "mTerm1 \
                   mTerm12 \
                  "
 
-#inherit useradd
-# USERADD_PACKAGES = "${PN}"
-# GROUPADD_PARAM_${PN} = "serialoverlan"
-# USERADD_PARAM_${PN} = "-g serialoverlan --system --home-dir /home/serialoverlan qfdb_a; \
-#        -g serialoverlan --system --no-create-home --home-dir /home/serialoverlan qfdb_b; \
-#        -g serialoverlan --system --no-create-home --home-dir /home/serialoverlan qfdb_c; \
-#        -g serialoverlan --system --no-create-home --home-dir /home/serialoverlan qfdb_d \
-#        "
+inherit useradd
+USERADD_PACKAGES = "${PN}"
+GROUPADD_PARAM_${PN} = "-f -r serialoverlan"
+USERADD_PARAM_${PN} = "-g tty -G serialoverlan --system --home-dir /home/serialoverlan -p '\$1\$X0a8UnKJ\$HOgG/h/sQDRq38lguZgQp0' qfdb_a; \
+       -M -g tty -G serialoverlan --system --home-dir /home/serialoverlan -p '\$1\$X0a8UnKJ\$HOgG/h/sQDRq38lguZgQp0' qfdb_b; \
+       -M -g tty -G serialoverlan --system --home-dir /home/serialoverlan -p '\$1\$X0a8UnKJ\$HOgG/h/sQDRq38lguZgQp0' qfdb_c; \
+       -M -g tty -G serialoverlan --system --home-dir /home/serialoverlan -p '\$1\$X0a8UnKJ\$HOgG/h/sQDRq38lguZgQp0' qfdb_d \
+       "
 
-# do_install_append() {
-#  install -d ${D}/home/serialoverlan
-#  install -m 775 serialoverlan.profile ${D}/home/serialoverlan/.profile
-# }
+do_install_append() {
+  install -d ${D}/home/serialoverlan
+  install -m 775 serialoverlan.profile ${D}/home/serialoverlan/.profile
+}
+DEPENDS_${PN} += "fbutils"
+FILES_${PN} += "/home/serialoverlan"

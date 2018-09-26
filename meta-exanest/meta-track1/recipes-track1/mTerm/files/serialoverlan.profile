@@ -14,19 +14,19 @@ mesg n
 echo "user = ${USER}"
 case ${USER} in
   qfdb_a)
-    SITE=QFDB_A_2
+    SITE=QFDB_A
     ;;
 
   qfdb_b)
-    SITE=QFDB_B_2
+    SITE=QFDB_B
     ;;
 
   qfdb_c)
-    SITE=QFDB_C_2
+    SITE=QFDB_C
     ;;
 
   qfdb_d)
-    SITE=QFDB_D_2
+    SITE=QFDB_D
     ;;
 esac
 
@@ -36,6 +36,6 @@ if [ -z ${SITE} ]; then
 else
 
   echo "Site = ${SITE}"
-  /usr/local/bin/mTerm_client ${SITE}
+  /usr/local/bin/sol-util ${SITE}
   exit
 fi
