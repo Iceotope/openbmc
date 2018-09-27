@@ -950,8 +950,21 @@ pal_set_rst_btn(uint8_t slot, uint8_t status) {
   }
 
   if (status) {
-    // Release reset, this is protection to stop it being called too often.
+
+    // Come out of reset
+    // Release SRESET
+    sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_SRESET);
+    if (write_device(vpath, "1")) {
+      return -1;
+    }
+    // Hold state state for 1sec
     msleep(1000);
+    // re-assurt sreset?!?!?
+    if (write_device(vpath, "0")) {
+      return -1;
+    }
+    msleep(1000);
+    // Now release them all.
     sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_FN_RESET);
     if (write_device(vpath, "1")) {
       return -1;
@@ -980,17 +993,6 @@ pal_set_rst_btn(uint8_t slot, uint8_t status) {
     }
 
     sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_SRESET);
-    if (write_device(vpath, "0")) {
-      return -1;
-    }
-
-    msleep(100);
-    if (write_device(vpath, "1")) {
-      return -1;
-    }
-    // Hold state state for 1sec
-    msleep(1000);
-    // re-assurt sreset.
     if (write_device(vpath, "0")) {
       return -1;
     }
