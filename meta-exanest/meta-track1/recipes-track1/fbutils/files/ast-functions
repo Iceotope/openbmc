@@ -2,6 +2,44 @@
 DEVMEM=/sbin/devmem
 MAX_SITE=8
 
+declare -a SLOT_2_NAME=( "all" \
+        "tpdb-b" \
+        "tpdb-a" \
+        "kdb-b" \
+        "kdb-a" \
+        "qfdb-c" \
+        "qfdb-d" \
+        "qfdb-b" \
+        "qfdb-a" \
+        "bmc")
+
+declare -A NAME_2_SLOT=(  [all]=0 \
+    [tpdb-b]=1 \
+    [tpdb-a]=2 \
+    [kdb-b]=3 \
+    [kdb-a]=4 \
+    [qfdb-c]=5 \
+    [qfdb-d]=6 \
+    [qfdb-b]=7 \
+    [qfdb-a]=8 \
+    [tpdb_b]=1 \
+    [tpdb_a]=2 \
+    [kdb_b]=3 \
+    [kdb_a]=4 \
+    [qfdb_c]=5 \
+    [qfdb_d]=6 \
+    [qfdb_b]=7 \
+    [qfdb_a]=8 \
+    [bmc]=9  )
+
+slot_name() {
+  echo ${SLOT_2_NAME[$1]}
+}
+
+slot_number() {
+  echo ${NAME_2_SLOT[$1]}
+}
+
 devmem_set_bit() {
     local addr
     local val
@@ -128,8 +166,17 @@ is_bmc_por() {
 }
 
 # Check to see if server is present in given slot or not
+# if it's a number, use as the index, if it's a word, then use
+# the loop up table.
 is_server_prsnt() {
   local prsnt
+  local slot_id=${1}
+
+  if [ $slot_id -eq $slot_id 2> /dev/null ]; then
+    echo Number >/dev/null
+  else
+    slot_id=$(slot_number ${slot_id,,})
+  fi
 
   # Cat the type file for the db_x
   prsnt=0

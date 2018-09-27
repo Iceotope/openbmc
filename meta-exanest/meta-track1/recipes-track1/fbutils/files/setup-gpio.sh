@@ -64,7 +64,8 @@ do
     mkdir -p /tmp/mezzanine/site_${i}
     mkdir -p /tmp/mezzanine/site_${i}/gpio
     mkdir -p /tmp/mezzanine/db_${i}
-
+    echo $(slot_name ${i}) >/tmp/mezzanine/site_${i}/name
+    echo $(slot_name ${i}) >/tmp/mezzanine/db_${i}/name
 done
 
 ## Do all the exporting

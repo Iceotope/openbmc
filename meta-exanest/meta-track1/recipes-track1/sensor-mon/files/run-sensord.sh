@@ -10,7 +10,8 @@ SLOTS=
 for i in `seq 1 ${MAX_SITE}`
 do
   if [ $(is_server_prsnt ${i}) == "1" ]; then
-    SLOTS="$SLOTS slot${i}"
+
+    SLOTS="$SLOTS $(slot_name ${i})"
   fi
 done
 

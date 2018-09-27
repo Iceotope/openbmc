@@ -15,8 +15,16 @@ SITE_START=1
 
 ## Check for first argument, which is a site,
 if [ ! -z "$1" ]; then
-  SITE_START=$1
-  MAX_SITE=$1
+  ## check if its a number or text, and convert to slot number
+  slot_id=$1
+  if [ $slot_id -eq $slot_id 2> /dev/null ]; then
+    echo Number >/dev/null
+  else
+    slot_id=$(slot_number ${slot_id,,})
+  fi
+
+  SITE_START=$slot_id
+  MAX_SITE=$slot_id
 fi
 
 SITE_EEPROM_OFFSET=31
@@ -27,7 +35,7 @@ do
   # Remove leading zeros
   site_boot=$((10#$site_boot))
 
-  echo -n "Site ${i} :"
+  echo -n "Site ${i} ($(slot_name $i)) :"
 
   case $site_boot in
    0)

@@ -62,7 +62,11 @@ declare -A SITE_NAMES_REVERSE=( [EXT]=0 \
   [QFDB_B]=1 \
   [QFDB_A]=2 \
   [QFDB_C]=3 \
-  [QFDB_D]=4 )
+  [QFDB_D]=4 \
+  [QFDB-B]=1 \
+  [QFDB-A]=2 \
+  [QFDB-C]=3 \
+  [QFDB-D]=4 )
 
 
 ######
@@ -390,9 +394,11 @@ if [ $# -gt 0 ]; then
   JTAG_CHAIN_MASK=0
   echo_stderr "Altering chain mask"
   while [ $# -gt 0 ] ; do
-    if [ ${SITE_NAMES_REVERSE[$1]+_} ]; then
-      echo_stderr "Site added $1"
-      JTAG_CHAIN_MASK=$(($JTAG_CHAIN_MASK+(1<<$((${SITE_NAMES_REVERSE[$1]})))))
+    if [ ${SITE_NAMES_REVERSE[${1^^}]+_} ]; then
+      echo_stderr "Site added ${1^^}"
+      JTAG_CHAIN_MASK=$(($JTAG_CHAIN_MASK+(1<<$((${SITE_NAMES_REVERSE[${1^^}]})))))
+    else
+      echo_stderr "Unknown site ${1}!!"
     fi
 
     shift
