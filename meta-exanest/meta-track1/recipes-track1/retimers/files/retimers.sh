@@ -17,6 +17,7 @@ declare -a RETIMER_I2C_ADDRESS=( ${CTL_REG_INT_0} \
 retimer_reset() {
   # Retimer reset, toggle bit.
   gpio_set ${RETIMER_RESET} 0
+  usleep 100000
   gpio_set ${RETIMER_RESET} 1
 }
 
@@ -32,8 +33,9 @@ do_retimer() {
       #echo "Skip <$line>"
       continue
     fi
+    ## Forth Typo!. It never writes the REG_V, as it should be REG_VAL
     ##echo "i2cset -y $I2C_DEV $I2C_ADDR $REG_ADDR $REG_V"
-    i2cset -y $I2C_DEV $I2C_ADDR $REG_ADDR $REG_V
+    i2cset -y $I2C_DEV $I2C_ADDR $REG_ADDR $REG_VAL
 
   done < "$1"
 
@@ -43,7 +45,7 @@ do_retimer() {
 retimer_program() {
   echo "Flashing Retimers..."
   ## Use one of these configs.
-  do_retimer /usr/local/packages/retimers/retimer_10_3125gbps.csv
-  ##do_retimer /usr/local/packages/retimers/retimer_10gbps.csv
+  ##do_retimer /usr/local/packages/retimers/retimer_10_3125gbps.csv
+  do_retimer /usr/local/packages/retimers/retimer_10gbps.csv
   echo "...Done"
 }
