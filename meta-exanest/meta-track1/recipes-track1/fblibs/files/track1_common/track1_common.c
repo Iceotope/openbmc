@@ -163,7 +163,7 @@ track1_common_fru_name(uint8_t fru, char *str) {
 
 int
 track1_common_fru_id(char *str, uint8_t *fru) {
-
+/*** MPK, revert back to symbolic names
   if (!strcmp(str, "all")) {
     *fru = FRU_ALL;
   } else if (!strcmp(str, "slot1")) {
@@ -182,7 +182,26 @@ track1_common_fru_id(char *str, uint8_t *fru) {
     *fru = FRU_QFDB_B;
   } else if (!strcmp(str, "slot8")) {
     *fru = FRU_QFDB_A;
-  } else if (!strcmp(str, "bmc")) {
+**/
+  if (!strcmp(str, "all")) {
+    *fru = FRU_ALL;
+  } else if (!strcasecmp(str, "tpdb-b")) {
+    *fru = FRU_TPDB_B;
+  } else if (!strcasecmp(str, "tpdb-a")) {
+    *fru = FRU_TPDB_A;
+  } else if (!strcasecmp(str, "kdb-a")) {
+    *fru = FRU_KDB_B;
+  } else if (!strcasecmp(str, "kdb-b")) {
+    *fru = FRU_KDB_A;
+  } else if (!strcasecmp(str, "qfdb-c")) {
+    *fru = FRU_QFDB_C;
+  } else if (!strcasecmp(str, "qfdb-d")) {
+    *fru = FRU_QFDB_D;
+  } else if (!strcasecmp(str, "qfdb-b")) {
+    *fru = FRU_QFDB_B;
+  } else if (!strcasecmp(str, "qfdb-a")) {
+    *fru = FRU_QFDB_A;
+  } else if (!strcasecmp(str, "bmc")) {
     *fru = FRU_BMC;
   } else {
 #ifdef DEBUG

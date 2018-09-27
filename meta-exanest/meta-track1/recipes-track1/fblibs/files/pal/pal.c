@@ -99,18 +99,21 @@
 #define SITE_GPIO_BIT_STAT_ALARM 1
 #define SITE_GPIO_BIT_STAT_ON_OFF 0
 
-/***** Removed names, reverted to slot<n>
+
 const char pal_server_list[] = "tpdb-b, tpdb-a, kdb-a, kdb-b," \
           " qfdb-c, qfdb-d,  qfdb-b, qfdb-a";
+
 const char pal_fru_list[] = "all, tpdb-b, tpdb-a, kdb-a, kdb-b," \
           " qfdb-c, qfdb-d, qfdb-b, qfdb-a, bmc";
-*/
 
+
+/****
 const char pal_server_list[] = "slot1, slot2, slot3, slot4," \
           " slot5, slot6, slot7, slot8";
+
 const char pal_fru_list[] = "all, slot1, slot2, slot3, slot4," \
           " slot5, slot6, slot7, slot8, bmc";
-
+*/
 
 char *key_list[] = {
 "identify_board",

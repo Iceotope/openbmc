@@ -31,32 +31,41 @@ track1_get_fruid_path(uint8_t fru, char *path) {
 
   switch(fru) {
     case FRU_TPDB_B:
-      sprintf(fname, "slot1");
+      sprintf(fname, "tpdb-b");
       break;
+
     case FRU_TPDB_A:
-      sprintf(fname, "slot2");
+      sprintf(fname, "tpdb-a");
       break;
+
     case FRU_KDB_B:
-      sprintf(fname, "slot3");
+      sprintf(fname, "kdb-b");
       break;
+
     case FRU_KDB_A:
-      sprintf(fname, "slot4");
+      sprintf(fname, "kdb-a");
       break;
+
     case FRU_QFDB_C:
-      sprintf(fname, "slot5");
+      sprintf(fname, "qfdb-c");
       break;
+
     case FRU_QFDB_D:
-      sprintf(fname, "slot6");
+      sprintf(fname, "qfdb-d");
       break;
+
     case FRU_QFDB_B:
-      sprintf(fname, "slot7");
+      sprintf(fname, "qfdb-b");
       break;
+
     case FRU_QFDB_A:
-      sprintf(fname, "slot8");
+      sprintf(fname, "qfdb-a");
       break;
+
     case FRU_BMC:
       sprintf(fname, "bmc");
       break;
+
     default:
 #ifdef DEBUG
       syslog(LOG_WARNING, "track1_get_fruid_path: wrong fruid");
