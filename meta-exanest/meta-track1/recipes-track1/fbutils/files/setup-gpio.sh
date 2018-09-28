@@ -64,6 +64,10 @@ do
     mkdir -p /tmp/mezzanine/site_${i}
     mkdir -p /tmp/mezzanine/site_${i}/gpio
     mkdir -p /tmp/mezzanine/db_${i}
+    ## Create a symbolic link
+    ln -s -f /tmp/mezzanine/site_$(slot_name ${i}) /tmp/mezzanine/site_${i}
+    ln -s -f /tmp/mezzanine/db_$(slot_name ${i}) /tmp/mezzanine/db_${i}
+    ## Store the name in the directories.
     echo $(slot_name ${i}) >/tmp/mezzanine/site_${i}/name
     echo $(slot_name ${i}) >/tmp/mezzanine/db_${i}/name
 done

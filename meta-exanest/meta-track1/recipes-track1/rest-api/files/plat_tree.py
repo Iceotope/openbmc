@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
 # Copyright 2014-present Facebook. All Rights Reserved.
+# Copyright 2018-present Iceotope. All Rights Reserved.
 #
 # This program file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -40,18 +41,16 @@ from node_retimer import get_node_retimer
 from tree import tree
 from pal import *
 
-slot_names = ["none" ,"slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8" ]
-def get_slot_name(num):
-    return slot_names[num]
+from slot_names import *
 
 def populate_server_node(num):
-    slot=get_slot_name(num)
+    slot=get_slot_name_from_number(num)
     prsnt = pal_is_fru_prsnt(num)
     if prsnt == None or prsnt == 0:
         print("Not present")
         return None
 
-    r_server = tree(get_slot_name(num), data = get_node_server(num))
+    r_server = tree(get_slot_name_from_number(num), data = get_node_server(num))
 
     r_fruid = tree("fruid", data = get_node_fruid(slot))
 
