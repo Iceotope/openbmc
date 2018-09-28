@@ -82,6 +82,7 @@ IMAGE_INSTALL += " \
   track1-sensors \
   nano \
   xvc \
+  python-smbus2 \
   retimers \
   "
 
