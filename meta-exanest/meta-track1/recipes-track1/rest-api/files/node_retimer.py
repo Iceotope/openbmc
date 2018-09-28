@@ -75,14 +75,14 @@ def getRetimerClkInfo(num):
 def getRetimerLinkInfo(num):
   chan_dict={}
   retimer = retimer_address[num]
-  print("Retimer @0x{:02x}".format(retimer))
+  #print("Retimer @0x{:02x}".format(retimer))
   bus = SMBus(RETIMER_BUS)
-  print("Bus Open")
+  #print("Bus Open")
 
   # Shared regs, select channel
   for channel in valid_channels:
     bus.write_byte_data(retimer, GLOBAL_REG, GLOBAL_REG_SHARED)
-    print("Global_Reg Selected")
+    #print("Global_Reg Selected")
     if channel<8:
       bus.write_byte_data(retimer, CHANNEL_SEL_LOW, (1<<channel))
       bus.write_byte_data(retimer, CHANNEL_SEL_HIGH, 0)
@@ -91,12 +91,12 @@ def getRetimerLinkInfo(num):
       bus.write_byte_data(retimer, CHANNEL_SEL_HIGH,(1<<channel-8))
 
     bus.write_byte_data(retimer, GLOBAL_REG, GLOBAL_REG_CHANNEL)
-    print("Channel_Selected")
+    #print("Channel_Selected")
     chan_detect=bus.read_byte_data(retimer, CHANNEL_INFO_REG)
-    print("register read @0x{:02x}".format(chan_detect))
+    #print("register read @0x{:02x}".format(chan_detect))
     signal_det=bool(chan_detect & CHANNEL_SIGNAL_DET)
     cdr_lock=bool(chan_detect & CHANNEL_CDR_LOCK)
-    print("build_dict")
+    #print("build_dict")
     chan_dict["channel_"+repr(channel)] = {}
     chan_dict["channel_"+repr(channel)]["Locked"] = repr(cdr_lock)
     chan_dict["channel_"+repr(channel)]["Signal_Detect"] = repr(signal_det)
