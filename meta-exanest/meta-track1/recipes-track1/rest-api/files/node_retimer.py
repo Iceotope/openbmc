@@ -54,6 +54,47 @@ CHANNEL_SEL_HIGH_MASK=0xFC
 
 RETIMER_BUS=0x1
 
+# Write a config file into a retimer
+# Script has the i2c address encoded in it, so we dont have to know
+# it up front. Not elegent but for now it works.
+def writeRetimerConfig(scriptfile):
+  res='failure'
+  failed=False
+  if os.path.isfile(scriptfile):
+    bus=SMBus(RETIMER_BUS)
+    retimerconfigfile = open(scriptfile,"r")
+    if (bus):
+      line = retimerconfigfile.readline()
+      ## Parse the line, skip bad lines and write good ones to the i2c
+      ## format is
+      #I2C bus, I2C Chip Address, Register address, Register value
+      while line:
+        if not line.startswith("#"):
+          line = line.replace("\n", "")
+#          print("Config Line: "+line)
+          config_line=line.split(',')
+          if len(config_line) > 3:
+            chip=int(config_line[1],16)
+            reg=int(config_line[2],16)
+            reg_value=int(config_line[3],16)
+            #print("Device: "+repr(chip)+" Reg: "+repr(reg)+" Value: "+repr(reg_value))
+            try:
+              bus.write_byte_data(chip, reg, reg_value)
+            except:
+              failed=True
+#              print("Failed to write configline: "+line)
+
+        line = retimerconfigfile.readline()
+
+      retimerconfigfile.close()
+      bus.close()
+      if not failed:
+        res='success'
+
+  return res
+
+
+
 # Get clock info
 def getRetimerClkInfo(num):
   clock=0
@@ -81,25 +122,30 @@ def getRetimerLinkInfo(num):
 
   # Shared regs, select channel
   for channel in valid_channels:
-    bus.write_byte_data(retimer, GLOBAL_REG, GLOBAL_REG_SHARED)
-    #print("Global_Reg Selected")
-    if channel<8:
-      bus.write_byte_data(retimer, CHANNEL_SEL_LOW, (1<<channel))
-      bus.write_byte_data(retimer, CHANNEL_SEL_HIGH, 0)
-    else:
-      bus.write_byte_data(retimer, CHANNEL_SEL_LOW,  0)
-      bus.write_byte_data(retimer, CHANNEL_SEL_HIGH,(1<<channel-8))
+    try:
+      bus.write_byte_data(retimer, GLOBAL_REG, GLOBAL_REG_SHARED)
+      #print("Global_Reg Selected")
+      if channel<8:
+        bus.write_byte_data(retimer, CHANNEL_SEL_LOW, (1<<channel))
+        bus.write_byte_data(retimer, CHANNEL_SEL_HIGH, 0)
+      else:
+        bus.write_byte_data(retimer, CHANNEL_SEL_LOW,  0)
+        bus.write_byte_data(retimer, CHANNEL_SEL_HIGH,(1<<channel-8))
 
-    bus.write_byte_data(retimer, GLOBAL_REG, GLOBAL_REG_CHANNEL)
-    #print("Channel_Selected")
-    chan_detect=bus.read_byte_data(retimer, CHANNEL_INFO_REG)
-    #print("register read @0x{:02x}".format(chan_detect))
-    signal_det=bool(chan_detect & CHANNEL_SIGNAL_DET)
-    cdr_lock=bool(chan_detect & CHANNEL_CDR_LOCK)
-    #print("build_dict")
-    chan_dict["channel_"+repr(channel)] = {}
-    chan_dict["channel_"+repr(channel)]["Locked"] = repr(cdr_lock)
-    chan_dict["channel_"+repr(channel)]["Signal_Detect"] = repr(signal_det)
+      bus.write_byte_data(retimer, GLOBAL_REG, GLOBAL_REG_CHANNEL)
+      #print("Channel_Selected")
+      chan_detect=bus.read_byte_data(retimer, CHANNEL_INFO_REG)
+      #print("register read @0x{:02x}".format(chan_detect))
+      signal_det=bool(chan_detect & CHANNEL_SIGNAL_DET)
+      cdr_lock=bool(chan_detect & CHANNEL_CDR_LOCK)
+      #print("build_dict")
+      chan_dict["channel_"+repr(channel)] = {}
+      chan_dict["channel_"+repr(channel)]["Locked"] = repr(cdr_lock)
+      chan_dict["channel_"+repr(channel)]["Signal_Detect"] = repr(signal_det)
+    except:
+      chan_dict["channel_"+repr(channel)] = {}
+      chan_dict["channel_"+repr(channel)]["Locked"] = "Error"
+      chan_dict["channel_"+repr(channel)]["Signal_Detect"] = "Error"
 
   bus.close()
 
@@ -130,6 +176,9 @@ class retimerNode(node):
         }
 
         return info
+#
+# data["action"] will be the command
+# data["value"] will be the argument
 
     def doAction(self, data):
       res = 'failure'
