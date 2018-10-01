@@ -38,6 +38,7 @@ from node_tpdb import get_node_tpdb_led
 from node_tpdb import get_node_tpdb_pwm
 from node_retimers import get_node_retimers
 from node_retimer import get_node_retimer
+from node_jtag import get_node_jtag
 from tree import tree
 from pal import *
 
@@ -100,7 +101,7 @@ def init_plat_tree():
     # Create /api end point as root node
     r_api = tree("api", data = get_node_api())
 
-    # Add /api/mezz to represent Network Mezzaine card
+    # Add /api/mezz to represent main card
     r_mezz = tree("mezz", data = get_node_mezz())
     r_api.addChild(r_mezz)
 
@@ -140,7 +141,8 @@ def init_plat_tree():
 
     r_mezz.addChild(r_retimers)
 
+    # Add JTAG controller
+    r_jtag = tree("jtag", data = get_node_jtag())
+    r_mezz.addChild(r_jtag)
 
-
-    # Maybe add jtag module control/status here.
     return r_api

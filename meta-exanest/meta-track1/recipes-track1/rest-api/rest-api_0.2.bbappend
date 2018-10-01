@@ -29,5 +29,6 @@ SRC_URI += "file://plat_tree.py \
            file://node_sensors.py \
            file://node_logs.py \
            file://node_config.py \
+           file://node_jtag.py \
            file://slot_names.py \
           "
