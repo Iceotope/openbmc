@@ -71,7 +71,7 @@ class serverNode(node):
         return info
 
     def doAction(self, data):
-        if pal_server_action(self.num, data["action"]) == -1:
+        if pal_server_action(self.num, data["action"].lower()) == -1:
             res = 'failure'
         else:
             res = 'success'

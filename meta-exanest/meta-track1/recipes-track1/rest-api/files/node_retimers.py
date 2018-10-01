@@ -64,7 +64,7 @@ class retimersNode(node):
         gpioPath="/tmp/mezzanine/gpio"
 
         # Turn on the 2V5
-        if data["action"] == "power-on":
+        if data["action"].lower() == "power-on":
           gpioPath=gpioPath+"/REG_2V5_ENABLE/value"
           if os.path.isfile(gpioPath):
             gpiofile = open(gpioPath,"w")
@@ -74,7 +74,7 @@ class retimersNode(node):
 
 
         # Turn off the 2V5
-        elif data["action"] == "power-off":
+        elif data["action"].lower() == "power-off":
           gpioPath=gpioPath+"/REG_2V5_ENABLE/value"
           if os.path.isfile(gpioPath):
             gpiofile = open(gpioPath,"w")
@@ -84,7 +84,7 @@ class retimersNode(node):
 
 
         # Load a config file/mode specified
-        elif data["action"] == "configure":
+        elif data["action"].lower() == "configure":
           config_name=data["value"]
           ## Check that the value tag exists!
           if config_name in config_scripts.keys():
@@ -95,7 +95,7 @@ class retimersNode(node):
 
 
         # Toggle the reset line
-        elif data["action"] == "reset":
+        elif data["action"].lower() == "reset":
           gpioPath=gpioPath+"/RETIMER_RESET/value"
           if os.path.isfile(gpioPath):
             gpiofile = open(gpioPath,"w")

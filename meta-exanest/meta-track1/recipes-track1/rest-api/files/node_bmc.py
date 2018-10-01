@@ -202,11 +202,11 @@ class bmcNode(node):
         return info
 
     def doAction(self, data):
-        if (data["action"] == 'reboot'):
+        if (data["action"].lower() == 'reboot'):
           Popen('sleep 1; /sbin/reboot', shell=True, stdout=PIPE)
           result = 'success'
 
-        elif (data["action"] == 'reset_site_i2c'):
+        elif (data["action"].lower() == 'reset_site_i2c'):
           result = 'failure'
           gpioPath="/tmp/mezzanine/gpio/SITE_I2C_RST/value"
           if os.path.isfile(gpioPath):
@@ -218,7 +218,7 @@ class bmcNode(node):
             tpfile.close()
             result = 'success'
 
-        elif (data["action"] == 'reset_db_i2c'):
+        elif (data["action"].lower() == 'reset_db_i2c'):
           result = 'failure'
           gpioPath="/tmp/mezzanine/gpio/DB_I2C_RST/value"
           if os.path.isfile(gpioPath):
@@ -230,7 +230,7 @@ class bmcNode(node):
             tpfile.close()
             result = 'success'
 
-        elif (data["action"] == 'serial_loopback_on'):
+        elif (data["action"].lower() == 'serial_loopback_on'):
           result = 'failure'
           gpioPath="/tmp/mezzanine/gpio/SERIAL_LOOPBACK/value"
           if os.path.isfile(gpioPath):
@@ -240,7 +240,7 @@ class bmcNode(node):
 
           result = 'success'
 
-        elif (data["action"] == 'serial_loopback_off'):
+        elif (data["action"].lower() == 'serial_loopback_off'):
           result = 'failure'
           gpioPath="/tmp/mezzanine/gpio/SERIAL_LOOPBACK/value"
           if os.path.isfile(gpioPath):

@@ -277,28 +277,28 @@ class tpdbNode(node):
       gpioPath="/tmp/mezzanine/db_" + repr(self.num) + "/gpio/IO/0/value"
       res = 'failure'
 
-      if data["action"] == "master_pwm_on":
+      if data["action"].lower() == "master_pwm_on":
         if os.path.isfile(gpioPath):
           tpfile = open(gpioPath,"w")
           tpfile.write ("0\n")
           res = 'success'
           tpfile.close()
 
-      elif data["action"] == "master_pwm_off":
+      elif data["action"].lower() == "master_pwm_off":
         if os.path.isfile(gpioPath):
           tpfile = open(gpioPath,"w")
           tpfile.write ("1\n")
           res = 'success'
           tpfile.close()
 
-      elif data["action"] == "enable_eeprom_wp":
+      elif data["action"].lower() == "enable_eeprom_wp":
         if os.path.isfile(wpPath):
           tpfile = open(wpPath,"w")
           tpfile.write ("1\n")
           res = 'success'
           tpfile.close()
 
-      elif data["action"] == "disable_eeprom_wp":
+      elif data["action"].lower() == "disable_eeprom_wp":
         if os.path.isfile(wpPath):
           tpfile = open(wpPath,"w")
           tpfile.write ("0\n")

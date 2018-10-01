@@ -183,7 +183,7 @@ class retimerNode(node):
     def doAction(self, data):
       res = 'failure'
 
-      if data["action"] == "cdr_reset":
+      if data["action"].lower() == "cdr_reset":
         retimer = retimer_address[self.num]
         #print("Retimer @0x{:02x}".format(retimer))
         bus = SMBus(RETIMER_BUS)
