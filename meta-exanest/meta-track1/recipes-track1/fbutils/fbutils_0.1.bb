@@ -30,6 +30,7 @@ SRC_URI = "file://ast-functions \
            file://power-on.sh \
            file://fw_env_config.sh \
            file://set_site_type.sh \
+           file://set_mac.sh \
            file://set_site_boot.sh \
            file://set_tpdb.sh \
            file://jtag_setup.sh \
@@ -40,7 +41,7 @@ pkgdir = "utils"
 
 S = "${WORKDIR}"
 
-binfiles = "sol-util power_led.sh power_util.py set_site_type.sh set_tpdb.sh jtag_setup.sh set_site_boot.sh "
+binfiles = "sol-util power_led.sh power_util.py set_site_type.sh set_tpdb.sh jtag_setup.sh set_site_boot.sh set_mac.sh "
 
 DEPENDS_append = "update-rc.d-native"
 
@@ -52,6 +53,7 @@ do_install() {
   install -m 644 set_site_type.sh ${dst}/set_site_type.sh
   install -m 644 set_site_boot.sh ${dst}/set_site_boot.sh
   install -m 644 set_tpdb.sh ${dst}/set_tpdb.sh
+  install -m 644 set_mac.sh ${dst}/set_mac.sh
   install -m 644 jtag_setup.sh  ${dst}/jtag_setup.sh
   localbindir="${D}/usr/local/bin"
   install -d ${localbindir}
