@@ -21,7 +21,10 @@
 from time import sleep
 from node import node
 from pal import *
+from subprocess import check_output,Popen
+
 import os
+import signal
 
 
 TRANS=0
@@ -44,6 +47,11 @@ QFDB_B=9
 QFDB_A=10
 QFDB_C=11
 QFDB_D=12
+
+def get_pid(name):
+    return int(check_output(["pidof","-s",name]))
+
+
 
 def getGPIO():
   gpioValues = [0] * 16
@@ -130,8 +138,15 @@ class jtagNode(node):
           chainString=chainString+"QFDB_D "
         jtagConfig["Chain"] = chainString
 
-
         info["Config"] = jtagConfig
+
+        # Check for the xvcServer task
+        try:
+          server_pid=get_pid("xvcServer")
+          info["Server"]="Running"
+        except:
+          info["Server"]="Stopped"
+
         return info
 #
 # data["action"] will be the command
@@ -140,7 +155,30 @@ class jtagNode(node):
     def doAction(self, data):
         res = 'failure'
 
-        if data["action"].lower() == "reset":
+        if data["action"].lower() == "stop_server":
+          try:
+            server_pid=get_pid("xvcServer")
+            # Now kill it
+            os.kill(server_pid, signal.SIGTERM) #or signal.SIGKILL
+            res = 'success'
+          except:
+            res = 'failure' # It wasnt running..
+
+        elif data["action"].lower() == "start_server":
+          try:
+            server_pid=get_pid("xvcServer")
+            # Now kill it
+            os.kill(server_pid, signal.SIGTERM) #or signal.SIGKILL
+          except:
+            pass
+
+          # Now try to start it!
+          try:
+            Popen(['/usr/local/bin/xvcServer', '', '0'], close_fds=True)
+          except:
+            pass
+
+        elif data["action"].lower() == "reset":
           gpioPath="/tmp/mezzanine/jtag/gpio/"+repr(RSTn)+"/direction"
           try:
             gpiofile = open(gpioPath,"w")
@@ -321,7 +359,9 @@ def get_node_jtag():
                 "output",
                 "mode",
                 "transparent",
-                "addressmask"
+                "addressmask",
+                "start_server",
+                "stop_server"
                 ]
 
     return jtagNode(actions = actions)
