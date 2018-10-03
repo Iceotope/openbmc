@@ -961,7 +961,7 @@ pal_set_rst_btn(uint8_t slot, uint8_t status) {
       return -1;
     }
     // Hold state state for 1sec
-    msleep(1000);
+    msleep(2000);
     // re-assurt sreset?!?!?
     if (write_device(vpath, "0")) {
       return -1;
@@ -985,6 +985,7 @@ pal_set_rst_btn(uint8_t slot, uint8_t status) {
 
   } else {
     // Go into reset
+    msleep(2000);
     sprintf(vpath, SITE_GPIO_VAL, slot, SITE_GPIO_BIT_FN_RESET);
     if (write_device(vpath, "0")) {
       return -1;
