@@ -45,7 +45,7 @@ do_retimer() {
 retimer_program() {
   echo "Flashing Retimers..."
   ## Use one of these configs.
-  ##do_retimer /usr/local/packages/retimers/retimer_10_3125gbps.csv
-  do_retimer /usr/local/packages/retimers/retimer_10gbps.csv
+  do_retimer /usr/local/packages/retimers/retimer_10_3125gbps.csv
+  ##do_retimer /usr/local/packages/retimers/retimer_10gbps.csv
   echo "...Done"
 }
