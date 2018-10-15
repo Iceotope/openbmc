@@ -17,6 +17,7 @@
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 SRC_URI += "file://plat_tree.py \
+           file://pal.py \
            file://node_api.py \
            file://node_spb.py \
            file://node_mezz.py \
