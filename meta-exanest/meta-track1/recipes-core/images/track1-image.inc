@@ -84,6 +84,7 @@ IMAGE_INSTALL += " \
   xvc \
   python-smbus2 \
   retimers \
+  exa-fw-util \
   "
 
 IMAGE_INSTALL_append = " bind-utils"
