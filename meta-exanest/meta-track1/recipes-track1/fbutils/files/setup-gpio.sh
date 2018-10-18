@@ -113,6 +113,9 @@ ln -s /sys/class/gpio/gpio${SERIAL_LOOPBACK} /tmp/mezzanine/gpio/SERIAL_LOOPBACK
 gpio_set ${TRST_TO_MEZZ} 1
 ln -s /sys/class/gpio/gpio${TRST_TO_MEZZ} /tmp/mezzanine/gpio/TRST_TO_MEZZ
 
+# Reset button
+gpio_export ${RST_BTN}
+ln -s /sys/class/gpio/gpio${RST_BTN} /tmp/mezzanine/gpio/RST_BTN
 
 # Slot ID
 index=0
