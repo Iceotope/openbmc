@@ -85,6 +85,7 @@ IMAGE_INSTALL += " \
   python-smbus2 \
   retimers \
   exa-fw-util \
+  front-paneld \
   "
 
 IMAGE_INSTALL_append = " bind-utils"
