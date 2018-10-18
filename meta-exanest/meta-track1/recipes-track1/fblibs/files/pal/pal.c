@@ -44,6 +44,8 @@
 #define GPIO_PS_ON_VAL "/tmp/mezzanine/gpio/PS_ON/value"
 #define HB_LED "/sys/class/leds/led-ds23/brightness"
 
+#define BMC_LED_FILE "/tmp/mezzanine/gpio/RST_CTLREG/15/direction"
+
 #define VPATH_SIZE  128
 #define DELAY_GRACEFUL_SHUTDOWN 10
 #define DELAY_POWER_OFF 1
@@ -58,8 +60,8 @@
 
 #define CRASHDUMP_KEY      "slot%d_crashdump"
 
-#define LED_ON "0"
-#define LED_OFF "1"
+#define LED_ON_TXT "0"
+#define LED_OFF_TXT "1"
 #define GPIO_HIGH "1"
 #define GPIO_LOW "0"
 
@@ -447,12 +449,12 @@ server_power_on(uint8_t slot_id) {
 
   // Do the LED now
   sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP_LED);
-  if (write_device(vpath, LED_ON)) {
+  if (write_device(vpath, LED_ON_TXT)) {
     return -1;
   }
 
   sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_DWN_LED);
-  if (write_device(vpath, LED_OFF)) {
+  if (write_device(vpath, LED_OFF_TXT)) {
     return -1;
   }
 
@@ -469,7 +471,7 @@ server_power_off(uint8_t slot_id, bool gs_flag) {
   }
 
   sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_DATA_LED);
-  if (write_device(vpath, LED_ON)) {
+  if (write_device(vpath, LED_ON_TXT)) {
     return -1;
   }
 
@@ -482,7 +484,7 @@ server_power_off(uint8_t slot_id, bool gs_flag) {
   }
 
   sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_DATA_LED);
-  if (write_device(vpath, LED_OFF)) {
+  if (write_device(vpath, LED_OFF_TXT)) {
     return -1;
   }
 
@@ -492,11 +494,11 @@ server_power_off(uint8_t slot_id, bool gs_flag) {
   }
 
   sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_UP_LED);
-  if (write_device(vpath, LED_OFF)) {
+  if (write_device(vpath, LED_OFF_TXT)) {
     return -1;
   }
   sprintf(vpath, SITE_GPIO_VAL, slot_id, SITE_GPIO_BIT_PWR_DWN_LED);
-  if (write_device(vpath, LED_ON)) {
+  if (write_device(vpath, LED_ON_TXT)) {
     return -1;
   }
   return PAL_EOK;
@@ -923,22 +925,20 @@ pal_get_pwr_btn(uint8_t *status) {
 
 // We assume we'll have a Reset button??
 // Return the front panel's Reset Button status
+#define BUTTON_VAL "/tmp/mezzanine/gpio/RST_BTN/value"
 int
 pal_get_rst_btn(uint8_t *status) {
-  //char vpath[MAX_VALUE_LEN] = {0};
-  //int val;
+  int val;
 
-  //sprintf(vpath, GPIO_VAL, GPIO_RST_BTN);
-  //if (read_device(vpath, &val)) {
-    //return -1;
-  //}
+  if (read_device(BUTTON_VAL, &val)) {
+    return -1;
+  }
 
-  //if (val) {
-    //*status = 0x0;
-  //} else {
-    //*status = 0x1;
-  //}
-  status = 0x0;
+  if (val) {
+    *status = 0x0;
+  } else {
+    *status = 0x1;
+  }
   return PAL_EOK;
 }
 
@@ -1003,6 +1003,30 @@ pal_set_rst_btn(uint8_t slot, uint8_t status) {
 
   }
 
+  return PAL_EOK;
+}
+
+// Set a named LED
+int
+pal_set_led(uint8_t led, uint8_t status)
+{
+  char *val;
+
+  switch (led) {
+    case BMC_LED:
+      if (LED_ON == status) {
+        val = "high";
+      } else {
+        val = "low";
+      }
+      if (write_device(BMC_LED_FILE, val)) {
+        return -1;
+      }
+      break;
+    default:
+      break;
+
+  }
   return PAL_EOK;
 }
 

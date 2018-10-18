@@ -65,6 +65,10 @@ enum {
   SERVER_GLOBAL_RESET,
 };
 
+// LEDS
+enum {
+  BMC_LED = 0
+};
 
 int pal_get_platform_name(char *name);
 int pal_get_num_slots(uint8_t *num);

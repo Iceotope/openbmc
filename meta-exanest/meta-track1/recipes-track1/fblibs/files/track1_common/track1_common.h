@@ -50,6 +50,10 @@ typedef enum _DB_SITE_TYPE {
   DB_TYPE_AUTO = 0xFF
 } DB_SITE_TYPE_t;
 
+typedef struct {
+  char slot_key[32];
+  char slot_def_val[32];
+} slot_kv_st;
 
 #define CRASHDUMP_KEY "slot%d_crashdump"
 
