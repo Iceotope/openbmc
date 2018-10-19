@@ -39,6 +39,7 @@ from node_tpdb import get_node_tpdb_pwm
 from node_retimers import get_node_retimers
 from node_retimer import get_node_retimer
 from node_jtag import get_node_jtag
+from node_identify import get_node_identify
 from tree import tree
 from pal import *
 
@@ -116,6 +117,9 @@ def init_plat_tree():
       else:
         print("Failed to add server " + repr(i))
 
+    # /api/mezz/identify to flash the led
+    r_identify = tree("identify", data = get_node_identify("mezzanine"))
+    r_mezz.addChild(r_identify)
 
     # /api/mezz/bmc end point, and sub points
     r_bmc = tree("bmc", data = get_node_bmc())
