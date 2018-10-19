@@ -123,6 +123,9 @@ echo "EEPROM MAC: ${EEPROM_MAC}"
 
 # QSPI mac
 QSPI_MAC=`fw_printenv ethaddr| cut -f 2 -d =`
+if [ -z ${QSPI_MAC} ]; then
+  QSPI_MAC="ff:ff:ff:ff:ff:ff"
+fi
 
 # SLOT
 SLOT_ID=`cat /tmp/mezzanine/SLOT_ID`
@@ -155,13 +158,12 @@ if [ $# -gt 0 ]; then
 
 else
   ## New MAC is eeprom with the masking for the low byte
-  MAC_ARRAY[5]=$(printf "%01x0" $SLOT_ID)
+  MAC_ARRAY[5]=$(printf "0x%01x0" $SLOT_ID)
 
-  for i in `seq 0 5`
+  for i in `seq 0 4`
   do
     MAC_ARRAY[$i]=$((${MAC_BYTE[$i]}))
-  done  
-  
+  done
 fi
 
 NEW_MAC=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" ${MAC_ARRAY[0]} ${MAC_ARRAY[1]} ${MAC_ARRAY[2]} ${MAC_ARRAY[3]} ${MAC_ARRAY[4]} ${MAC_ARRAY[5]})
@@ -179,7 +181,7 @@ if [ ${ARG_SET} -eq 1 ]; then
   ## Set the EEPROM and QSPI to the new MAC
   # QSPI version
   fw_setenv ethaddr ${NEW_MAC}
-  
+
   for i in `seq 0 5`
   do
     MAC_HEX[$i]=$(printf "%02x" ${MAC_ARRAY[$i]})
@@ -187,7 +189,7 @@ if [ ${ARG_SET} -eq 1 ]; then
   # send the new one as raw data
   printf "\\x${MAC_HEX[0]}\\x${MAC_HEX[1]}\\x${MAC_HEX[2]}\\x${MAC_HEX[3]}\\x${MAC_HEX[4]}\\x${MAC_HEX[5]}" | dd of=${EEPROM_FILE} bs=1 seek=$((${SITE_EEPROM_OFFSET})) count=6 conv=notrunc
 #  printf "\\x${MAC_HEX[0]}\\x${MAC_HEX[1]}\\x${MAC_HEX[2]}\\x${MAC_HEX[3]}\\x${MAC_HEX[4]}\\x${MAC_HEX[5]}" | hexdump -C
-  
+
 
 
 elif [ ${ARG_CHECK} -eq 1 ]; then
@@ -198,17 +200,19 @@ elif [ ${ARG_CHECK} -eq 1 ]; then
   # 3 means neither!
   # 4 means no match
   RETCODE=0
-  
+
   if [ ${QSPI_MAC,,} == "ff:ff:ff:ff:ff:ff" ]; then
     echo_stderr "Bad QSPI MAC"
+    echo_stderr "Please use exa-fw-util.py or set_mac.h to set a MAC address"
     RETCODE=$((${RETCODE} | 0x2))
   fi
   if [ ${EEPROM_MAC,,} == "ff:ff:ff:ff:ff:ff" ]; then
     echo_stderr "Bad EEPROM MAC"
+    echo_stderr "Please use exa-fw-util.py or set_mac.h to set a MAC address"
     RETCODE=$((${RETCODE} | 0x1))
   fi
 
-  if [ ${EEPROM_MAC} == ${QSPI_MAC} ]; then
+  if [ ${NEW_MAC} == ${QSPI_MAC} ]; then
     exit ${RETCODE}
   else
     RETCODE=$((${RETCODE} | 0x4))
@@ -223,26 +227,30 @@ elif [ $ARG_FIX -eq 1 ]; then
 
   if [ ${QSPI_MAC,,} == "ff:ff:ff:ff:ff:ff" ]; then
     echo_stderr "Bad QSPI MAC"
+    echo_stderr "Please use exa-fw-util.py or set_mac.h to set a MAC address"
     RETCODE=$((${RETCODE} | 0x2))
+    exit ${RETCODE}
   fi
   if [ ${EEPROM_MAC,,} == "ff:ff:ff:ff:ff:ff" ]; then
     echo_stderr "Bad EEPROM MAC"
+    echo_stderr "Please use exa-fw-util.py or set_mac.h to set a MAC address"
     RETCODE=$((${RETCODE} | 0x1))
+    exit ${RETCODE}
   fi
 
-  if [ $((${RETCODE} & 0x1)) -eq 1 ];then    
+  if [ $((${RETCODE} & 0x1)) -eq 1 ];then
     # BAD EEPROM, don't do anything, but exit with an error.
     exit ${RETCODE}
   fi
 
-  if [ ${EEPROM_MAC} == ${QSPI_MAC} ]; then
+  if [ ${NEW_MAC} == ${QSPI_MAC} ]; then
     ## Both match, and are not 0xFF's
     exit 0
   else
     # Set QSPI to the same as the EEPROM
-    fw_setenv ethaddr ${EEPROM_MAC}
+    fw_setenv ethaddr ${NEW_MAC}
     sleep 1
     reboot
   fi
-  
+
 fi

@@ -134,6 +134,11 @@ done
 echo "${SLOT_ID_VALUE}" > /tmp/mezzanine/SLOT_ID
 printf 'Setting up Track1 Mezzanine in slot: %X\n' ${SLOT_ID_VALUE}
 
+# Check for the MAC address matching slot and MicroZed etc.
+# This will fix and reboot if needed.
+/usr/bin/local/set_mac.sh --fix
+
+
 # Check for retimers existing
 
 if [ ${RETIMER_EXIST} -eq 1 ]; then
