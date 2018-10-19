@@ -86,6 +86,7 @@ IMAGE_INSTALL += " \
   retimers \
   exa-fw-util \
   front-paneld \
+  fpc-util \
   "
 
 IMAGE_INSTALL_append = " bind-utils"
