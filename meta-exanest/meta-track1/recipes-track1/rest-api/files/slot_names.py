@@ -24,7 +24,7 @@ from tree import tree
 from pal import *
 
 slot_names = ("all" ,"tpdb-b", "tpdb-a", "kdb-a", "kdb-b", "qfdb-c", "qfdb-d",  "qfdb-b", "qfdb-a", "bmc")
-site_names = ("all" ,"site1", "site2", "site3", "site4", "site5", "site6",  "qfdb-b", "qfdb-a", "bmc")
+site_names = ("all" ,"site1", "site2", "site3", "site4", "site5", "site6",  "site7", "site8", "site9")
 
 slot_numbers = {'all': 0,
   'tpdb-b': 1, 'tpdb_b': 1,
@@ -44,6 +44,12 @@ def get_slot_name_from_number(num):
 def get_site_name_from_number(num):
     return site_names[num]
 
-def get_site_number_from_name(num):
-    return slot_numbers[num]
+def get_site_number_from_name(name):
+    return slot_numbers[name]
+
+def does_site_exist(name):
+  if name in slot_numbers:
+    return True
+  else:
+    return False
 

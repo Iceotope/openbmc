@@ -40,6 +40,7 @@ from node_retimers import get_node_retimers
 from node_retimer import get_node_retimer
 from node_jtag import get_node_jtag
 from node_identify import get_node_identify
+from node_bootmode import get_node_bootmode
 from tree import tree
 from pal import *
 
@@ -120,6 +121,10 @@ def init_plat_tree():
     # /api/mezz/identify to flash the led
     r_identify = tree("identify", data = get_node_identify("mezzanine"))
     r_mezz.addChild(r_identify)
+
+    # /api/mezz/bootmode for bootmode configs
+    r_bootmode = tree("bootmode", data = get_node_bootmode())
+    r_mezz.addChild(r_bootmode)
 
     # /api/mezz/bmc end point, and sub points
     r_bmc = tree("bmc", data = get_node_bmc())
