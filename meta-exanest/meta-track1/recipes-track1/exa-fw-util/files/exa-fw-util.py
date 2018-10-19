@@ -157,7 +157,10 @@ else:
   verbose_print("EEPROM is BAD")
 verbose_print("Type     0x%08X (%c%c%c%c)\nSerial   %d\nRevision %d" % (results[0], (results[0]>>24 & 0xff), (results[0]>>16 & 0xff), \
           (results[0]>>8 & 0xff), (results[0] & 0xff), results[3], results[1]))
-verbose_print("MAC      %02X:%02X:%02X:%02X:%02X:%02X" % (results[16] ,results[17],results[18],results[19],results[20],results[21] ))
+
+newmac_string="%02X:%02X:%02X:%02X:%02X:%02X" % (results[16] ,results[17],results[18],results[19],results[20],results[21])
+
+verbose_print("MAC      %s" % (newmac_string))
 for i in range(24,32):
   verbose_print("Site %d : 0x%02X" % (i-24+1, results[i]))
 # convert from tuple, so we can modify things
@@ -213,7 +216,10 @@ verbose_print("\nNew EEPROM")
 verbose_print("---------------")
 verbose_print("Type     0x%08X (%c%c%c%c)\nSerial   %d\nRevision %d" % (results[0], (results[0]>>24 & 0xff), (results[0]>>16 & 0xff), \
           (results[0]>>8 & 0xff), (results[0] & 0xff), results[3], results[1]))
-verbose_print("MAC      %02X:%02X:%02X:%02X:%02X:%02X" % (results[16] ,results[17],results[18],results[19],results[20],results[21] ))
+
+newmac_string="%02X:%02X:%02X:%02X:%02X:%02X" % (results[16] ,results[17],results[18],results[19],results[20],results[21])
+
+verbose_print("MAC      %s" % (newmac_string ))
 for i in range(24,32):
   verbose_print("Site %d : 0x%02X" % (i-24+1, results[i]))
 
@@ -229,5 +235,8 @@ if args.write:
   except (IOError, OSError):
     print("Unable to open EEPROM file (For write) : " + EEPROM_FILE)
     exit(10)
+  # Now we need to try to write the u-boot mac address enviroment variable
+    cmd = '/sbin/fw_setenv ethaddr '+newmac_string
+    ret = Popen(cmd, shell=True, stdout=PIPE).stdout.read().decode()
 
 verbose_print("Done..")
