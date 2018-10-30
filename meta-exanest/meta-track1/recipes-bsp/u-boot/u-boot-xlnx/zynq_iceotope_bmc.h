@@ -78,6 +78,8 @@
   "fitboot=echo TFTPing Linux to RAM... && " \
     "dhcp ${kernel_load_address} ${fit_image} && " \
     "bootm \0" \
+  "fit_image=openbmc_fit.itb\0" \
+  "qspiboot=echo Loading SD to RAM... && mmcinfo && load mmc 0 ${kernel_load_address} ${fit_image} && bootm ${kernel_load_address}\0" \
 
 
 #define CONFIG_ZYNQ_I2C0
