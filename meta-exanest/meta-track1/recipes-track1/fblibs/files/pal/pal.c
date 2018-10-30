@@ -102,10 +102,10 @@
 #define SITE_GPIO_BIT_STAT_ON_OFF 0
 
 
-const char pal_server_list[] = "tpdb-b, tpdb-a, kdb-a, kdb-b," \
+const char pal_server_list[] = "tpdb-b, tpdb-a, kdb-b, kdb-a," \
           " qfdb-c, qfdb-d,  qfdb-b, qfdb-a";
 
-const char pal_fru_list[] = "all, tpdb-b, tpdb-a, kdb-a, kdb-b," \
+const char pal_fru_list[] = "all, tpdb-b, tpdb-a, kdb-b, kdb-a," \
           " qfdb-c, qfdb-d, qfdb-b, qfdb-a, bmc";
 
 
