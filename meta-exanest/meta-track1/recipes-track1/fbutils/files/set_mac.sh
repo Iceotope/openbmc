@@ -166,7 +166,7 @@ else
   done
 fi
 
-NEW_MAC=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" ${MAC_ARRAY[0]} ${MAC_ARRAY[1]} ${MAC_ARRAY[2]} ${MAC_ARRAY[3]} ${MAC_ARRAY[4]} ${MAC_ARRAY[5]})
+NEW_MAC=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" ${MAC_ARRAYMAC_ARRAY[0]} ${MAC_ARRAY[1]} ${MAC_ARRAY[2]} ${MAC_ARRAY[3]} ${MAC_ARRAY[4]} ${MAC_ARRAY[5]})
 echo "NEW MAC (with slotID): ${NEW_MAC}"
 
 
@@ -249,7 +249,14 @@ elif [ $ARG_FIX -eq 1 ]; then
   else
     # Set QSPI to the same as the EEPROM
     fw_setenv ethaddr ${NEW_MAC}
-    sleep 1
+    # Update EEPROM with any slot changes
+    for i in `seq 0 5`
+    do
+      MAC_HEX[$i]=$(printf "%02x" ${MAC_ARRAY[$i]})
+    done
+    # send the new one as raw data
+    printf "\\x${MAC_HEX[0]}\\x${MAC_HEX[1]}\\x${MAC_HEX[2]}\\x${MAC_HEX[3]}\\x${MAC_HEX[4]}\\x${MAC_HEX[5]}" | dd of=${EEPROM_FILE} bs=1 seek=$((${SITE_EEPROM_OFFSET})) count=6 conv=notrunc
+sleep 1
     reboot
   fi
 

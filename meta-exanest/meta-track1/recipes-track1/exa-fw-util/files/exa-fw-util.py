@@ -153,10 +153,10 @@ verbose_print("\nExisting EEPROM")
 verbose_print("---------------")
 if results[2] == 0xFEED:
   verbose_print("EEPROM is GOOD")
+  verbose_print("Type     0x%08X (%c%c%c%c)\nSerial   %d\nRevision %d" % (results[0], (results[0]>>24 & 0xff), (results[0]>>16 & 0xff), \
+          (results[0]>>8 & 0xff), (results[0] & 0xff), results[3], results[1]))
 else:
   verbose_print("EEPROM is BAD")
-verbose_print("Type     0x%08X (%c%c%c%c)\nSerial   %d\nRevision %d" % (results[0], (results[0]>>24 & 0xff), (results[0]>>16 & 0xff), \
-          (results[0]>>8 & 0xff), (results[0] & 0xff), results[3], results[1]))
 
 newmac_string="%02X:%02X:%02X:%02X:%02X:%02X" % (results[16] ,results[17],results[18],results[19],results[20],results[21])
 
@@ -197,11 +197,12 @@ if args.mac:
     tempdata[21] = 0xFF
 
 # Default settings for sites.
+# 2 tpdbs in the kdb slots.
 if args.defaults:
   tempdata[24] = 255
   tempdata[25] = 255
-  tempdata[26] = 0
-  tempdata[27] = 0
+  tempdata[26] = 3
+  tempdata[27] = 3
   tempdata[28] = 1
   tempdata[29] = 1
   tempdata[30] = 1
