@@ -271,10 +271,10 @@ do
       echo "EMPTY site ${i}"
       rm -f /tmp/mezzanine/db_${1}/type
 
-      # Assign site's IO expander defaults, based on TPDB
+      # Assign site's IO expander defaults, based on QFDB
       # we use low/high on outputs to spec default values
-      SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_TPDB[@]}")
-      SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_TPDB[@]}")
+      SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_QFDB[@]}")
+      SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_QFDB[@]}")
     ;;
     1)
     ## QFDB,
@@ -349,10 +349,9 @@ do
     *)
     ## OTHERS
       echo "Unknown board in site ${i}"
-      # Assign site's IO expander defaults, based on TPDB
-      SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_TPDB[@]}")
-      SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_TPDB[@]}")
-
+      # Assign site's IO expander defaults, based on QFDB
+      SITE_LOWIO_DIR_DEFAULT=("${SITE_LOWIO_DIR_DEFAULT_QFDB[@]}")
+      SITE_HIGHIO_DIR_DEFAULT=("${SITE_HIGHIO_DIR_DEFAULT_QFDB[@]}")
     ;;
   esac
 
