@@ -189,9 +189,9 @@ track1_common_fru_id(char *str, uint8_t *fru) {
     *fru = FRU_TPDB_B;
   } else if (!strcasecmp(str, "tpdb-a")) {
     *fru = FRU_TPDB_A;
-  } else if (!strcasecmp(str, "kdb-a")) {
-    *fru = FRU_KDB_B;
   } else if (!strcasecmp(str, "kdb-b")) {
+    *fru = FRU_KDB_B;
+  } else if (!strcasecmp(str, "kdb-a")) {
     *fru = FRU_KDB_A;
   } else if (!strcasecmp(str, "qfdb-c")) {
     *fru = FRU_QFDB_C;
