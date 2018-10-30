@@ -596,7 +596,7 @@ int track1_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
         /* Fake this currently, as we have no data! */
           switch(sensor_num) {
             case QFDB_SENSOR_DUMMY:
-              *(float *)value = (0xA0 +fru);
+              *(float *)value = (0x38 +fru);
               break;
 
             default:
@@ -608,7 +608,7 @@ int track1_sensor_read(uint8_t fru, uint8_t sensor_num, void *value) {
         /* Fake this currently, as we have no data! */
           switch(sensor_num) {
             case KDB_SENSOR_DUMMY:
-              *(float *)value = (0x50 + fru);
+              *(float *)value = (0x30 + fru);
               break;
 
             default:
@@ -982,6 +982,12 @@ sensor_thresh_array_init() {
   tpdb_sensor_threshold[TPDB_SENSOR_W1_8][UCR_THRESH] = 70.00;
   tpdb_sensor_threshold[TPDB_SENSOR_W1_8][UNC_THRESH] = 75.00;
 
+  qfdb_sensor_threshold[KDB_SENSOR_DUMMY][UCR_THRESH] = 75.00;
+  qfdb_sensor_threshold[KDB_SENSOR_DUMMY][UNC_THRESH] = 70.00;
+
+  kdb_sensor_threshold[KDB_SENSOR_DUMMY][UCR_THRESH] = 75.00;
+  kdb_sensor_threshold[KDB_SENSOR_DUMMY][UNC_THRESH] = 70.00;
+
   init_done = true;
 }
 
@@ -1008,9 +1014,11 @@ track1_sensor_threshold(uint8_t fru, uint8_t sensor_num,
       break;
 
     case DB_TYPE_QFDB:
+      *value = qfdb_sensor_threshold[sensor_num][thresh];
       break;
 
     case DB_TYPE_KDB:
+      *value = kdb_sensor_threshold[sensor_num][thresh];
       break;
 
     default:
