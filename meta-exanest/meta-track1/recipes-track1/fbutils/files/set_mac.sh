@@ -166,7 +166,7 @@ else
   done
 fi
 
-NEW_MAC=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" ${MAC_ARRAYMAC_ARRAY[0]} ${MAC_ARRAY[1]} ${MAC_ARRAY[2]} ${MAC_ARRAY[3]} ${MAC_ARRAY[4]} ${MAC_ARRAY[5]})
+NEW_MAC=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" ${MAC_ARRAY[0]} ${MAC_ARRAY[1]} ${MAC_ARRAY[2]} ${MAC_ARRAY[3]} ${MAC_ARRAY[4]} ${MAC_ARRAY[5]})
 echo "NEW MAC (with slotID): ${NEW_MAC}"
 
 
