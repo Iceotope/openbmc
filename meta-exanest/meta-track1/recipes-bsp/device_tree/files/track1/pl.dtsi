@@ -102,7 +102,7 @@
       xlnx,all-inputs-2 = <0x0>;
       xlnx,all-outputs = <0x1>;
       xlnx,all-outputs-2 = <0x0>;
-      xlnx,dout-default = <0xFFFFFFFF>;
+      xlnx,dout-default = <0x0>;
       xlnx,dout-default-2 = <0x00000000>;
       xlnx,gpio-width = <0x1>;
       xlnx,gpio2-width = <0x20>;
@@ -148,7 +148,7 @@
       xlnx,gpio2-width = <0x20>;
       xlnx,interrupt-present = <0x0>;
       xlnx,is-dual = <0x0>;
-      xlnx,tri-default = <0xFFFFFFFF>;
+      xlnx,tri-default = <0x0>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
     axi_gpio_7: gpio@41270000 { /* RESET_RETIMER */
@@ -168,7 +168,7 @@
       xlnx,gpio2-width = <0x20>;
       xlnx,interrupt-present = <0x0>;
       xlnx,is-dual = <0x0>;
-      xlnx,tri-default = <0xFFFFFFFF>;
+      xlnx,tri-default = <0x0>;
       xlnx,tri-default-2 = <0xFFFFFFFF>;
     };
     axi_gpio_8: gpio@41280000 { /* Serial Loopback EN */
