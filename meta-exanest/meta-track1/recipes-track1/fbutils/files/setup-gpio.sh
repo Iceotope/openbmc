@@ -78,6 +78,15 @@ done
 
 ln -s /sys/devices/soc0/amba/f8007100.adc/iio:device0 /tmp/mezzanine/bmc/xadc
 
+# 2v5 enable, but in an off state
+gpio_set ${REG_2V5_ENABLE} 0
+ln -s /sys/class/gpio/gpio${REG_2V5_ENABLE} /tmp/mezzanine/gpio/REG_2V5_ENABLE
+
+# Power on (48V) (Active High)
+gpio_set ${PS_ON} 1
+ln -s /sys/class/gpio/gpio${PS_ON} /tmp/mezzanine/gpio/PS_ON
+sleep 3
+
 # I2C resets, export them as inputs
 
 # Active low reset, so put them in normal mode when we turn them to outputs.
@@ -92,13 +101,6 @@ ln -s /sys/class/gpio/gpio${DB_I2C_RST} /tmp/mezzanine/gpio/DB_I2C_RST
 gpio_set ${EEPROM_WP} 0
 ln -s /sys/class/gpio/gpio${EEPROM_WP} /tmp/mezzanine/gpio/EEPROM_WP
 
-# 2v5 enable, turns on the retimers
-gpio_set ${REG_2V5_ENABLE} 0
-ln -s /sys/class/gpio/gpio${REG_2V5_ENABLE} /tmp/mezzanine/gpio/REG_2V5_ENABLE
-
-# Power on (48V)
-gpio_set ${PS_ON} 0
-ln -s /sys/class/gpio/gpio${PS_ON} /tmp/mezzanine/gpio/PS_ON
 
 # Release reset on retimers, and turn power on
 gpio_set ${RETIMER_RESET} 1

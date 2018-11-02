@@ -546,7 +546,7 @@ server_48v_on(uint8_t slot_id) {
     return 1;
   }
   printf("MPK: Turning on main PS_ON\n");
-  if (write_device(vpath, GPIO_LOW)) {
+  if (write_device(vpath, GPIO_HIGH)) {
     return -1;
   }
 
@@ -597,7 +597,7 @@ server_48v_off(uint8_t slot_id) {
 
     // Set it off
     printf("MPK: Turning off main PS_ON\n");
-    if (write_device(vpath, GPIO_LOW)) {
+    if (write_device(vpath, GPIO_HIGH)) {
       return -1;
     }
   }
@@ -780,7 +780,7 @@ pal_is_server_12v_on(uint8_t slot_id, uint8_t *status) {
 
   // PS is on and slot is "masked as being on", PS_ON is active low
   // MPK Changed this to just say if the PS_ON is set, we'll ignore the rest
-  if ( (val == 0x0) /* && ((power_mask & (1<<slot_id)) != 0x0 ) */ ) {
+  if ( (val == 0x1) /* && ((power_mask & (1<<slot_id)) != 0x0 ) */ ) {
     *status = 1;
   } else {
     *status = 0;
