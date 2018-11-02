@@ -33,4 +33,5 @@ SRC_URI += "file://plat_tree.py \
            file://node_config.py \
            file://node_jtag.py \
            file://slot_names.py \
+           file://node_bootmode.py \
           "
