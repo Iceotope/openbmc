@@ -181,6 +181,8 @@ ln -s /sys/bus/i2c/drivers/at24/1-0050/eeprom /tmp/mezzanine/eeprom
 
 # IO Expander dealing with the JTAG expander, May or may not be present..
 # Loop for a device first
+#Force a reconfig of the driver.
+echo -n "1-0077" > /sys/bus/i2c/drivers/pca953x/bind 2>/dev/null
 
 if [ -d "/sys/bus/i2c/drivers/pca953x/1-0077" ]; then
   echo "JTAQ I/O Expander detected, configuring"
