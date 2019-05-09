@@ -4,6 +4,6 @@
 # already
 #
 program_flash -f ./boot.bin -fsbl ./zynq_fsbl.elf \
-  -flash_type qspi_single -blank_check -verify -cable type xilinx_tcf \
+  -flash_type qspi_single -verify -cable type xilinx_tcf \
   url tcp:localhost:3121
 
