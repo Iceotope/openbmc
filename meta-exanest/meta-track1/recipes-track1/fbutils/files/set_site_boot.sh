@@ -70,5 +70,5 @@ if [ ! -z "$2" ]; then
   esac
 
 ## Set the new value
-  /usr/bin/kv set slot${1}_boot_order ${NEW_BOOT} persistent
+  /usr/bin/kv set slot${slot_id}_boot_order ${NEW_BOOT} persistent
 fi
