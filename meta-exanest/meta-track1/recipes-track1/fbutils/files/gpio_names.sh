@@ -140,11 +140,11 @@ declare -a SITE_HIGHIO_DIR_DEFAULT_KDB=( "in" \
   "low" \
   "low" \
   "high" \
-  "high" \
-  "in" \
-  "in" \
-  "in" \
   "low" \
+  "in" \
+  "in" \
+  "in" \
+  "in" \
   "high" \
   "low" \
   "high" )
@@ -175,7 +175,7 @@ declare -a SITE_HIGHIO_DIR_DEFAULT_QFDB=( "in" \
   "low" \
   "low" \
   "high" \
-  "high" \
+  "low" \
   "in" \
   "in" \
   "in" \
@@ -223,3 +223,11 @@ declare -a JTAG_DIR_DEFAULT=( "high" \
   "low" \
   "in" \
   "in" )
+
+# GigE phy reset bit
+GIGE_RSTn=24
+#
+LED_PWRUP=31
+LED_PWRDN=30
+LED_PWRCHANGE=29
+

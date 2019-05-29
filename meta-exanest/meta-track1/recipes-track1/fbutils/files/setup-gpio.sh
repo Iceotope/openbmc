@@ -410,6 +410,12 @@ do
 
 done
 
+# Release resets on GigE Phys across all sites.
+# the TPDB slots are dummy, so changing the reset does not matter on them.
+for i in `seq 1 ${MAX_SITE}`
+do	 
+  echo "1" > /tmp/mezzanine/site_${i}/gpio/IO/${GIGE_RSTn}/value  
+done
 
 # Yosemite OOM remediation
 #   enable kernel panic (force reboot)
